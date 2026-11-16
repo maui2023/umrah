@@ -11,6 +11,17 @@ export class HUD {
   private currentZiarahSpot: ZiarahSpot | null = null;
   private currentZiarahIndex: number = 0;
 
+  // Auto-hide Card Timers & State (3 seconds auto-hide)
+  private titleCardTimer: number | null = null;
+  private descCardTimer: number | null = null;
+  public isTitleCardHidden: boolean = false;
+  public isDescCardHidden: boolean = false;
+
+  private titleCardEl!: HTMLElement;
+  private titleMiniPillEl!: HTMLElement;
+  private descCardEl!: HTMLElement;
+  private descDockedTabEl!: HTMLElement;
+
   public groupMembers: PlayerData[] = [];
   public mutawwifPlayer: PlayerData | null = null;
   public isLocalMutawwif: boolean = false;
@@ -38,6 +49,16 @@ export class HUD {
     document.body.appendChild(this.container);
     this.render();
     this.setupJoystick();
+
+    // Cache card element references after render
+    this.titleCardEl = this.container.querySelector('#hud-title-card') as HTMLElement;
+    this.titleMiniPillEl = this.container.querySelector('#hud-title-mini-pill') as HTMLElement;
+    this.descCardEl = this.container.querySelector('#hud-desc-card') as HTMLElement;
+    this.descDockedTabEl = this.container.querySelector('#hud-desc-docked-tab') as HTMLElement;
+
+    // Start 3-second auto-hide timers for both cards on initial load
+    this.startTitleCardTimer(3);
+    this.startDescCardTimer(3);
   }
 
   public registerCallbacks(options: {
@@ -70,24 +91,233 @@ export class HUD {
 
   public toggleRosterHide(_force?: boolean) {}
   public toggleDuaHide(_force?: boolean) {}
-  public toggleAllUI() {}
+
+  public startTitleCardTimer(seconds: number = 3) {
+    this.clearTitleCardTimer();
+
+    const bar = this.container.querySelector('#hud-title-countdown-bar') as HTMLElement;
+    if (bar) {
+      bar.style.transition = 'none';
+      bar.style.width = '100%';
+      void bar.offsetWidth;
+      bar.style.transition = `width ${seconds}s linear`;
+      bar.style.width = '0%';
+    }
+
+    this.titleCardTimer = window.setTimeout(() => {
+      this.hideTitleCard();
+    }, seconds * 1000);
+  }
+
+  public clearTitleCardTimer() {
+    if (this.titleCardTimer !== null) {
+      window.clearTimeout(this.titleCardTimer);
+      this.titleCardTimer = null;
+    }
+    const bar = this.container.querySelector('#hud-title-countdown-bar') as HTMLElement;
+    if (bar) {
+      const computed = window.getComputedStyle(bar).width;
+      bar.style.transition = 'none';
+      bar.style.width = computed;
+    }
+  }
+
+  public hideTitleCard() {
+    this.isTitleCardHidden = true;
+    this.clearTitleCardTimer();
+
+    if (this.titleCardEl) {
+      this.titleCardEl.classList.add('is-hidden-up');
+    }
+
+    const locationTitleEl = this.container.querySelector('#hud-location-title');
+    const miniTitleEl = this.container.querySelector('#hud-mini-location-title');
+    if (locationTitleEl && miniTitleEl) {
+      miniTitleEl.textContent = locationTitleEl.textContent;
+    }
+
+    if (this.titleMiniPillEl) {
+      this.titleMiniPillEl.style.display = 'flex';
+    }
+
+    this.updateDockedTabPosition();
+  }
+
+  public showTitleCard(autoHideSeconds: number = 3) {
+    this.isTitleCardHidden = false;
+    this.clearTitleCardTimer();
+
+    if (this.titleCardEl) {
+      this.titleCardEl.classList.remove('is-hidden-up');
+    }
+
+    if (this.titleMiniPillEl) {
+      this.titleMiniPillEl.style.display = 'none';
+    }
+
+    this.updateDockedTabPosition();
+
+    if (autoHideSeconds > 0) {
+      this.startTitleCardTimer(autoHideSeconds);
+    }
+  }
+
+  public toggleTitleCard() {
+    if (this.isTitleCardHidden) {
+      this.showTitleCard(3);
+    } else {
+      this.hideTitleCard();
+    }
+  }
+
+  public startDescCardTimer(seconds: number = 3) {
+    this.clearDescCardTimer();
+
+    const bar = this.container.querySelector('#hud-desc-countdown-bar') as HTMLElement;
+    const badge = this.container.querySelector('#hud-desc-timer-badge') as HTMLElement;
+    if (bar) {
+      bar.style.transition = 'none';
+      bar.style.width = '100%';
+      void bar.offsetWidth;
+      bar.style.transition = `width ${seconds}s linear`;
+      bar.style.width = '0%';
+    }
+    if (badge) {
+      badge.textContent = `${seconds}s`;
+    }
+
+    this.descCardTimer = window.setTimeout(() => {
+      this.hideDescCard();
+    }, seconds * 1000);
+  }
+
+  public clearDescCardTimer() {
+    if (this.descCardTimer !== null) {
+      window.clearTimeout(this.descCardTimer);
+      this.descCardTimer = null;
+    }
+    const bar = this.container.querySelector('#hud-desc-countdown-bar') as HTMLElement;
+    const badge = this.container.querySelector('#hud-desc-timer-badge') as HTMLElement;
+    if (bar) {
+      const computed = window.getComputedStyle(bar).width;
+      bar.style.transition = 'none';
+      bar.style.width = computed;
+    }
+    if (badge) {
+      badge.textContent = 'jeda';
+    }
+  }
+
+  public hideDescCard() {
+    this.isDescCardHidden = true;
+    this.clearDescCardTimer();
+
+    if (this.descCardEl) {
+      this.descCardEl.classList.add('is-hidden-side');
+    }
+    if (this.descDockedTabEl) {
+      this.descDockedTabEl.style.display = 'flex';
+      this.updateDockedTabPosition();
+    }
+  }
+
+  public showDescCard(autoHideSeconds: number = 3) {
+    this.isDescCardHidden = false;
+    this.clearDescCardTimer();
+
+    if (this.descCardEl) {
+      this.descCardEl.classList.remove('is-hidden-side');
+    }
+    if (this.descDockedTabEl) {
+      this.descDockedTabEl.style.display = 'none';
+    }
+
+    this.updateDockedTabPosition();
+
+    if (autoHideSeconds > 0) {
+      this.startDescCardTimer(autoHideSeconds);
+    }
+  }
+
+  public toggleDescCard() {
+    if (this.isDescCardHidden) {
+      this.showDescCard(3);
+    } else {
+      this.hideDescCard();
+    }
+  }
+
+  public updateDockedTabPosition() {
+    if (!this.descDockedTabEl) return;
+    if (this.isTitleCardHidden) {
+      if (this.titleMiniPillEl && this.titleMiniPillEl.style.display !== 'none') {
+        const pillRect = this.titleMiniPillEl.getBoundingClientRect();
+        this.descDockedTabEl.style.top = Math.max(54, Math.round(pillRect.bottom + 8)) + 'px';
+      } else {
+        this.descDockedTabEl.style.top = '54px';
+      }
+    } else if (this.titleCardEl && !this.titleCardEl.classList.contains('is-hidden-up')) {
+      const titleRect = this.titleCardEl.getBoundingClientRect();
+      this.descDockedTabEl.style.top = Math.max(140, Math.round(titleRect.bottom + 8)) + 'px';
+    } else {
+      this.descDockedTabEl.style.top = '140px';
+    }
+  }
+
+  public toggleAllUI() {
+    const shouldHide = !this.isTitleCardHidden || !this.isDescCardHidden;
+    if (shouldHide) {
+      this.hideTitleCard();
+      this.hideDescCard();
+    } else {
+      this.showTitleCard(3);
+      this.showDescCard(3);
+    }
+  }
 
   private render() {
     this.container.innerHTML = `
+      <!-- DOCKED TAB: Appears docked on the left edge when Card 2 (Info) is auto/manually hidden to the side -->
+      <button id="hud-desc-docked-tab" style="display: none;" title="Papar Info & Panduan" class="hud-docked-tab-anim interactive-ui pointer-events-auto fixed left-0 top-[140px] z-40 flex items-center gap-1.5 px-3 py-2 rounded-r-2xl bg-white/95 backdrop-blur-md shadow-[2px_6px_20px_rgba(0,0,0,0.12)] border-y border-r border-stone-200/80 text-stone-800 text-xs font-semibold hover:bg-stone-50 active:scale-95 transition-all cursor-pointer">
+        <span class="text-sm">📖</span>
+        <span class="font-medium text-stone-800">Info & Panduan</span>
+        <span class="text-stone-400 text-[10px]">▶</span>
+      </button>
+
       <!-- TOP LAYER: HEADER CARD (Left) & ACTION BUTTON STACK (Right) -->
       <div class="w-full flex items-start justify-between pointer-events-none">
         
         <!-- TOP-LEFT: MINIMALIST MODERN LOCATION & PROGRESS CARD (Exactly matches screenshot) -->
         <div class="pointer-events-auto flex flex-col gap-2 max-w-[320px] sm:max-w-[370px] w-[90vw]">
           
+          <!-- Mini Pill for Title Card (Shown when Card 1 is auto-hidden upwards) -->
+          <button id="hud-title-mini-pill" style="display: none;" title="Papar Info Umrah Simulator" class="hud-mini-pill-anim interactive-ui self-start flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 text-xs font-medium hover:bg-stone-50 active:scale-95 transition cursor-pointer">
+            <span class="inline-block w-2.5 h-[2px] bg-[#C5A880] rounded-full"></span>
+            <span class="text-[10px] font-bold tracking-wider text-stone-500 uppercase">UMRAH</span>
+            <span class="text-stone-300">•</span>
+            <span id="hud-mini-location-title" class="font-serif font-medium text-stone-900 truncate max-w-[170px] sm:max-w-[210px]">Saqifah Bani Saedah</span>
+            <span class="text-stone-400 text-[10px] ml-0.5">▼</span>
+          </button>
+
           <!-- Card 1: Main Simulator & Location Title & Progress Indicator -->
-          <div class="bg-white/95 backdrop-blur-md rounded-2xl p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-stone-200/60 text-stone-900 transition-all">
-            <!-- Subtitle with amber bar -->
-            <div class="flex items-center gap-2 mb-1.5">
-              <span class="inline-block w-4 h-[2px] bg-[#C5A880] rounded-full"></span>
-              <span id="hud-category-label" class="text-[10px] sm:text-[11px] font-bold tracking-[0.22em] text-[#78716C] uppercase">
-                UMRAH SIMULATOR
-              </span>
+          <div id="hud-title-card" class="hud-title-card-anim bg-white/95 backdrop-blur-md rounded-2xl p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-stone-200/60 text-stone-900 transition-all relative overflow-hidden">
+            <!-- 3s Auto-hide Countdown Line -->
+            <div class="absolute top-0 left-0 right-0 h-[2px] bg-stone-100 overflow-hidden">
+              <div id="hud-title-countdown-bar" class="h-full bg-gradient-to-r from-[#C5A880] to-amber-500 w-full origin-left transition-all duration-[3000ms] ease-linear"></div>
+            </div>
+
+            <!-- Header row with amber bar & quick hide up button -->
+            <div class="flex items-center justify-between mb-1.5 pt-0.5">
+              <div class="flex items-center gap-2">
+                <span class="inline-block w-4 h-[2px] bg-[#C5A880] rounded-full"></span>
+                <span id="hud-category-label" class="text-[10px] sm:text-[11px] font-bold tracking-[0.22em] text-[#78716C] uppercase">
+                  UMRAH SIMULATOR
+                </span>
+              </div>
+              <button id="btn-hide-title-card" title="Sembunyi ke atas sekarang" class="interactive-ui p-1 -mr-1 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition cursor-pointer text-xs flex items-center gap-1">
+                <span class="text-[9px] text-stone-400 hidden sm:inline">3s</span>
+                <span>▲</span>
+              </button>
             </div>
 
             <!-- Big Serif Location Heading -->
@@ -103,8 +333,28 @@ export class HUD {
             </div>
           </div>
 
-          <!-- Card 2: Clean Description Subcard -->
-          <div id="hud-desc-card" class="bg-white/95 backdrop-blur-md rounded-2xl p-3.5 sm:p-4 shadow-[0_6px_20px_rgba(0,0,0,0.04)] border border-stone-200/60 text-[13px] sm:text-[14px] leading-relaxed text-stone-700 transition-all">
+          <!-- Card 2: Clean Description Subcard (Matches screenshot with 3-second auto-hide) -->
+          <div id="hud-desc-card" class="hud-desc-card-anim bg-white/95 backdrop-blur-md rounded-2xl p-3.5 sm:p-4 shadow-[0_6px_20px_rgba(0,0,0,0.04)] border border-stone-200/60 text-[13px] sm:text-[14px] leading-relaxed text-stone-700 transition-all relative overflow-hidden">
+            <!-- 3s Auto-hide Countdown Line -->
+            <div class="absolute top-0 left-0 right-0 h-[2.5px] bg-stone-100 overflow-hidden">
+              <div id="hud-desc-countdown-bar" class="h-full bg-gradient-to-r from-[#C5A880] to-amber-500 w-full origin-left transition-all duration-[3000ms] ease-linear"></div>
+            </div>
+
+            <!-- Header with Title, 3s Auto-Hide Indicator & Hide button -->
+            <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-stone-100 pt-0.5">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] font-bold tracking-wider text-stone-500 uppercase flex items-center gap-1.5">
+                  <span>📖</span>
+                  <span>INFO & PANDUAN</span>
+                </span>
+                <span id="hud-desc-timer-badge" title="Auto-hide dalam 3 saat" class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200/60 font-mono font-medium">3s</span>
+              </div>
+              <button id="btn-hide-desc-card" title="Sembunyi info ke tepi sekarang" class="interactive-ui flex items-center gap-1 text-[11px] font-medium text-stone-500 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 px-2 py-0.5 rounded-lg transition cursor-pointer active:scale-95">
+                <span>◀</span>
+                <span>Sembunyi</span>
+              </button>
+            </div>
+
             <p id="hud-desc-text" class="text-stone-700 font-normal">
               Selamat datang ke Madinah Munawwarah. Sila ikuti mutawwif untuk memulakan ziarah tempat bersejarah sebelum ke Miqat Bir Ali.
             </p>
@@ -238,6 +488,58 @@ export class HUD {
   }
 
   private attachEventListeners() {
+    // === AUTO-HIDE & CLICK-TO-SHOW LISTENERS ===
+
+    // Title Card: manual hide button (▲)
+    const hideTitleBtn = this.container.querySelector('#btn-hide-title-card') as HTMLButtonElement;
+    hideTitleBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.hideTitleCard();
+    });
+
+    // Title Card: click anywhere on card pauses/restarts auto-hide timer
+    const titleCard = this.container.querySelector('#hud-title-card') as HTMLElement;
+    titleCard?.addEventListener('click', () => {
+      // If timer is running, pause it; otherwise restart
+      if (this.titleCardTimer !== null) {
+        this.clearTitleCardTimer();
+      } else if (!this.isTitleCardHidden) {
+        this.startTitleCardTimer(3);
+      }
+    });
+
+    // Mini Pill: click to show title card again (with 3s auto-hide)
+    const titleMiniPill = this.container.querySelector('#hud-title-mini-pill') as HTMLButtonElement;
+    titleMiniPill?.addEventListener('click', () => {
+      this.showTitleCard(3);
+    });
+
+    // Desc Card: manual hide button (◀ Sembunyi)
+    const hideDescBtn = this.container.querySelector('#btn-hide-desc-card') as HTMLButtonElement;
+    hideDescBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.hideDescCard();
+    });
+
+    // Desc Card: click anywhere on card pauses/restarts auto-hide timer
+    const descCard = this.container.querySelector('#hud-desc-card') as HTMLElement;
+    descCard?.addEventListener('click', () => {
+      // If timer is running, pause it; otherwise restart
+      if (this.descCardTimer !== null) {
+        this.clearDescCardTimer();
+      } else if (!this.isDescCardHidden) {
+        this.startDescCardTimer(3);
+      }
+    });
+
+    // Docked Tab: click to show desc card again (with 3s auto-hide)
+    const descDockedTab = this.container.querySelector('#hud-desc-docked-tab') as HTMLButtonElement;
+    descDockedTab?.addEventListener('click', () => {
+      this.showDescCard(3);
+    });
+
+    // === END AUTO-HIDE LISTENERS ===
+
     // 1. Top Itinerary Button (Book Icon)
     const itineraryBtn = this.container.querySelector('#btn-top-itinerary') as HTMLButtonElement;
     itineraryBtn?.addEventListener('click', () => {
@@ -502,6 +804,10 @@ export class HUD {
     // Update segmented pills
     const activeSegment = Math.max(1, Math.min(8, Math.round(((index + 1) / total) * 8)));
     this.updateSegmentPills(activeSegment, 8);
+
+    // Re-show both cards with 3s auto-hide when navigating to a new spot
+    this.showTitleCard(3);
+    this.showDescCard(3);
   }
 
   public updateStage(stage: UmrahStage) {
@@ -548,6 +854,10 @@ export class HUD {
       if (actionIcon) actionIcon.innerText = '🏆';
       this.updateSegmentPills(7, 7);
     }
+
+    // Re-show both cards with 3s auto-hide when stage changes
+    this.showTitleCard(3);
+    this.showDescCard(3);
   }
 
   public setNearBusDoor(isNear: boolean) {

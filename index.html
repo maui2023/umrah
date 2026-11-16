@@ -2,7 +2,11 @@
 <html lang="ms">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#0f172a" />
     <title>Simulasi Ibadah Umrah 3D - Masjidil Haram & Sistem Rombongan</title>
     
     <!-- Fonts -->
@@ -27,6 +31,12 @@
     </script>
 
     <style>
+      :root {
+        --sat: env(safe-area-inset-top, 0px);
+        --sab: env(safe-area-inset-bottom, 0px);
+        --sal: env(safe-area-inset-left, 0px);
+        --sar: env(safe-area-inset-right, 0px);
+      }
       * {
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
@@ -37,7 +47,10 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
+        overscroll-behavior: none;
         background-color: #0f172a;
+        -webkit-user-select: none;
+        user-select: none;
       }
       #canvas-container {
         position: absolute;
@@ -60,6 +73,110 @@
       }
       ::-webkit-scrollbar-thumb:hover {
         background: rgba(16, 185, 129, 0.8);
+      }
+
+      /* Safe-area padded HUD container */
+      #umrah-hud-overlay {
+        padding-top: max(10px, env(safe-area-inset-top, 10px));
+        padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
+        padding-left: max(12px, env(safe-area-inset-left, 12px));
+        padding-right: max(12px, env(safe-area-inset-right, 12px));
+      }
+
+      /* HUD Animations & Auto-hide / Manual-hide transitions */
+      .hud-title-card-anim {
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                    opacity 0.3s ease,
+                    max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                    margin 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                    padding 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: transform, opacity, max-height;
+        max-height: 240px;
+        overflow: hidden;
+      }
+
+      .hud-title-card-anim.is-hidden-up {
+        transform: translateY(-130%);
+        opacity: 0;
+        pointer-events: none;
+        max-height: 0px !important;
+        margin-top: 0px !important;
+        margin-bottom: 0px !important;
+        padding-top: 0px !important;
+        padding-bottom: 0px !important;
+        border-width: 0px !important;
+        overflow: hidden !important;
+      }
+
+      .hud-desc-card-anim {
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                    opacity 0.3s ease,
+                    max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                    margin 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                    padding 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: transform, opacity, max-height;
+        max-height: 320px;
+        overflow: hidden;
+      }
+
+      .hud-desc-card-anim.is-hidden-side {
+        transform: translateX(calc(-100% - 24px));
+        opacity: 0;
+        pointer-events: none;
+        max-height: 0px !important;
+        margin-top: 0px !important;
+        margin-bottom: 0px !important;
+        padding-top: 0px !important;
+        padding-bottom: 0px !important;
+        border-width: 0px !important;
+        overflow: hidden !important;
+      }
+
+      .hud-mini-pill-anim {
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+        will-change: transform, opacity;
+        animation: hudFadeDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      .hud-docked-tab-anim {
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+        will-change: transform, opacity;
+        animation: hudSlideRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      @keyframes hudFadeDown {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes hudSlideRight {
+        from {
+          opacity: 0;
+          transform: translateX(-16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      /* Compact mode for landscape phones */
+      @media (max-height: 500px) {
+        #umrah-hud-overlay {
+          padding-top: max(6px, env(safe-area-inset-top, 6px));
+          padding-bottom: max(6px, env(safe-area-inset-bottom, 6px));
+        }
+        .hud-title-card-anim h1 {
+          font-size: 1.125rem !important;
+          margin-top: 0.125rem !important;
+          margin-bottom: 0.125rem !important;
+        }
       }
     </style>
   </head>
