@@ -235,7 +235,7 @@ export class UmrahWorkflow {
     this.onLapChangedCallback?.('tawaf', this.tawafLap);
 
     soundManager.playCheckpointSound();
-    this.onTeleportRequestedCallback?.(18, 18, Math.PI / 4);
+    this.onTeleportRequestedCallback?.(18, 18, -3 * Math.PI / 4);
 
     this.onDuaTriggeredCallback?.(
       ISTILAM_DUA,

@@ -349,12 +349,12 @@ export class HUD {
 
         <!-- Mobile Touch Joystick & Sprint (Visible on mobile/tablet) -->
         <div class="w-full flex items-center justify-between px-2 sm:hidden pointer-events-none pb-1">
-          <div id="touch-joystick-zone" class="pointer-events-auto relative w-24 h-24 rounded-full bg-slate-900/60 border-2 border-slate-700/80 backdrop-blur-sm flex items-center justify-center">
+          <div id="touch-joystick-zone" class="interactive-ui pointer-events-auto relative w-24 h-24 rounded-full bg-slate-900/60 border-2 border-slate-700/80 backdrop-blur-sm flex items-center justify-center">
             <div id="touch-joystick-thumb" class="w-10 h-10 rounded-full bg-emerald-500/80 shadow-md transform transition-transform pointer-events-none"></div>
           </div>
 
           <div class="pointer-events-auto flex flex-col gap-2">
-            <button id="btn-mobile-sprint" class="w-14 h-14 rounded-full bg-emerald-600/90 active:bg-emerald-500 text-slate-950 font-bold text-xs flex flex-col items-center justify-center shadow-lg border-2 border-emerald-400">
+            <button id="btn-mobile-sprint" class="interactive-ui w-14 h-14 rounded-full bg-emerald-600/90 active:bg-emerald-500 text-slate-950 font-bold text-xs flex flex-col items-center justify-center shadow-lg border-2 border-emerald-400">
               <span class="text-base">⚡</span>
               <span class="text-[9px]">Lari</span>
             </button>
@@ -525,10 +525,20 @@ export class HUD {
     };
     sprintBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
+      e.stopPropagation();
       toggleSprint(true);
-    });
+    }, { passive: false });
     sprintBtn.addEventListener('touchend', (e) => {
       e.preventDefault();
+      e.stopPropagation();
+      toggleSprint(false);
+    }, { passive: false });
+    sprintBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSprint(true);
+    });
+    window.addEventListener('mouseup', () => {
       toggleSprint(false);
     });
   }
@@ -539,16 +549,19 @@ export class HUD {
     if (!zone || !thumb) return;
 
     let touchId: number | null = null;
+    let isMouseDown = false;
     let center = { x: 0, y: 0 };
     const maxRadius = 38;
 
+    // Touch Support for Mobile
     zone.addEventListener('touchstart', (e) => {
       e.preventDefault();
+      e.stopPropagation();
       const touch = e.changedTouches[0];
       touchId = touch.identifier;
       const rect = zone.getBoundingClientRect();
       center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    });
+    }, { passive: false });
 
     window.addEventListener('touchmove', (e) => {
       if (touchId === null) return;
@@ -572,18 +585,52 @@ export class HUD {
           break;
         }
       }
-    });
+    }, { passive: true });
 
     const resetJoystick = () => {
       touchId = null;
+      isMouseDown = false;
       thumb.style.transform = 'translate(0px, 0px)';
       if (this.onJoystickMoveCallback) {
         this.onJoystickMoveCallback(0, 0);
       }
     };
 
-    window.addEventListener('touchend', resetJoystick);
-    window.addEventListener('touchcancel', resetJoystick);
+    window.addEventListener('touchend', resetJoystick, { passive: true });
+    window.addEventListener('touchcancel', resetJoystick, { passive: true });
+
+    // Mouse Support for Desktop & Browser Testing
+    zone.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      isMouseDown = true;
+      const rect = zone.getBoundingClientRect();
+      center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isMouseDown) return;
+      const dx = e.clientX - center.x;
+      const dy = e.clientY - center.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const clampedDist = Math.min(dist, maxRadius);
+      const angle = Math.atan2(dy, dx);
+
+      const nx = Math.cos(angle) * clampedDist;
+      const ny = Math.sin(angle) * clampedDist;
+
+      thumb.style.transform = `translate(${nx}px, ${ny}px)`;
+
+      if (this.onJoystickMoveCallback) {
+        this.onJoystickMoveCallback(nx / maxRadius, ny / maxRadius);
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isMouseDown) {
+        resetJoystick();
+      }
+    });
   }
 
   /**

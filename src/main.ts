@@ -84,7 +84,7 @@ class UmrahSimulationApp {
     const initX = startAtMadinah ? -130 : 18;
     const initY = 0;
     const initZ = startAtMadinah ? -8 : 18;
-    const initRot = startAtMadinah ? -Math.PI / 2 : Math.PI / 4;
+    const initRot = startAtMadinah ? -Math.PI / 2 : -3 * Math.PI / 4;
 
     this.playerData = {
       id: playerId,
@@ -117,19 +117,13 @@ class UmrahSimulationApp {
     this.localAvatar.group.rotation.y = this.playerData.rotation;
     this.scene.add(this.localAvatar.group);
 
-    // 2. Initialize Player Controller
+    // 2. Initialize Player Controller (True 3rd-Person PUBG style camera)
     this.playerController = new PlayerController(
       this.localAvatar,
       this.camera,
       this.renderer.domElement,
       this.playerData.rotation
     );
-
-    // Initial camera position for Madinah scenic overview
-    if (startAtMadinah) {
-      this.camera.position.set(initX + 8, 4.5, initZ + 6);
-      this.camera.lookAt(initX - 4, 1.8, initZ);
-    }
 
     // 3. Initialize HUD
     this.hud = new HUD();
@@ -211,7 +205,7 @@ class UmrahSimulationApp {
         } else if (loc === 'miqat_bir_ali') {
           this.playerController.teleport(-155, 25, 0);
         } else if (loc === 'hajar_aswad') {
-          this.playerController.teleport(18, 18, Math.PI / 4);
+          this.playerController.teleport(18, 18, -3 * Math.PI / 4);
         } else if (loc === 'maqam_ibrahim') {
           this.playerController.teleport(14, 4.5, -Math.PI / 2);
         } else if (loc === 'zamzam') {
