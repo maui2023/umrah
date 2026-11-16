@@ -16,6 +16,10 @@ export class HUD {
   private isLocalMutawwif: boolean = false;
   private localPlayerPos = { x: 0, z: 0, rotation: 0 };
 
+  // Collapsible UI states
+  private isRosterHidden: boolean = false;
+  private isDuaHidden: boolean = false;
+
   // Callbacks
   private onTeleportCallback: ((location: string) => void) | null = null;
   private onActionButtonCallback: ((action: string) => void) | null = null;
@@ -32,6 +36,48 @@ export class HUD {
     document.body.appendChild(this.container);
     this.render();
     this.setupJoystick();
+  }
+
+  public toggleRosterHide(force?: boolean) {
+    this.isRosterHidden = force !== undefined ? force : !this.isRosterHidden;
+    const rosterCard = this.container.querySelector('#group-roster-card') as HTMLElement;
+    const edgeTab = this.container.querySelector('#btn-roster-edge-tab') as HTMLElement;
+
+    if (this.isRosterHidden) {
+      rosterCard?.classList.add('-translate-x-[115%]', 'opacity-0', 'pointer-events-none');
+      edgeTab?.classList.remove('hidden');
+    } else {
+      rosterCard?.classList.remove('-translate-x-[115%]', 'opacity-0', 'pointer-events-none');
+      edgeTab?.classList.add('hidden');
+    }
+  }
+
+  public toggleDuaHide(force?: boolean) {
+    this.isDuaHidden = force !== undefined ? force : !this.isDuaHidden;
+    const duaCard = this.container.querySelector('#dua-card') as HTMLElement;
+    const collapsedBar = this.container.querySelector('#dua-collapsed-bar') as HTMLElement;
+
+    if (this.isDuaHidden) {
+      duaCard?.classList.add('hidden');
+      collapsedBar?.classList.remove('hidden');
+    } else {
+      duaCard?.classList.remove('hidden');
+      collapsedBar?.classList.add('hidden');
+    }
+  }
+
+  public toggleAllUI() {
+    if (!this.isRosterHidden || !this.isDuaHidden) {
+      this.toggleRosterHide(true);
+      this.toggleDuaHide(true);
+    } else {
+      this.toggleRosterHide(false);
+      this.toggleDuaHide(false);
+    }
+    const icon = this.container.querySelector('#view-mode-icon') as HTMLElement;
+    if (icon) {
+      icon.innerText = (this.isRosterHidden && this.isDuaHidden) ? '👁️‍🗨️' : '👁️';
+    }
   }
 
   public registerCallbacks(options: {
@@ -65,7 +111,7 @@ export class HUD {
           </div>
 
           <div id="hud-lap-container" class="flex items-center gap-2">
-            <span id="hud-lap-text" class="text-xs font-semibold text-slate-300">Lokasi 1/15: Saqifah Bani Saedah</span>
+            <span id="hud-lap-text" class="text-xs font-semibold text-slate-300">Lokasi 1/20: Saqifah Bani Saedah</span>
             <div id="hud-lap-dots" class="hidden sm:flex items-center gap-1">
               ${[1, 2, 3, 4, 5, 6, 7].map(i => `
                 <div class="lap-dot w-2 h-2 rounded-full bg-slate-700 transition" data-lap="${i}"></div>
@@ -76,6 +122,11 @@ export class HUD {
 
         <!-- Center / Right: Quick Teleport, Itinerary, Audio & Guide -->
         <div class="flex items-center gap-1.5 sm:gap-2">
+          <!-- Toggle View Mode / Sembunyi Semua Menu -->
+          <button id="btn-toggle-view-mode" title="Mod Paparan Bebas (Sembunyi / Papar UI)" class="interactive-ui p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 hover:text-white transition cursor-pointer">
+            <span id="view-mode-icon">👁️</span>
+          </button>
+
           <!-- Teleport Dropdown -->
           <div class="relative">
             <select id="teleport-select" class="interactive-ui bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-emerald-500 cursor-pointer max-w-[140px] sm:max-w-none truncate">
@@ -127,16 +178,29 @@ export class HUD {
       </div>
 
       <!-- MIDDLE LAYER: GROUP ROSTER & COMPASS (Left) -->
-      <div class="flex-1 flex items-start justify-between py-2 sm:py-3 pointer-events-none">
+      <div class="flex-1 flex items-start justify-between py-2 sm:py-3 pointer-events-none relative">
         
+        <!-- Floating Edge Tab (Visible when Roster is hidden to the side) -->
+        <button id="btn-roster-edge-tab" title="Papar Senarai Ahli & Kompas" class="interactive-ui pointer-events-auto hidden fixed left-0 top-24 sm:top-28 z-40 flex items-center gap-1.5 px-3 py-2 rounded-r-2xl bg-slate-900/95 hover:bg-slate-800 backdrop-blur-md border-y border-r border-emerald-500/50 text-emerald-300 shadow-2xl text-xs font-semibold transition-all duration-300 active:scale-95 cursor-pointer">
+          <span class="text-base">👥</span>
+          <span id="hud-edge-member-text" class="text-[11px] font-medium text-slate-200">1 Ahli</span>
+          <span class="text-[10px] text-emerald-400">▶</span>
+        </button>
+
         <!-- Group Roster Widget -->
-        <div id="group-roster-card" class="pointer-events-auto bg-slate-900/85 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 sm:p-3 shadow-xl max-w-xs w-60 sm:w-64 text-white text-xs transition duration-200">
+        <div id="group-roster-card" class="pointer-events-auto bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 sm:p-3 shadow-2xl max-w-xs w-60 sm:w-64 text-white text-xs transition-all duration-300 ease-out origin-left">
           <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-700/60">
-            <div class="flex items-center gap-1.5 font-bold">
-              <span id="hud-group-color-dot" class="w-3 h-3 rounded-full bg-emerald-500"></span>
-              <span id="hud-group-name">Kumpulan Safwa</span>
+            <div class="flex items-center gap-1.5 font-bold truncate">
+              <span id="hud-group-color-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+              <span id="hud-group-name" class="truncate">Kumpulan Safwa</span>
             </div>
-            <span id="hud-member-count" class="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-300">1 Ahli</span>
+            <div class="flex items-center gap-1 shrink-0">
+              <span id="hud-member-count" class="px-1.5 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-300">1 Ahli</span>
+              <button id="btn-toggle-roster-hide" title="Sembunyi ke tepi" class="interactive-ui flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[10px] transition cursor-pointer">
+                <span>◀</span>
+                <span class="font-medium">Sembunyi</span>
+              </button>
+            </div>
           </div>
 
           <!-- Compass to Mutawwif -->
@@ -160,28 +224,34 @@ export class HUD {
       </div>
 
       <!-- BOTTOM LAYER: INTERACTIVE DUA & GUIDELINE CARD & TOUCH CONTROLS -->
-      <div class="pointer-events-auto flex flex-col items-center gap-2 sm:gap-3 w-full">
+      <div class="pointer-events-none flex flex-col items-center gap-2 sm:gap-3 w-full">
         
         <!-- Floating Dua & Guideline Card -->
-        <div id="dua-card" class="w-full max-w-2xl bg-slate-900/95 backdrop-blur-lg border border-emerald-500/40 rounded-2xl p-3.5 sm:p-5 shadow-2xl text-white transition duration-300 transform">
+        <div id="dua-card" class="pointer-events-auto w-full max-w-2xl bg-slate-900/95 backdrop-blur-lg border border-emerald-500/40 rounded-2xl p-3 sm:p-5 shadow-2xl text-white transition-all duration-300 transform">
           
           <div class="flex items-center justify-between gap-2 mb-2">
-            <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-              <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold" id="dua-location-badge">
+            <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+              <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold shrink-0" id="dua-location-badge">
                 🚶 Ziarah Dalam Madinah
               </span>
-              <span class="text-xs text-slate-300 font-semibold truncate max-w-xs" id="dua-title">Saqifah Bani Saedah</span>
+              <span class="text-xs text-slate-300 font-semibold truncate max-w-[140px] sm:max-w-xs" id="dua-title">Saqifah Bani Saedah</span>
             </div>
 
-            <!-- Voice TTS Button -->
-            <button id="btn-read-dua" class="interactive-ui flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-emerald-300 transition shrink-0">
-              <span>🗣️</span>
-              <span class="text-[11px]">Dengar</span>
-            </button>
+            <!-- Voice TTS & Hide Buttons -->
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button id="btn-read-dua" class="interactive-ui flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-emerald-300 transition shrink-0 border border-slate-700 cursor-pointer">
+                <span>🗣️</span>
+                <span class="text-[11px]">Dengar</span>
+              </button>
+              <button id="btn-toggle-dua-hide" title="Sembunyi Doa ke Bawah" class="interactive-ui flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-xs text-amber-300 hover:text-amber-200 transition shrink-0 border border-amber-500/30 cursor-pointer">
+                <span>▼</span>
+                <span class="text-[11px] font-semibold">Sembunyi</span>
+              </button>
+            </div>
           </div>
 
           <!-- Mutawwif Story / Historical Explanation Box (Visible in Ziarah mode) -->
-          <div id="ziarah-story-box" class="p-2.5 mb-2.5 rounded-xl bg-slate-800/80 border border-slate-700/70 text-xs text-slate-300 leading-relaxed max-h-24 overflow-y-auto">
+          <div id="ziarah-story-box" class="p-2.5 mb-2.5 rounded-xl bg-slate-800/80 border border-slate-700/70 text-xs text-slate-300 leading-relaxed max-h-24 sm:max-h-28 overflow-y-auto">
             <span class="font-bold text-amber-300">Kisah Sejarah Mutawwif:</span>
             <p id="ziarah-story-text" class="mt-1 text-slate-200">
               Penerangan sejarah daripada mutawwif tentang tempat bersejarah ini...
@@ -205,27 +275,75 @@ export class HUD {
 
           <!-- Action Button Row with Step Stepper -->
           <div class="flex items-center justify-between pt-2 border-t border-slate-800 gap-2">
-            <span id="dua-sunnah-note" class="text-[11px] text-emerald-400/90 italic truncate max-w-[200px] sm:max-w-xs">
+            <span id="dua-sunnah-note" class="text-[11px] text-emerald-400/90 italic truncate max-w-[180px] sm:max-w-xs">
               Mengingati perjuangan para sahabat.
             </span>
 
             <div class="flex items-center gap-1.5 shrink-0">
               <!-- Prev Step Button (for Ziarah) -->
-              <button id="btn-ziarah-prev" title="Lokasi Sebelumnya" class="interactive-ui p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition">
+              <button id="btn-ziarah-prev" title="Lokasi Sebelumnya" class="interactive-ui p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 transition cursor-pointer">
                 <span>◀</span>
               </button>
 
               <!-- Main Stage Action Button -->
-              <button id="btn-dua-action" class="interactive-ui px-3.5 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-md transition flex items-center gap-1.5">
+              <button id="btn-dua-action" class="interactive-ui px-3.5 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer">
                 <span id="dua-action-icon">🚶</span>
                 <span id="dua-action-text">Dengar & Teruskan</span>
               </button>
 
               <!-- Next Step Button (for Ziarah) -->
-              <button id="btn-ziarah-next" title="Lokasi Seterusnya" class="interactive-ui p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition">
+              <button id="btn-ziarah-next" title="Lokasi Seterusnya" class="interactive-ui p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 transition cursor-pointer">
                 <span>▶</span>
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- Slim Floating Collapsed Doa Bar (Visible when Doa card is hidden) -->
+        <div id="dua-collapsed-bar" class="interactive-ui hidden pointer-events-auto w-full max-w-xl bg-slate-900/95 backdrop-blur-md border border-emerald-500/50 rounded-2xl p-2 sm:px-4 sm:py-2.5 shadow-2xl text-white transition-all duration-300 flex items-center justify-between gap-2">
+          
+          <!-- Left: Location Info & Mini Description -->
+          <div class="flex items-center gap-2 min-w-0 cursor-pointer flex-1" id="btn-collapsed-expand-area" title="Klik untuk papar doa & kisah penuh">
+            <div class="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-sm shrink-0">
+              <span id="collapsed-mini-icon">🏛️</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5">
+                <span id="collapsed-title" class="text-xs font-bold text-emerald-300 truncate">Saqifah Bani Saedah</span>
+                <span class="hidden sm:inline-block px-1.5 py-0.2 rounded bg-slate-800 text-[10px] text-slate-400 border border-slate-700">Papar Doa</span>
+              </div>
+              <p id="collapsed-subtitle" class="text-[10px] text-slate-400 truncate">Doa Memohon Perpaduan & Keikhlasan Hati</p>
+            </div>
+          </div>
+
+          <!-- Right: Action, Stepper & Expand Buttons -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <!-- Audio TTS Mini Button -->
+            <button id="btn-collapsed-tts" title="Dengar Audio Doa" class="interactive-ui p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-emerald-300 border border-slate-700 transition cursor-pointer">
+              <span>🗣️</span>
+            </button>
+
+            <!-- Prev Button -->
+            <button id="btn-collapsed-prev" title="Lokasi Sebelumnya" class="interactive-ui p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 transition cursor-pointer">
+              <span>◀</span>
+            </button>
+
+            <!-- Main Action Button -->
+            <button id="btn-collapsed-action" class="interactive-ui px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-[11px] shadow transition flex items-center gap-1 cursor-pointer">
+              <span id="collapsed-action-icon">🚶</span>
+              <span id="collapsed-action-text" class="hidden xs:inline">Teruskan</span>
+            </button>
+
+            <!-- Next Button -->
+            <button id="btn-collapsed-next" title="Lokasi Seterusnya" class="interactive-ui p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 transition cursor-pointer">
+              <span>▶</span>
+            </button>
+
+            <!-- Expand Button -->
+            <button id="btn-expand-dua" title="Papar Doa Penuh" class="interactive-ui flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-semibold transition cursor-pointer">
+              <span>▲</span>
+              <span class="text-[11px]">Papar</span>
+            </button>
           </div>
         </div>
 
@@ -249,6 +367,80 @@ export class HUD {
   }
 
   private attachEventListeners() {
+    // Toggle View Mode / Sembunyi Semua Menu
+    const viewModeBtn = this.container.querySelector('#btn-toggle-view-mode') as HTMLButtonElement;
+    viewModeBtn?.addEventListener('click', () => {
+      this.toggleAllUI();
+    });
+
+    // Roster hide button (sembunyi ke tepi)
+    const toggleRosterHideBtn = this.container.querySelector('#btn-toggle-roster-hide') as HTMLButtonElement;
+    toggleRosterHideBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleRosterHide(true);
+    });
+
+    // Roster edge tab button (papar semula dari tepi)
+    const rosterEdgeTabBtn = this.container.querySelector('#btn-roster-edge-tab') as HTMLButtonElement;
+    rosterEdgeTabBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleRosterHide(false);
+    });
+
+    // Dua hide button (sembunyi ke bawah)
+    const toggleDuaHideBtn = this.container.querySelector('#btn-toggle-dua-hide') as HTMLButtonElement;
+    toggleDuaHideBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleDuaHide(true);
+    });
+
+    // Dua expand button & collapsed bar expand area
+    const expandDuaBtn = this.container.querySelector('#btn-expand-dua') as HTMLButtonElement;
+    expandDuaBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleDuaHide(false);
+    });
+
+    const collapsedExpandArea = this.container.querySelector('#btn-collapsed-expand-area') as HTMLElement;
+    collapsedExpandArea?.addEventListener('click', () => {
+      this.toggleDuaHide(false);
+    });
+
+    // Collapsed bar action button
+    const collapsedActionBtn = this.container.querySelector('#btn-collapsed-action') as HTMLButtonElement;
+    collapsedActionBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (this.onActionButtonCallback) {
+        this.onActionButtonCallback(this.currentStage);
+      }
+    });
+
+    // Collapsed bar prev & next buttons
+    const collapsedPrevBtn = this.container.querySelector('#btn-collapsed-prev') as HTMLButtonElement;
+    collapsedPrevBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onPrevZiarahCallback?.();
+    });
+
+    const collapsedNextBtn = this.container.querySelector('#btn-collapsed-next') as HTMLButtonElement;
+    collapsedNextBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onNextZiarahCallback?.();
+    });
+
+    // Collapsed bar TTS button
+    const collapsedTtsBtn = this.container.querySelector('#btn-collapsed-tts') as HTMLButtonElement;
+    collapsedTtsBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (this.currentZiarahSpot && (this.currentStage.startsWith('ziarah') || this.currentStage === 'miqat_bir_ali' || this.currentStage === 'perjalanan_makkah')) {
+        const textToRead = `${this.currentZiarahSpot.title}. ${this.currentZiarahSpot.historicalStory}. ` + 
+          (this.currentZiarahSpot.dua ? `${this.currentZiarahSpot.dua.arabic}. ${this.currentZiarahSpot.dua.translation}` : '');
+        soundManager.speakDua(textToRead);
+      } else if (this.currentDua) {
+        soundManager.speakDua(this.currentDua.arabic + '. ' + this.currentDua.translation);
+      }
+    });
+
     // Teleport select
     const teleportSelect = this.container.querySelector('#teleport-select') as HTMLSelectElement;
     teleportSelect.addEventListener('change', () => {
@@ -457,6 +649,19 @@ export class HUD {
       stageNameEl.innerText = 'Bas Bertalbiyah ke Makkah';
       stageIconEl.innerText = '🚌';
     }
+
+    // Update collapsed bar elements
+    const colTitle = this.container.querySelector('#collapsed-title') as HTMLElement;
+    const colSubtitle = this.container.querySelector('#collapsed-subtitle') as HTMLElement;
+    const colMiniIcon = this.container.querySelector('#collapsed-mini-icon') as HTMLElement;
+    const colActionText = this.container.querySelector('#collapsed-action-text') as HTMLElement;
+    const colActionIcon = this.container.querySelector('#collapsed-action-icon') as HTMLElement;
+
+    if (colTitle) colTitle.innerText = spot.title;
+    if (colSubtitle) colSubtitle.innerText = spot.dua ? spot.dua.title : `${spot.transportBadge} • ${spot.categoryLabel}`;
+    if (colMiniIcon) colMiniIcon.innerText = spot.actionIcon || '🏛️';
+    if (colActionText) colActionText.innerText = spot.actionText;
+    if (colActionIcon) colActionIcon.innerText = spot.actionIcon;
   }
 
   public updateStage(stage: UmrahStage) {
@@ -543,6 +748,14 @@ export class HUD {
       actionText.innerText = 'Lihat Sijil Umrah';
       actionIcon.innerText = '📜';
     }
+
+    // Update collapsed bar state
+    const colActionText = this.container.querySelector('#collapsed-action-text') as HTMLElement;
+    const colActionIcon = this.container.querySelector('#collapsed-action-icon') as HTMLElement;
+    const colTitle = this.container.querySelector('#collapsed-title') as HTMLElement;
+    if (colActionText && actionText) colActionText.innerText = actionText.innerText;
+    if (colActionIcon && actionIcon) colActionIcon.innerText = actionIcon.innerText;
+    if (colTitle && stageNameEl) colTitle.innerText = stageNameEl.innerText;
   }
 
   public updateSolatZamzamStatus(solatSunatDone: boolean, zamzamDone: boolean) {
@@ -560,6 +773,11 @@ export class HUD {
       actionText.innerText = 'Menuju ke Safa untuk Sa\'i';
       actionIcon.innerText = '🏃‍♂️';
     }
+
+    const colActionText = this.container.querySelector('#collapsed-action-text') as HTMLElement;
+    const colActionIcon = this.container.querySelector('#collapsed-action-icon') as HTMLElement;
+    if (colActionText) colActionText.innerText = actionText.innerText;
+    if (colActionIcon) colActionIcon.innerText = actionIcon.innerText;
   }
 
   public updateLap(stage: 'tawaf' | 'sai', lap: number) {
@@ -600,6 +818,11 @@ export class HUD {
     if (translitEl) translitEl.innerText = dua.transliteration;
     if (translationEl) translationEl.innerText = dua.translation;
     if (sunnahNoteEl) sunnahNoteEl.innerText = alertMessage || dua.sunnahNote || '';
+
+    const colTitle = this.container.querySelector('#collapsed-title') as HTMLElement;
+    const colSubtitle = this.container.querySelector('#collapsed-subtitle') as HTMLElement;
+    if (colTitle) colTitle.innerText = dua.title;
+    if (colSubtitle) colSubtitle.innerText = dua.location;
   }
 
   public updateGroupRoster(
@@ -615,13 +838,16 @@ export class HUD {
     const groupNameEl = this.container.querySelector('#hud-group-name') as HTMLElement;
     const colorDot = this.container.querySelector('#hud-group-color-dot') as HTMLElement;
     const memberCountEl = this.container.querySelector('#hud-member-count') as HTMLElement;
+    const edgeMemberText = this.container.querySelector('#hud-edge-member-text') as HTMLElement;
     const rosterList = this.container.querySelector('#roster-list') as HTMLElement;
 
     if (groupNameEl) groupNameEl.innerText = groupName;
     if (colorDot) colorDot.style.backgroundColor = groupColor;
 
     this.groupMembers = allPlayers.filter(p => p.groupName === groupName);
-    if (memberCountEl) memberCountEl.innerText = `${this.groupMembers.length + 1} Ahli`;
+    const memberText = `${this.groupMembers.length + 1} Ahli`;
+    if (memberCountEl) memberCountEl.innerText = memberText;
+    if (edgeMemberText) edgeMemberText.innerText = memberText;
 
     this.mutawwifPlayer = this.groupMembers.find(p => p.role === 'mutawwif') || null;
 

@@ -121,7 +121,8 @@ class UmrahSimulationApp {
     this.playerController = new PlayerController(
       this.localAvatar,
       this.camera,
-      this.renderer.domElement
+      this.renderer.domElement,
+      this.playerData.rotation
     );
 
     // Initial camera position for Madinah scenic overview

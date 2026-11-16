@@ -4,7 +4,7 @@ import { AvatarModel } from '../characters/AvatarModel';
 export class PlayerController {
   public avatar: AvatarModel;
   public camera: THREE.PerspectiveCamera;
-  private domElement: HTMLElement;
+  public domElement: HTMLElement;
 
   // Movement State
   private keys: Record<string, boolean> = {};
@@ -14,10 +14,10 @@ export class PlayerController {
   private sprintSpeed: number = 7.5; // meters/sec
 
   // Camera Orbit
-  private cameraDistance: number = 5.5;
-  private cameraHeight: number = 2.8;
+  private cameraDistance: number = 4.8;
+  private cameraHeight: number = 2.2;
   private cameraYaw: number = 0; // horizontal angle
-  private cameraPitch: number = 0.28; // vertical angle
+  private cameraPitch: number = 0.22; // vertical angle
   private isPointerDown: boolean = false;
   private activePointerId: number | null = null;
   private previousPointerPosition = { x: 0, y: 0 };
@@ -26,10 +26,11 @@ export class PlayerController {
   private joystickActive: boolean = false;
   private joystickVector = new THREE.Vector2(0, 0);
 
-  constructor(avatar: AvatarModel, camera: THREE.PerspectiveCamera, domElement: HTMLElement) {
+  constructor(avatar: AvatarModel, camera: THREE.PerspectiveCamera, domElement: HTMLElement, initialYaw: number = 0) {
     this.avatar = avatar;
     this.camera = camera;
     this.domElement = domElement;
+    this.cameraYaw = initialYaw;
 
     this.setupKeyboardListeners();
     this.setupPointerListeners();
@@ -46,7 +47,8 @@ export class PlayerController {
   }
 
   private setupPointerListeners() {
-    this.domElement.addEventListener('pointerdown', (e) => {
+    // Pointer down: works for mouse click or single-finger touch on 3D viewport
+    window.addEventListener('pointerdown', (e) => {
       // Ignore if clicking on UI interactive elements or secondary pointers
       if ((e.target as HTMLElement).closest('.interactive-ui') || this.activePointerId !== null) return;
 
@@ -78,10 +80,44 @@ export class PlayerController {
     window.addEventListener('pointercancel', releasePointer);
 
     // Mouse wheel zoom
-    this.domElement.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      this.cameraDistance = Math.max(2.5, Math.min(12.0, this.cameraDistance + e.deltaY * 0.005));
-    }, { passive: false });
+    window.addEventListener('wheel', (e) => {
+      if ((e.target as HTMLElement).closest('.interactive-ui')) return;
+      this.cameraDistance = Math.max(2.0, Math.min(12.0, this.cameraDistance + e.deltaY * 0.005));
+    }, { passive: true });
+
+    // Touch pinch-to-zoom for mobile screens
+    let initialPinchDistance: number | null = null;
+    let initialCameraDist: number = this.cameraDistance;
+
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        if ((t1.target as HTMLElement).closest('.interactive-ui') || (t2.target as HTMLElement).closest('.interactive-ui')) return;
+        initialPinchDistance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        initialCameraDist = this.cameraDistance;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2 && initialPinchDistance !== null) {
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const currentDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        if (currentDist > 0) {
+          const factor = initialPinchDistance / currentDist;
+          this.cameraDistance = Math.max(2.0, Math.min(12.0, initialCameraDist * factor));
+        }
+      }
+    }, { passive: true });
+
+    const endPinch = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        initialPinchDistance = null;
+      }
+    };
+    window.addEventListener('touchend', endPinch, { passive: true });
+    window.addEventListener('touchcancel', endPinch, { passive: true });
   }
 
   public setJoystickVector(x: number, y: number) {
@@ -163,7 +199,7 @@ export class PlayerController {
     this.camera.position.lerp(targetCameraPos, Math.min(delta * 12, 1.0));
 
     // Look at player chest height
-    const lookTarget = playerPos.clone().add(new THREE.Vector3(0, 1.5, 0));
+    const lookTarget = playerPos.clone().add(new THREE.Vector3(0, 1.4, 0));
     this.camera.lookAt(lookTarget);
   }
 
