@@ -26,6 +26,11 @@ export class HUD {
   public mutawwifPlayer: PlayerData | null = null;
   public isLocalMutawwif: boolean = false;
   public localPlayerPos = { x: 0, z: 0, rotation: 0 };
+  public localPlayerRole: PlayerRole = 'jemaah';
+  public localPlayerName: string = '';
+  public localGroupName: string = '';
+  public localGroupColor: string = '#C5A880';
+  public isRosterModalOpen: boolean = false;
 
   // Callbacks
   public onTeleportCallback: ((location: string) => void) | null = null;
@@ -291,11 +296,13 @@ export class HUD {
         <div class="pointer-events-auto flex flex-col gap-2 max-w-[320px] sm:max-w-[370px] w-[90vw]">
           
           <!-- Mini Pill for Title Card (Shown when Card 1 is auto-hidden upwards) -->
-          <button id="hud-title-mini-pill" style="display: none;" title="Papar Info Umrah Simulator" class="hud-mini-pill-anim interactive-ui self-start flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 text-xs font-medium hover:bg-stone-50 active:scale-95 transition cursor-pointer">
+          <button id="hud-title-mini-pill" style="display: none;" title="Papar Info Umrah Simulator" class="hud-mini-pill-anim interactive-ui self-start flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 text-xs font-medium hover:bg-stone-50 active:scale-95 transition cursor-pointer">
             <span class="inline-block w-2.5 h-[2px] bg-[#C5A880] rounded-full"></span>
-            <span class="text-[10px] font-bold tracking-wider text-stone-500 uppercase">UMRAH</span>
+            <span id="hud-mini-location-title" class="font-serif font-medium text-stone-900 truncate max-w-[120px] sm:max-w-[160px]">Saqifah Bani Saedah</span>
             <span class="text-stone-300">•</span>
-            <span id="hud-mini-location-title" class="font-serif font-medium text-stone-900 truncate max-w-[170px] sm:max-w-[210px]">Saqifah Bani Saedah</span>
+            <span id="hud-mini-lap-pill" class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md">Pusingan 1</span>
+            <span class="text-stone-300">•</span>
+            <span id="hud-mini-mutawwif-pill" class="text-[10px] font-semibold text-emerald-700">🧭 0m</span>
             <span class="text-stone-400 text-[10px] ml-0.5">▼</span>
           </button>
 
@@ -324,6 +331,22 @@ export class HUD {
             <h1 id="hud-location-title" class="font-serif text-2xl sm:text-3xl font-medium text-stone-900 tracking-tight my-1">
               Saqifah Bani Saedah
             </h1>
+
+            <!-- Live Player, Mutawwif & Lap Info Line -->
+            <div id="hud-player-status-line" class="flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs font-medium text-stone-600 mt-0.5">
+              <span id="hud-status-player-badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200/80 text-stone-800 font-semibold">
+                <span>👤</span>
+                <span id="hud-player-display-name">Jemaah</span>
+              </span>
+              <span id="hud-status-lap-badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200/80 text-amber-800 font-bold">
+                <span>🔄</span>
+                <span id="hud-lap-indicator-text">Lokasi 1/20</span>
+              </span>
+              <span id="hud-status-mutawwif-badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-800 font-medium">
+                <span id="hud-mutawwif-icon">🧭</span>
+                <span id="hud-mutawwif-dist-text">Mencari Mutawwif...</span>
+              </span>
+            </div>
 
             <!-- Segmented Progress Indicator Bar -->
             <div id="hud-segment-bar" class="flex items-center gap-1.5 w-full mt-3.5">
@@ -392,27 +415,37 @@ export class HUD {
 
         </div>
 
-        <!-- TOP-RIGHT: 4 VERTICAL ACTION BUTTONS (Matches screenshot) -->
-        <div class="pointer-events-auto flex flex-col gap-2.5 z-40">
+        <!-- TOP-RIGHT: ACTION BUTTON STACK (Matches screenshot + Rombongan) -->
+        <div class="pointer-events-auto flex flex-col gap-2.5 z-40 items-end">
           
-          <!-- 1. Jadual Ziarah & Peta (Book Icon) -->
+          <!-- 1. Info Rombongan & Mutawwif Button -->
+          <button id="btn-top-roster" title="Info Jemaah & Jarak Mutawwif" class="interactive-ui h-11 sm:h-12 px-2.5 sm:px-3 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center gap-2 text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer">
+            <span class="text-base sm:text-lg">👥</span>
+            <div class="flex flex-col text-left leading-none pr-1">
+              <span id="top-roster-group-label" class="text-[9px] font-bold text-stone-400 uppercase tracking-wider truncate max-w-[80px] sm:max-w-[100px]">ROMBONGAN</span>
+              <span id="top-roster-status-text" class="text-[11px] font-bold text-stone-800 truncate max-w-[80px] sm:max-w-[100px]">1 Ahli</span>
+            </div>
+            <span id="top-roster-badge" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          </button>
+
+          <!-- 2. Jadual Ziarah & Peta (Book Icon) -->
           <button id="btn-top-itinerary" title="Jadual & Laluan Ziarah Lengkap" class="interactive-ui w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center justify-center text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer">
             <svg class="w-5 h-5 text-stone-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
           </button>
 
-          <!-- 2. Bantuan & Panduan (?) -->
+          <!-- 3. Bantuan & Panduan (?) -->
           <button id="btn-top-help" title="Panduan Ibadah & Kawalan" class="interactive-ui w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center justify-center text-stone-800 hover:bg-stone-50 active:scale-95 transition cursor-pointer text-lg font-bold font-serif">
             ?
           </button>
 
-          <!-- 3. Audio & Mute (Speaker Icon) -->
+          <!-- 4. Audio & Mute (Speaker Icon) -->
           <button id="btn-top-audio" title="Kawal Bunyi & Suara" class="interactive-ui w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center justify-center text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer">
             <span id="top-audio-icon" class="text-sm font-semibold">🔈x</span>
           </button>
 
-          <!-- 4. Exit / Sesi & Simpanan -->
+          <!-- 5. Exit / Sesi & Simpanan -->
           <button id="btn-top-exit" title="Keluar / Simpan Sesi / Mula Semula" class="interactive-ui w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center justify-center text-stone-800 hover:bg-stone-50 active:scale-95 transition cursor-pointer text-xs font-bold">
             Exit
           </button>
@@ -539,6 +572,12 @@ export class HUD {
     });
 
     // === END AUTO-HIDE LISTENERS ===
+
+    // 0. Top Roster Button (Rombongan & Mutawwif Info Modal)
+    const rosterBtn = this.container.querySelector('#btn-top-roster') as HTMLButtonElement;
+    rosterBtn?.addEventListener('click', () => {
+      this.showRosterModal();
+    });
 
     // 1. Top Itinerary Button (Book Icon)
     const itineraryBtn = this.container.querySelector('#btn-top-itinerary') as HTMLButtonElement;
@@ -773,6 +812,8 @@ export class HUD {
     const descText = this.container.querySelector('#hud-desc-text') as HTMLElement;
     const actionText = this.container.querySelector('#main-action-text') as HTMLElement;
     const actionIcon = this.container.querySelector('#main-action-icon') as HTMLElement;
+    const lapIndicatorEl = this.container.querySelector('#hud-lap-indicator-text') as HTMLElement;
+    const miniLapEl = this.container.querySelector('#hud-mini-lap-pill') as HTMLElement;
 
     if (categoryLabelEl) {
       if (spot.category === 'miqat_bir_ali') {
@@ -788,6 +829,13 @@ export class HUD {
 
     if (titleEl) {
       titleEl.innerText = spot.title;
+    }
+
+    if (lapIndicatorEl) {
+      lapIndicatorEl.innerText = `Lokasi ${index + 1}/${total}`;
+    }
+    if (miniLapEl) {
+      miniLapEl.innerText = `Lokasi ${index + 1}/${total}`;
     }
 
     if (descText) {
@@ -898,14 +946,24 @@ export class HUD {
     this.currentLap = lap;
     const titleEl = this.container.querySelector('#hud-location-title') as HTMLElement;
     const descText = this.container.querySelector('#hud-desc-text') as HTMLElement;
+    const lapIndicatorEl = this.container.querySelector('#hud-lap-indicator-text') as HTMLElement;
+    const miniLapEl = this.container.querySelector('#hud-mini-lap-pill') as HTMLElement;
+
+    const lapStr = stage === 'tawaf' ? `Tawaf ${lap}/7` : `Sa'i ${lap}/7`;
+    if (lapIndicatorEl) {
+      lapIndicatorEl.innerText = lapStr;
+    }
+    if (miniLapEl) {
+      miniLapEl.innerText = lapStr;
+    }
 
     if (stage === 'tawaf') {
       if (titleEl) titleEl.innerText = `Tawaf Pusingan ke-${lap} / 7`;
-      if (descText) descText.innerText = `Sedang mengelilingi Kaabah pusingan ke-${lap}. Lafazkan doa dan istilam di penjuru Rukun Yamani dan Hajarul Aswad.`;
+      if (descText) descText.innerText = `Sedang mengelilingi Kaabah pusingan ke-${lap}. Kaabah di sebelah kiri. Lafazkan doa dan lakukan istilam di penjuru Rukun Yamani dan Hajarul Aswad.`;
     } else {
       const fromHill = lap % 2 === 1 ? 'Safa ke Marwah' : 'Marwah ke Safa';
       if (titleEl) titleEl.innerText = `Sa'i Pusingan ke-${lap} (${fromHill})`;
-      if (descText) descText.innerText = `Pusingan ke-${lap} daripada 7 pusingan Sa'i. Perbanyakkan zikir dan doa ketika mendaki bukit.`;
+      if (descText) descText.innerText = `Pusingan ke-${lap} daripada 7 pusingan Sa'i (${fromHill}). Berjalan atau berlari anak di zon lampu hijau.`;
     }
 
     this.updateSegmentPills(lap, 7);
@@ -921,15 +979,76 @@ export class HUD {
 
   public updateGroupRoster(
     groupName: string,
-    _groupColor: string,
+    groupColor: string,
     localPlayerPos: { x: number; z: number; rotation: number },
     allPlayers: PlayerData[],
-    localRole: PlayerRole = 'jemaah'
+    localRole: PlayerRole = 'jemaah',
+    playerName?: string
   ) {
     this.localPlayerPos = localPlayerPos;
     this.isLocalMutawwif = localRole === 'mutawwif';
+    this.localPlayerRole = localRole;
+    this.localGroupName = groupName || 'Solo';
+    this.localGroupColor = groupColor || '#C5A880';
+    if (playerName) {
+      this.localPlayerName = playerName;
+    } else if (!this.localPlayerName) {
+      this.localPlayerName = localStorage.getItem('umrah_player_name') || 'Jemaah';
+    }
+
     this.groupMembers = allPlayers.filter(p => p.groupName === groupName);
     this.mutawwifPlayer = this.groupMembers.find(p => p.role === 'mutawwif') || null;
+
+    // Update Top-Right Action Button Info
+    const rosterStatusText = this.container.querySelector('#top-roster-status-text') as HTMLElement;
+    const rosterGroupLabel = this.container.querySelector('#top-roster-group-label') as HTMLElement;
+    const playerDisplayName = this.container.querySelector('#hud-player-display-name') as HTMLElement;
+
+    if (rosterGroupLabel) {
+      rosterGroupLabel.innerText = this.localGroupName.replace(/^Kumpulan\s+/i, '');
+    }
+
+    if (playerDisplayName) {
+      const roleIcon = this.isLocalMutawwif ? '🚩 ' : '👤 ';
+      playerDisplayName.innerText = `${roleIcon}${this.localPlayerName} (${this.isLocalMutawwif ? 'Mutawwif' : 'Jemaah'})`;
+    }
+
+    // Mutawwif distance calculation
+    const mutawwifDistBadge = this.container.querySelector('#hud-mutawwif-dist-text') as HTMLElement;
+    const miniMutawwifPill = this.container.querySelector('#hud-mini-mutawwif-pill') as HTMLElement;
+    const mutawwifIcon = this.container.querySelector('#hud-mutawwif-icon') as HTMLElement;
+
+    let distStr = '';
+    let miniDistStr = '';
+
+    if (this.isLocalMutawwif) {
+      const followerCount = this.groupMembers.length;
+      distStr = `Ketua Mutawwif (${followerCount} jemaah)`;
+      miniDistStr = `🚩 Ketua (${followerCount})`;
+      if (mutawwifIcon) mutawwifIcon.innerText = '🚩';
+      if (rosterStatusText) rosterStatusText.innerText = `Ketua (${followerCount})`;
+    } else if (this.mutawwifPlayer) {
+      const dx = this.mutawwifPlayer.x - this.localPlayerPos.x;
+      const dz = this.mutawwifPlayer.z - this.localPlayerPos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      distStr = `Mutawwif: ${dist.toFixed(1)}m`;
+      miniDistStr = `🧭 ${dist.toFixed(0)}m`;
+      if (mutawwifIcon) mutawwifIcon.innerText = '🧭';
+      if (rosterStatusText) rosterStatusText.innerText = `${dist.toFixed(0)}m Mutawwif`;
+    } else {
+      distStr = 'Tiada Mutawwif berdekatan';
+      miniDistStr = '👥 Solo';
+      if (mutawwifIcon) mutawwifIcon.innerText = '👥';
+      if (rosterStatusText) rosterStatusText.innerText = `${this.groupMembers.length + 1} Ahli`;
+    }
+
+    if (mutawwifDistBadge) mutawwifDistBadge.innerText = distStr;
+    if (miniMutawwifPill) miniMutawwifPill.innerText = miniDistStr;
+
+    // Refresh Roster Modal if it is currently open
+    if (this.isRosterModalOpen) {
+      this.refreshRosterModalContent();
+    }
   }
 
   /**
@@ -1369,5 +1488,175 @@ export class HUD {
     modal.querySelector('#btn-cert-print')?.addEventListener('click', () => {
       window.print();
     });
+  }
+
+  /**
+   * Popup Modal to view Rombongan / Group Members & Compass Details
+   */
+  public showRosterModal() {
+    const existing = document.getElementById('roster-detail-modal');
+    if (existing) {
+      existing.remove();
+      this.isRosterModalOpen = false;
+      return;
+    }
+
+    this.isRosterModalOpen = true;
+    const modal = document.createElement('div');
+    modal.id = 'roster-detail-modal';
+    modal.className = 'interactive-ui fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-md p-4 overflow-y-auto';
+
+    modal.innerHTML = `
+      <div class="relative w-full max-w-md bg-white border border-stone-200 rounded-3xl p-5 sm:p-6 text-stone-900 shadow-2xl space-y-4">
+        
+        <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+          <div class="flex items-center gap-2.5">
+            <span class="w-3.5 h-3.5 rounded-full border border-stone-300" style="background-color: ${this.localGroupColor};"></span>
+            <div>
+              <h3 class="font-serif text-lg font-bold text-stone-900">${this.localGroupName}</h3>
+              <p class="text-[11px] text-stone-500 font-sans">Status & Jarak Rombongan Ibadah Umrah</p>
+            </div>
+          </div>
+          <button id="close-roster-btn" class="p-2 rounded-xl bg-stone-100 text-stone-600 hover:bg-stone-200 transition cursor-pointer">✕</button>
+        </div>
+
+        <!-- Compass & Distance to Mutawwif Highlight Card -->
+        <div id="roster-compass-card" class="p-3.5 rounded-2xl bg-[#FAF7F2] border border-[#C5A880]/40 flex items-center gap-3">
+          <div id="roster-compass-icon" class="w-10 h-10 rounded-2xl bg-white shadow-sm border border-stone-200/80 flex items-center justify-center text-xl shrink-0">
+            🧭
+          </div>
+          <div class="flex-1 min-w-0">
+            <div id="roster-compass-title" class="font-bold text-xs text-stone-900 truncate">
+              Mencari Mutawwif...
+            </div>
+            <div id="roster-compass-detail" class="text-[11px] text-stone-600 truncate mt-0.5">
+              Jarak: Memuatkan...
+            </div>
+          </div>
+        </div>
+
+        <!-- Member List Container -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between text-xs font-semibold text-stone-700 px-1">
+            <span>Senarai Ahli Rombongan</span>
+            <span id="roster-total-members-badge" class="px-2 py-0.5 rounded-full bg-stone-100 text-[10px] text-stone-600 font-bold">
+              ${this.groupMembers.length + 1} Ahli
+            </span>
+          </div>
+
+          <div id="roster-items-list" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+            <!-- Dynamic members injected here -->
+          </div>
+        </div>
+
+        <button id="roster-ok-btn" class="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs mt-2 cursor-pointer shadow-sm">
+          Faham & Tutup
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const close = () => {
+      modal.remove();
+      this.isRosterModalOpen = false;
+    };
+    modal.querySelector('#close-roster-btn')?.addEventListener('click', close);
+    modal.querySelector('#roster-ok-btn')?.addEventListener('click', close);
+
+    this.refreshRosterModalContent();
+  }
+
+  private refreshRosterModalContent() {
+    const modal = document.getElementById('roster-detail-modal');
+    if (!modal) return;
+
+    const compassTitle = modal.querySelector('#roster-compass-title') as HTMLElement;
+    const compassDetail = modal.querySelector('#roster-compass-detail') as HTMLElement;
+    const compassIcon = modal.querySelector('#roster-compass-icon') as HTMLElement;
+    const totalBadge = modal.querySelector('#roster-total-members-badge') as HTMLElement;
+    const listEl = modal.querySelector('#roster-items-list') as HTMLElement;
+
+    if (totalBadge) {
+      totalBadge.innerText = `${this.groupMembers.length + 1} Ahli`;
+    }
+
+    if (this.isLocalMutawwif) {
+      if (compassIcon) compassIcon.innerText = '🚩';
+      if (compassTitle) compassTitle.innerText = 'Anda Adalah Mutawwif (Ketua)';
+      if (compassDetail) compassDetail.innerText = `${this.groupMembers.length} jemaah sedang mengikuti langkah anda`;
+    } else if (this.mutawwifPlayer) {
+      const dx = this.mutawwifPlayer.x - this.localPlayerPos.x;
+      const dz = this.mutawwifPlayer.z - this.localPlayerPos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (compassIcon) compassIcon.innerText = '🧭';
+      if (compassTitle) compassTitle.innerText = `Arah Mutawwif: ${this.mutawwifPlayer.name}`;
+      if (compassDetail) compassDetail.innerText = `Jarak Semasa: ${dist.toFixed(1)} meter dari kedudukan anda`;
+    } else {
+      if (compassIcon) compassIcon.innerText = '👥';
+      if (compassTitle) compassTitle.innerText = 'Tiada Mutawwif Berdekatan';
+      if (compassDetail) compassDetail.innerText = 'Anda sedang bergerak secara santai dalam rombongan ini.';
+    }
+
+    if (listEl) {
+      let html = '';
+
+      // Local player entry
+      html += `
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/70">
+          <div class="flex items-center gap-2 truncate">
+            <span class="text-base">${this.isLocalMutawwif ? '🚩' : '👤'}</span>
+            <div class="truncate">
+              <div class="font-bold text-xs text-stone-900 truncate flex items-center gap-1.5">
+                <span>${this.localPlayerName || 'Anda'}</span>
+                <span class="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 text-[9px] font-bold">ANDA</span>
+              </div>
+              <div class="text-[10px] text-stone-500">${this.isLocalMutawwif ? 'Ketua Mutawwif' : 'Jemaah'}</div>
+            </div>
+          </div>
+          <div class="text-right text-[10px] font-medium text-stone-600 shrink-0">
+            Kedudukan Semasa
+          </div>
+        </div>
+      `;
+
+      if (this.groupMembers.length === 0) {
+        html += `
+          <div class="text-center py-4 text-stone-400 text-xs italic">
+            Tiada jemaah lain dalam talian dalam kumpulan ini buat masa ini.
+          </div>
+        `;
+      } else {
+        this.groupMembers.forEach((p) => {
+          const dx = p.x - this.localPlayerPos.x;
+          const dz = p.z - this.localPlayerPos.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          const isLeader = p.role === 'mutawwif';
+
+          html += `
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-stone-50 border border-stone-200/80">
+              <div class="flex items-center gap-2 truncate">
+                <span class="text-base">${isLeader ? '🚩' : (p.gender === 'male' ? '👳‍♂️' : '🧕')}</span>
+                <div class="truncate">
+                  <div class="font-semibold text-xs text-stone-900 truncate">
+                    ${p.name}
+                  </div>
+                  <div class="text-[10px] text-stone-500 font-medium">
+                    ${isLeader ? 'Mutawwif Rombongan' : 'Jemaah'} • ${p.stage || 'Madinah'}
+                  </div>
+                </div>
+              </div>
+              <div class="text-right shrink-0">
+                <span class="px-2 py-0.5 rounded-full bg-stone-200/80 text-[10px] font-bold text-stone-800">
+                  ${dist.toFixed(0)}m
+                </span>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      listEl.innerHTML = html;
+    }
   }
 }

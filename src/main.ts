@@ -509,7 +509,8 @@ class UmrahSimulationApp {
           rotation: this.playerData.rotation
         },
         this.allConnectedPlayers,
-        this.playerData.role
+        this.playerData.role,
+        this.playerData.name
       );
     }
   }
@@ -537,6 +538,22 @@ class UmrahSimulationApp {
 
       // Evaluate Umrah ritual checkpoints
       this.workflow.checkPosition(pos.x, pos.z);
+
+      // Periodically keep HUD position and Mutawwif distance fresh
+      if (this.hud) {
+        this.hud.updateGroupRoster(
+          this.playerData.groupName,
+          this.playerData.groupColor,
+          {
+            x: this.playerData.x,
+            z: this.playerData.z,
+            rotation: this.playerData.rotation
+          },
+          this.allConnectedPlayers,
+          this.playerData.role,
+          this.playerData.name
+        );
+      }
     }
 
     // 2. Interpolate Remote Players
