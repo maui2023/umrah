@@ -52,14 +52,14 @@ export class AvatarModel {
 
     // 1. Torso
     if (this.gender === 'male') {
-      // Male Pilgrim (Ihram: Rida' over torso)
+      // Male Pilgrim (Ihram: Rida' draped over torso with bare right shoulder)
       const torsoGeo = new THREE.BoxGeometry(0.55, 0.65, 0.32);
       this.torso = new THREE.Mesh(torsoGeo, whiteClothMat);
       this.torso.position.y = 1.05;
       this.torso.castShadow = true;
       this.group.add(this.torso);
 
-      // Bare right shoulder sash (Idtiba' detail)
+      // Bare right shoulder sash (Idtiba' detail - sunnah for tawaf)
       const bareShoulder = new THREE.Mesh(
         new THREE.BoxGeometry(0.18, 0.35, 0.33),
         skinMat
@@ -67,10 +67,10 @@ export class AvatarModel {
       bareShoulder.position.set(0.24, 0.22, 0);
       this.torso.add(bareShoulder);
     } else {
-      // Female Pilgrim (Jilbab/Abaya loose full length)
-      const torsoGeo = new THREE.CylinderGeometry(0.26, 0.44, 0.95, 8);
+      // Female Pilgrim: Modest full-length white Abaya/Jubah draping down
+      const torsoGeo = new THREE.CylinderGeometry(0.26, 0.48, 1.15, 12);
       this.torso = new THREE.Mesh(torsoGeo, whiteClothMat);
-      this.torso.position.y = 0.95;
+      this.torso.position.y = 0.82;
       this.torso.castShadow = true;
       this.group.add(this.torso);
     }
@@ -89,20 +89,20 @@ export class AvatarModel {
       hair.position.y = 0.14;
       this.head.add(hair);
     } else {
-      // Female Hijab / Khimar (complete modest head and neck covering)
+      // Female Hijab / Khimar: Complete modest head, neck, and shoulder covering in pure white
       const hijabTop = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.24, 0.3, 0.36, 8),
+        new THREE.CylinderGeometry(0.24, 0.32, 0.38, 12),
         whiteClothMat
       );
-      hijabTop.position.y = 0.06;
+      hijabTop.position.y = 0.08;
       this.head.add(hijabTop);
 
-      // Hijab drape over chest and shoulders
+      // Modest Khimar drape over chest and back
       const hijabDrape = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.3, 0.45, 0.42, 8),
+        new THREE.CylinderGeometry(0.32, 0.52, 0.48, 12),
         whiteClothMat
       );
-      hijabDrape.position.y = -0.22;
+      hijabDrape.position.y = -0.26;
       this.head.add(hijabDrape);
     }
 
@@ -111,13 +111,13 @@ export class AvatarModel {
     this.rightArm = new THREE.Group();
 
     const armGeo = new THREE.BoxGeometry(0.14, 0.55, 0.14);
-    const armMat = this.gender === 'male' ? whiteClothMat : whiteClothMat;
 
-    // Left Arm
-    const leftArmMesh = new THREE.Mesh(armGeo, armMat);
+    // Left Arm (White cloth sleeve)
+    const leftArmMesh = new THREE.Mesh(armGeo, whiteClothMat);
     leftArmMesh.position.y = -0.22;
     leftArmMesh.castShadow = true;
     this.leftArm.add(leftArmMesh);
+
     // Left hand
     const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.14, 0.11), skinMat);
     leftHand.position.y = -0.52;
@@ -126,11 +126,12 @@ export class AvatarModel {
     this.leftArm.position.set(-0.35, 1.3, 0);
     this.group.add(this.leftArm);
 
-    // Right Arm
+    // Right Arm (Skin for male idtiba' shoulder/arm, white cloth for female)
     const rightArmMesh = new THREE.Mesh(armGeo, this.gender === 'male' ? skinMat : whiteClothMat);
     rightArmMesh.position.y = -0.22;
     rightArmMesh.castShadow = true;
     this.rightArm.add(rightArmMesh);
+
     // Right hand
     const rightHand = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.14, 0.11), skinMat);
     rightHand.position.y = -0.52;
@@ -144,7 +145,7 @@ export class AvatarModel {
     this.rightLeg = new THREE.Group();
 
     const legGeo = new THREE.BoxGeometry(0.18, 0.65, 0.18);
-    const legMat = whiteClothMat; // Izar cloth
+    const legMat = whiteClothMat; // Izar cloth / lower robe
 
     // Left Leg
     const leftLegMesh = new THREE.Mesh(legGeo, legMat);
@@ -175,7 +176,7 @@ export class AvatarModel {
     this.group.add(this.rightLeg);
 
     // 5. Ground Halo Ring (Color-coded to player's group)
-    const ringGeo = new THREE.RingGeometry(0.48, 0.62, 24);
+    const ringGeo = new THREE.RingGeometry(0.48, 0.64, 28);
     const ringMat = new THREE.MeshBasicMaterial({
       color: new THREE.Color(this.groupColor),
       side: THREE.DoubleSide,
@@ -199,12 +200,13 @@ export class AvatarModel {
     const spriteMat = new THREE.SpriteMaterial({
       map: this.spriteTexture,
       transparent: true,
-      depthTest: false
+      depthTest: true,
+      depthWrite: false
     });
 
     this.overheadSprite = new THREE.Sprite(spriteMat);
     this.overheadSprite.scale.set(1.9, 0.72, 1);
-    this.overheadSprite.position.set(0, 2.25, 0);
+    this.overheadSprite.position.set(0, 2.35, 0);
     this.group.add(this.overheadSprite);
 
     this.updateNameTag(this.name, this.groupName, this.groupColor, this.role, data.currentLap || 1);
@@ -233,7 +235,7 @@ export class AvatarModel {
 
     // Rounded Box Background
     const radius = 24;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; // Slate 900 translucent
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)'; // Slate 900 translucent
     ctx.strokeStyle = groupColor;
     ctx.lineWidth = 6;
 
@@ -242,7 +244,6 @@ export class AvatarModel {
     ctx.fill();
     ctx.stroke();
 
-    // Mutawwif Flag or Member Icon
     const isLeader = role === 'mutawwif';
     ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
     ctx.fillStyle = '#FFFFFF';
@@ -250,19 +251,21 @@ export class AvatarModel {
     ctx.textBaseline = 'middle';
 
     const displayName = isLeader ? `🚩 ${name}` : name;
-    ctx.fillText(displayName, 256, 60);
+    const nameY = isLeader ? 55 : 68;
+    ctx.fillText(displayName, 256, nameY);
 
     // Group Badge Line
     ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
     ctx.fillStyle = groupColor;
     const badgeText = `[ ${groupName} ]  •  Pusingan ${lap}`;
-    ctx.fillText(badgeText, 256, 112);
+    const badgeY = isLeader ? 104 : 118;
+    ctx.fillText(badgeText, 256, badgeY);
 
     // Role sub-label
     if (isLeader) {
       ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
       ctx.fillStyle = '#FBBF24'; // Gold
-      ctx.fillText('★ KETUA ROMBONGAN / MUTAWWIF ★', 256, 146);
+      ctx.fillText('★ KETUA ROMBONGAN / MUTAWWIF ★', 256, 145);
     }
 
     this.spriteTexture.needsUpdate = true;
@@ -286,8 +289,10 @@ export class AvatarModel {
       this.rightArm.rotation.x = -armAngle;
 
       // Natural vertical bobbing
-      this.torso.position.y = (this.gender === 'male' ? 1.05 : 0.95) + Math.abs(Math.sin(this.animTimer * 2)) * 0.04;
-      this.head.position.y = (this.gender === 'male' ? 1.55 : 1.52) + Math.abs(Math.sin(this.animTimer * 2)) * 0.04;
+      const baseTorsoY = this.gender === 'male' ? 1.05 : 0.82;
+      const baseHeadY = this.gender === 'male' ? 1.55 : 1.52;
+      this.torso.position.y = baseTorsoY + Math.abs(Math.sin(this.animTimer * 2)) * 0.04;
+      this.head.position.y = baseHeadY + Math.abs(Math.sin(this.animTimer * 2)) * 0.04;
     } else {
       // Idle gentle breathing
       const breath = Math.sin(this.animTimer) * 0.015;
@@ -296,8 +301,10 @@ export class AvatarModel {
       this.leftArm.rotation.x = 0.05 + breath;
       this.rightArm.rotation.x = 0.05 + breath;
 
-      this.torso.position.y = (this.gender === 'male' ? 1.05 : 0.95) + breath;
-      this.head.position.y = (this.gender === 'male' ? 1.55 : 1.52) + breath;
+      const baseTorsoY = this.gender === 'male' ? 1.05 : 0.82;
+      const baseHeadY = this.gender === 'male' ? 1.55 : 1.52;
+      this.torso.position.y = baseTorsoY + breath;
+      this.head.position.y = baseHeadY + breath;
     }
   }
 

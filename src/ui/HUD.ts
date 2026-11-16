@@ -1,4 +1,4 @@
-import { DuaItem, PlayerData, UmrahStage } from '../types';
+import { DuaItem, PlayerData, PlayerRole, UmrahStage } from '../types';
 import { soundManager } from '../audio/SoundManager';
 import { TALBIYAH_DUA } from '../data/duas';
 
@@ -9,6 +9,7 @@ export class HUD {
   private currentDua: DuaItem | null = null;
   private groupMembers: PlayerData[] = [];
   private mutawwifPlayer: PlayerData | null = null;
+  private isLocalMutawwif: boolean = false;
   private localPlayerPos = { x: 0, z: 0, rotation: 0 };
 
   // Callbacks
@@ -366,6 +367,23 @@ export class HUD {
     }
   }
 
+  public updateSolatZamzamStatus(solatSunatDone: boolean, zamzamDone: boolean) {
+    const actionText = this.container.querySelector('#dua-action-text') as HTMLElement;
+    const actionIcon = this.container.querySelector('#dua-action-icon') as HTMLElement;
+    if (!actionText || !actionIcon) return;
+
+    if (!solatSunatDone) {
+      actionText.innerText = 'Solat Sunat Tawaf (Maqam Ibrahim)';
+      actionIcon.innerText = '🕌';
+    } else if (!zamzamDone) {
+      actionText.innerText = 'Minum Air Zamzam';
+      actionIcon.innerText = '💧';
+    } else {
+      actionText.innerText = 'Menuju ke Safa untuk Sa\'i';
+      actionIcon.innerText = '🏃‍♂️';
+    }
+  }
+
   public updateLap(stage: 'tawaf' | 'sai', lap: number) {
     this.currentLap = lap;
     const lapTextEl = this.container.querySelector('#hud-lap-text') as HTMLElement;
@@ -407,9 +425,12 @@ export class HUD {
     groupName: string,
     groupColor: string,
     localPlayerPos: { x: number; z: number; rotation: number },
-    allPlayers: PlayerData[]
+    allPlayers: PlayerData[],
+    localRole: PlayerRole = 'jemaah'
   ) {
     this.localPlayerPos = localPlayerPos;
+    this.isLocalMutawwif = localRole === 'mutawwif';
+
     const groupNameEl = this.container.querySelector('#hud-group-name') as HTMLElement;
     const colorDot = this.container.querySelector('#hud-group-color-dot') as HTMLElement;
     const memberCountEl = this.container.querySelector('#hud-member-count') as HTMLElement;
@@ -422,13 +443,13 @@ export class HUD {
     this.groupMembers = allPlayers.filter(p => p.groupName === groupName);
     if (memberCountEl) memberCountEl.innerText = `${this.groupMembers.length + 1} Ahli`;
 
-    // Find mutawwif
+    // Find mutawwif among fellow members
     this.mutawwifPlayer = this.groupMembers.find(p => p.role === 'mutawwif') || null;
 
     // Render list
     if (rosterList) {
       if (this.groupMembers.length === 0) {
-        rosterList.innerHTML = `<div class="text-slate-400 text-[11px] italic">Tiada ahli lain dalam kumpulan ini buat masa ini.</div>`;
+        rosterList.innerHTML = `<div class="text-slate-400 text-[11px] italic">Tiada jemaah lain dalam rombongan ini buat masa ini.</div>`;
       } else {
         rosterList.innerHTML = this.groupMembers.map(p => {
           const dist = Math.sqrt((p.x - this.localPlayerPos.x) ** 2 + (p.z - this.localPlayerPos.z) ** 2);
@@ -458,12 +479,33 @@ export class HUD {
     const labelEl = this.container.querySelector('#compass-label') as HTMLElement;
     const compassBox = this.container.querySelector('#mutawwif-compass-box') as HTMLElement;
 
-    if (!this.mutawwifPlayer) {
-      if (compassBox) compassBox.style.display = 'none';
+    if (!compassBox) return;
+
+    if (this.isLocalMutawwif) {
+      compassBox.style.display = 'flex';
+      if (needle) {
+        needle.innerHTML = '🚩';
+        needle.style.transform = 'none';
+      }
+      if (labelEl) labelEl.innerText = 'Peranan: Mutawwif (Ketua)';
+      if (distEl) distEl.innerText = `${this.groupMembers.length} Jemaah mengikuti anda`;
       return;
     }
 
-    if (compassBox) compassBox.style.display = 'flex';
+    if (!this.mutawwifPlayer) {
+      compassBox.style.display = 'flex';
+      if (needle) {
+        needle.innerHTML = '🧭';
+        needle.style.transform = 'none';
+      }
+      if (labelEl) labelEl.innerText = 'Kompas Rombongan';
+      if (distEl) distEl.innerText = 'Tiada Mutawwif luar dikesan';
+      return;
+    }
+
+    compassBox.style.display = 'flex';
+    if (needle) needle.innerHTML = '🧭';
+
     const dx = this.mutawwifPlayer.x - this.localPlayerPos.x;
     const dz = this.mutawwifPlayer.z - this.localPlayerPos.z;
     const dist = Math.sqrt(dx * dx + dz * dz);

@@ -125,6 +125,9 @@ class UmrahSimulationApp {
       onStageChanged: (stage) => {
         this.playerData.stage = stage;
         this.hud.updateStage(stage);
+        if (stage === 'solat_zamzam') {
+          this.hud.updateSolatZamzamStatus(this.workflow.solatSunatDone, this.workflow.zamzamDone);
+        }
         this.localAvatar.updateNameTag(
           this.playerData.name,
           this.playerData.groupName,
@@ -189,6 +192,7 @@ class UmrahSimulationApp {
           } else if (!this.workflow.zamzamDone) {
             this.workflow.completeZamzam();
           }
+          this.hud.updateSolatZamzamStatus(this.workflow.solatSunatDone, this.workflow.zamzamDone);
         } else if (stage === 'sai') {
           soundManager.playIstilamSound();
         } else if (stage === 'tahallul') {
@@ -270,7 +274,8 @@ class UmrahSimulationApp {
           z: this.playerData.z,
           rotation: this.playerData.rotation
         },
-        this.allConnectedPlayers
+        this.allConnectedPlayers,
+        this.playerData.role
       );
     }
   }

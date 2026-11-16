@@ -19,6 +19,7 @@ export class PlayerController {
   private cameraYaw: number = 0; // horizontal angle
   private cameraPitch: number = 0.28; // vertical angle
   private isPointerDown: boolean = false;
+  private activePointerId: number | null = null;
   private previousPointerPosition = { x: 0, y: 0 };
 
   // Virtual Joystick (Mobile)
@@ -46,15 +47,16 @@ export class PlayerController {
 
   private setupPointerListeners() {
     this.domElement.addEventListener('pointerdown', (e) => {
-      // Ignore if clicking on UI interactive elements
-      if ((e.target as HTMLElement).closest('.interactive-ui')) return;
+      // Ignore if clicking on UI interactive elements or secondary pointers
+      if ((e.target as HTMLElement).closest('.interactive-ui') || this.activePointerId !== null) return;
 
       this.isPointerDown = true;
+      this.activePointerId = e.pointerId;
       this.previousPointerPosition = { x: e.clientX, y: e.clientY };
     });
 
     window.addEventListener('pointermove', (e) => {
-      if (!this.isPointerDown) return;
+      if (!this.isPointerDown || e.pointerId !== this.activePointerId) return;
 
       const deltaX = e.clientX - this.previousPointerPosition.x;
       const deltaY = e.clientY - this.previousPointerPosition.y;
@@ -65,9 +67,15 @@ export class PlayerController {
       this.previousPointerPosition = { x: e.clientX, y: e.clientY };
     });
 
-    window.addEventListener('pointerup', () => {
-      this.isPointerDown = false;
-    });
+    const releasePointer = (e: PointerEvent) => {
+      if (e.pointerId === this.activePointerId) {
+        this.isPointerDown = false;
+        this.activePointerId = null;
+      }
+    };
+
+    window.addEventListener('pointerup', releasePointer);
+    window.addEventListener('pointercancel', releasePointer);
 
     // Mouse wheel zoom
     this.domElement.addEventListener('wheel', (e) => {
