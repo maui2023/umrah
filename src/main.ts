@@ -78,14 +78,58 @@ class UmrahSimulationApp {
   }
 
   private startSimulation(data: OnboardingData) {
-    const playerId = 'player_' + Math.random().toString(36).substring(2, 9);
-    const startAtMadinah = data.startLocation !== 'makkah';
+    const savedState = UmrahWorkflow.getSavedState();
+    let playerId = localStorage.getItem('umrah_player_id');
+    if (!playerId) {
+      playerId = savedState?.playerId || ('player_' + Math.random().toString(36).substring(2, 9));
+      localStorage.setItem('umrah_player_id', playerId);
+    }
 
-    // Position player next to Bas Ziarah entrance door at Madinah Station if starting from beginning!
-    const initX = startAtMadinah ? -129.5 : 18;
-    const initY = 0;
-    const initZ = startAtMadinah ? -3.0 : 18;
-    const initRot = startAtMadinah ? -Math.PI / 2 : -3 * Math.PI / 4;
+    let initX = -129.5;
+    let initY = 0;
+    let initZ = -3.0;
+    let initRot = -Math.PI / 2;
+    let shouldBoardBus = false;
+
+    if (data.isResume && savedState) {
+      if (savedState.lastPosition && typeof savedState.lastPosition.x === 'number') {
+        initX = savedState.lastPosition.x;
+        initY = savedState.lastPosition.y || 0;
+        initZ = savedState.lastPosition.z;
+        initRot = savedState.lastPosition.rotation || 0;
+        shouldBoardBus = !!savedState.lastPosition.isInBus;
+      } else {
+        if (savedState.stage === 'tawaf') {
+          initX = 18; initZ = 18; initRot = -3 * Math.PI / 4;
+        } else if (savedState.stage === 'solat_zamzam') {
+          initX = 14; initZ = 4.5; initRot = -Math.PI / 2;
+        } else if (savedState.stage === 'sai') {
+          initX = 65; initZ = 42; initRot = Math.PI;
+        } else if (savedState.stage === 'tahallul' || savedState.stage === 'completed') {
+          initX = 65; initZ = -42; initRot = 0;
+        } else {
+          const spot = this.workflow.getCurrentZiarahSpot();
+          if (spot?.coordinates) {
+            initX = spot.coordinates.x;
+            initZ = spot.coordinates.z;
+          }
+        }
+      }
+    } else {
+      const startAtMadinah = data.startLocation !== 'makkah';
+      initX = startAtMadinah ? -129.5 : 18;
+      initY = 0;
+      initZ = startAtMadinah ? -3.0 : 18;
+      initRot = startAtMadinah ? -Math.PI / 2 : -3 * Math.PI / 4;
+    }
+
+    const currentLap = data.isResume && savedState
+      ? (savedState.stage === 'sai' ? (savedState.saiLap || 1) : (savedState.stage === 'tawaf' ? (savedState.tawafLap || 1) : 1))
+      : 1;
+
+    const currentStage = data.isResume && savedState
+      ? savedState.stage
+      : (data.startLocation !== 'makkah' ? 'ziarah_dalam' : 'tawaf');
 
     this.playerData = {
       id: playerId,
@@ -100,8 +144,9 @@ class UmrahSimulationApp {
       z: initZ,
       rotation: initRot,
       isMoving: false,
-      currentLap: 1,
-      stage: startAtMadinah ? 'ziarah_dalam' : 'tawaf'
+      currentLap: currentLap,
+      stage: currentStage,
+      isInBus: shouldBoardBus
     };
 
     // 1. Create Local Avatar
@@ -111,7 +156,7 @@ class UmrahSimulationApp {
       role: this.playerData.role,
       groupColor: this.playerData.groupColor,
       groupName: this.playerData.groupName,
-      currentLap: 1
+      currentLap: currentLap
     });
 
     this.localAvatar.group.position.set(this.playerData.x, 0, this.playerData.z);
@@ -128,6 +173,10 @@ class UmrahSimulationApp {
       this.playerData.rotation,
       busController
     );
+
+    if (shouldBoardBus && busController) {
+      this.playerController.boardBus();
+    }
 
     // 3. Initialize HUD
     this.hud = new HUD();
@@ -209,8 +258,43 @@ class UmrahSimulationApp {
       }
     });
 
-    // Start Umrah ritual from Madinah or directly Makkah
-    this.workflow.startUmrah(startAtMadinah);
+    // Position provider for continuous auto-save
+    this.workflow.positionProvider = () => {
+      return {
+        x: this.playerData?.x ?? 0,
+        y: this.playerData?.y ?? 0,
+        z: this.playerData?.z ?? 0,
+        rotation: this.playerData?.rotation ?? 0,
+        isInBus: this.playerController?.isInBus ?? false
+      };
+    };
+
+    // Start Umrah ritual or resume saved journey
+    if (data.isResume) {
+      this.workflow.resumeUmrah();
+    } else {
+      this.workflow.resetProgress();
+      this.workflow.startUmrah(data.startLocation !== 'makkah');
+    }
+
+    // Auto-save interval (every 4 seconds)
+    setInterval(() => {
+      if (this.playerData && this.workflow) {
+        this.workflow.saveState();
+      }
+    }, 4000);
+
+    // Auto-save before browser unload or tab switch
+    window.addEventListener('beforeunload', () => {
+      if (this.playerData && this.workflow) {
+        this.workflow.saveState();
+      }
+    });
+    window.addEventListener('pagehide', () => {
+      if (this.playerData && this.workflow) {
+        this.workflow.saveState();
+      }
+    });
 
     // 5. Connect Multiplayer / Public World
     this.supabaseService.connect(this.playerData, (remotePlayers: PlayerData[]) => {
@@ -354,6 +438,15 @@ class UmrahSimulationApp {
       },
       onSprintToggle: (sprinting) => {
         this.playerController.setSprinting(sprinting);
+      },
+      onResetProgress: () => {
+        if (confirm('Adakah anda pasti mahu memadamkan kemajuan dan mula semula dari awal?')) {
+          this.workflow.resetProgress();
+          window.location.reload();
+        }
+      },
+      onManualSave: () => {
+        this.workflow.saveState();
       }
     });
   }
@@ -377,7 +470,8 @@ class UmrahSimulationApp {
           role: p.role,
           groupColor: p.groupColor,
           groupName: p.groupName,
-          currentLap: p.currentLap
+          currentLap: p.currentLap,
+          showOverheadTag: true
         });
         avatar.group.position.set(p.x, 0, p.z);
         avatar.group.rotation.y = p.rotation;

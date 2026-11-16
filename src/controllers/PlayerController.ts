@@ -98,8 +98,9 @@ export class PlayerController {
       const deltaX = e.clientX - this.previousPointerPosition.x;
       const deltaY = e.clientY - this.previousPointerPosition.y;
 
-      // Natural third-person camera rotation (PUBG style)
-      this.cameraYaw += deltaX * 0.005;
+      // Natural third-person camera rotation:
+      // Dragging right rotates view to the right; dragging left rotates view to the left.
+      this.cameraYaw -= deltaX * 0.005;
       this.cameraPitch = Math.max(0.06, Math.min(Math.PI / 2.3, this.cameraPitch + deltaY * 0.0035));
 
       this.previousPointerPosition = { x: e.clientX, y: e.clientY };
@@ -414,10 +415,11 @@ export class PlayerController {
         0,
         Math.cos(this.cameraYaw)
       );
+      // camRight: horizontal vector pointing to the screen's right side
       const camRight = new THREE.Vector3(
-        Math.cos(this.cameraYaw),
+        -Math.cos(this.cameraYaw),
         0,
-        -Math.sin(this.cameraYaw)
+        Math.sin(this.cameraYaw)
       );
 
       const moveDir = new THREE.Vector3()

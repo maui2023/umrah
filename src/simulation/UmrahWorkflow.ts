@@ -42,6 +42,17 @@ export class UmrahWorkflow {
   private onZiarahChangedCallback: ((spot: ZiarahSpot, index: number, total: number) => void) | null = null;
   private onDuaTriggeredCallback: ((dua: DuaItem, alertMessage?: string) => void) | null = null;
   private onTeleportRequestedCallback: ((x: number, z: number, rot?: number) => void) | null = null;
+  public positionProvider: (() => { x: number; y: number; z: number; rotation: number; isInBus?: boolean }) | null = null;
+
+  public static getSavedState(): SavedUmrahState | null {
+    const raw = localStorage.getItem('umrah_save_state');
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as SavedUmrahState;
+    } catch {
+      return null;
+    }
+  }
 
   constructor() {
     this.loadSavedState();
@@ -172,6 +183,7 @@ export class UmrahWorkflow {
     this.qubaSolatDone = true;
     soundManager.playSolatChime();
     soundManager.playCheckpointSound();
+    this.saveState();
     const qubaSpot = ZIARAH_SPOTS.find(s => s.id === 'masjid_quba');
     if (qubaSpot && qubaSpot.dua) {
       this.onDuaTriggeredCallback?.(
@@ -188,6 +200,7 @@ export class UmrahWorkflow {
     this.ihramWorn = true;
     soundManager.playCheckpointSound();
     this.stage = 'ziarah_wida_hotel';
+    this.saveState();
     const hotelSpot = ZIARAH_SPOTS.find(s => s.id === 'memakai_ihram_hotel');
     if (hotelSpot && hotelSpot.dua) {
       this.onDuaTriggeredCallback?.(
@@ -508,6 +521,46 @@ export class UmrahWorkflow {
     );
   }
 
+  public resumeUmrah() {
+    this.loadSavedState();
+    this.onStageChangedCallback?.(this.stage);
+
+    if (this.stage === 'tawaf') {
+      const lap = Math.max(this.tawafLap, 1);
+      this.tawafLap = lap;
+      this.onLapChangedCallback?.('tawaf', lap);
+      const dua = TAWAF_DUAS[lap] || ISTILAM_DUA;
+      this.onDuaTriggeredCallback?.(dua, `Alhamdulillah! Menyambung Tawaf pusingan ke-${lap}.`);
+    } else if (this.stage === 'sai') {
+      const lap = Math.max(this.saiLap, 1);
+      this.saiLap = lap;
+      this.saiNextTarget = (lap % 2 === 1) ? 'marwah' : 'safa';
+      this.onLapChangedCallback?.('sai', lap);
+      const dua = SAI_DUAS[lap] || SAFA_START_DUA;
+      this.onDuaTriggeredCallback?.(
+        dua,
+        `Alhamdulillah! Menyambung Sa'i pusingan ke-${lap} menghala ke Bukit ${this.saiNextTarget === 'marwah' ? 'Marwah' : 'Safa'}.`
+      );
+    } else if (this.stage === 'solat_zamzam') {
+      if (!this.solatSunatDone) {
+        this.onDuaTriggeredCallback?.(MAQAM_IBRAHIM_DUA, 'Menyambung solat sunat tawaf di belakang Maqam Ibrahim.');
+      } else if (!this.zamzamDone) {
+        this.onDuaTriggeredCallback?.(ZAMZAM_DUA, 'Menyambung minum air zamzam di stesen Zamzam.');
+      }
+    } else if (this.stage === 'tahallul') {
+      this.onDuaTriggeredCallback?.(TAHALLUL_DUA, 'Alhamdulillah! Sa\'i selesai. Teruskan dengan Tahallul (bercukur / bergunting).');
+    } else if (this.stage === 'completed') {
+      this.onDuaTriggeredCallback?.(TAHALLUL_DUA, 'Mabruk! Ibadah Umrah anda telah selesai dilaksanakan.');
+    } else {
+      // Ziarah stages
+      const spot = this.getCurrentZiarahSpot();
+      this.onZiarahChangedCallback?.(spot, this.currentZiarahIndex, ZIARAH_SPOTS.length);
+      if (spot.dua) {
+        this.onDuaTriggeredCallback?.(spot.dua, `📍 Sambung Ziarah: ${spot.title}`);
+      }
+    }
+  }
+
   public resetProgress() {
     localStorage.removeItem('umrah_save_state');
     this.currentZiarahIndex = 0;
@@ -527,9 +580,24 @@ export class UmrahWorkflow {
     this.onZiarahChangedCallback?.(ZIARAH_SPOTS[0], 0, ZIARAH_SPOTS.length);
   }
 
-  private saveState() {
+  public saveState() {
+    let lastPosition: SavedUmrahState['lastPosition'] = undefined;
+    if (this.positionProvider) {
+      try {
+        lastPosition = this.positionProvider();
+      } catch (err) {
+        console.warn('Failed to retrieve player position for save:', err);
+      }
+    }
+
+    let playerId = localStorage.getItem('umrah_player_id');
+    if (!playerId) {
+      playerId = 'player_' + Math.random().toString(36).substring(2, 9);
+      localStorage.setItem('umrah_player_id', playerId);
+    }
+
     const state: SavedUmrahState = {
-      playerId: localStorage.getItem('umrah_player_id') || 'guest_' + Math.random().toString(36).substring(2, 8),
+      playerId,
       playerName: localStorage.getItem('umrah_player_name') || 'Jemaah',
       gender: (localStorage.getItem('umrah_gender') as 'male' | 'female') || 'male',
       role: (localStorage.getItem('umrah_role') as 'mutawwif' | 'jemaah') || 'jemaah',
@@ -543,13 +611,18 @@ export class UmrahWorkflow {
       zamzamDone: this.zamzamDone,
       solatSunatDone: this.solatSunatDone,
       tahallulDone: this.tahallulDone,
+      qubaSolatDone: this.qubaSolatDone,
+      ihramWorn: this.ihramWorn,
+      miqatNiatDone: this.miqatNiatDone,
+      lastPosition,
+      lastSavedAt: new Date().toISOString(),
       completedAt: this.stage === 'completed' ? new Date().toISOString() : undefined
     };
 
     localStorage.setItem('umrah_save_state', JSON.stringify(state));
   }
 
-  private loadSavedState() {
+  public loadSavedState() {
     const raw = localStorage.getItem('umrah_save_state');
     if (!raw) return;
 
@@ -558,10 +631,16 @@ export class UmrahWorkflow {
       if (state.stage) this.stage = state.stage;
       if (typeof state.ziarahSpotIndex === 'number') this.currentZiarahIndex = state.ziarahSpotIndex;
       if (typeof state.tawafLap === 'number') this.tawafLap = state.tawafLap;
-      if (typeof state.saiLap === 'number') this.saiLap = state.saiLap;
+      if (typeof state.saiLap === 'number') {
+        this.saiLap = state.saiLap;
+        this.saiNextTarget = (this.saiLap % 2 === 1) ? 'marwah' : 'safa';
+      }
       if (state.zamzamDone) this.zamzamDone = true;
       if (state.solatSunatDone) this.solatSunatDone = true;
       if (state.tahallulDone) this.tahallulDone = true;
+      if (state.qubaSolatDone) this.qubaSolatDone = true;
+      if (state.ihramWorn) this.ihramWorn = true;
+      if (state.miqatNiatDone) this.miqatNiatDone = true;
     } catch (e) {
       console.warn('Failed to parse saved state:', e);
     }

@@ -120,5 +120,16 @@ export interface SavedUmrahState {
   zamzamDone: boolean;
   solatSunatDone: boolean;
   tahallulDone: boolean;
+  qubaSolatDone?: boolean;
+  ihramWorn?: boolean;
+  miqatNiatDone?: boolean;
+  lastPosition?: {
+    x: number;
+    y: number;
+    z: number;
+    rotation: number;
+    isInBus?: boolean;
+  };
+  lastSavedAt?: string;
   completedAt?: string;
 }

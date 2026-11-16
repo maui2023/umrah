@@ -10,8 +10,8 @@ export class AvatarModel {
   public groupName: string;
 
   // Body parts for procedural animation
-  private head: THREE.Mesh;
-  private torso: THREE.Mesh;
+  private head: THREE.Group;
+  private torso: THREE.Group;
   private leftArm: THREE.Group;
   private rightArm: THREE.Group;
   private leftLeg: THREE.Group;
@@ -35,6 +35,7 @@ export class AvatarModel {
     groupColor: string;
     groupName: string;
     currentLap?: number;
+    showOverheadTag?: boolean;
   }) {
     this.name = data.name;
     this.gender = data.gender;
@@ -44,151 +45,286 @@ export class AvatarModel {
 
     this.group = new THREE.Group();
 
-    // Reusable Materials
+    // High quality modern materials
+    // Warm natural skin tone (as seen in user screenshot)
     const skinMat = new THREE.MeshLambertMaterial({ color: 0xdfab81 });
+    // Pure clean ihram white cloth
     const whiteClothMat = new THREE.MeshLambertMaterial({ color: 0xfcfcfc });
-    const hairMat = new THREE.MeshLambertMaterial({ color: 0x221811 });
-    const sandalMat = new THREE.MeshLambertMaterial({ color: 0x4a3728 });
+    const whiteClothShadeMat = new THREE.MeshLambertMaterial({ color: 0xedebe8 });
+    // Jet black natural hair
+    const hairMat = new THREE.MeshLambertMaterial({ color: 0x1a1512 });
+    // Sandal brown leather
+    const sandalMat = new THREE.MeshLambertMaterial({ color: 0x3d2b1f });
 
-    // 1. Torso
+    // 1. Torso Group
+    this.torso = new THREE.Group();
+    this.torso.position.y = this.gender === 'male' ? 1.05 : 0.85;
+
     if (this.gender === 'male') {
-      // Male Pilgrim (Ihram: Rida' draped over torso with bare right shoulder)
-      const torsoGeo = new THREE.BoxGeometry(0.55, 0.65, 0.32);
-      this.torso = new THREE.Mesh(torsoGeo, whiteClothMat);
-      this.torso.position.y = 1.05;
-      this.torso.castShadow = true;
-      this.group.add(this.torso);
+      // Male Pilgrim (Modern Stylized Ihram: Rida' draped over torso with bare right shoulder & upper back)
+      // Core chest base (slight taper from chest to waist)
+      const chestGeo = new THREE.CylinderGeometry(0.24, 0.20, 0.42, 16);
+      const chestMesh = new THREE.Mesh(chestGeo, skinMat);
+      chestMesh.castShadow = true;
+      this.torso.add(chestMesh);
 
-      // Bare right shoulder sash (Idtiba' detail - sunnah for tawaf)
-      const bareShoulder = new THREE.Mesh(
-        new THREE.BoxGeometry(0.18, 0.35, 0.33),
-        skinMat
+      // Bare right shoulder sphere & deltoid
+      const rightShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 14), skinMat);
+      rightShoulder.position.set(0.25, 0.16, 0);
+      rightShoulder.castShadow = true;
+      this.torso.add(rightShoulder);
+
+      // Upper back skin section
+      const backSkin = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.32, 0.12), skinMat);
+      backSkin.position.set(0.12, 0.08, -0.09);
+      this.torso.add(backSkin);
+
+      // White Ihram Rida' - Diagonal Drape across chest & back (Idtiba' sunnah)
+      // Left shoulder cloth mantle (rounded & draped)
+      const leftShoulderDrape = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.16, 0.18, 0.26, 14),
+        whiteClothMat
       );
-      bareShoulder.position.set(0.24, 0.22, 0);
-      this.torso.add(bareShoulder);
+      leftShoulderDrape.position.set(-0.24, 0.15, 0);
+      leftShoulderDrape.rotation.z = 0.15;
+      leftShoulderDrape.castShadow = true;
+      this.torso.add(leftShoulderDrape);
+
+      // Main diagonal fold wrapping from under right armpit across chest to over left shoulder
+      const chestDrape = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.26, 0.23, 0.38, 16, 1, false, 0, Math.PI * 1.55),
+        whiteClothMat
+      );
+      chestDrape.position.set(-0.04, 0.02, 0.02);
+      chestDrape.rotation.y = 0.3;
+      chestDrape.castShadow = true;
+      this.torso.add(chestDrape);
+
+      // Back fold drape
+      const backDrape = new THREE.Mesh(
+        new THREE.BoxGeometry(0.32, 0.36, 0.14),
+        whiteClothShadeMat
+      );
+      backDrape.position.set(-0.08, 0.04, -0.08);
+      backDrape.rotation.z = -0.12;
+      this.torso.add(backDrape);
+
+      // Ihram waist wrap band / fold (Hizam)
+      const waistFold = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.22, 0.23, 0.12, 16),
+        whiteClothMat
+      );
+      waistFold.position.y = -0.19;
+      this.torso.add(waistFold);
+
     } else {
-      // Female Pilgrim: Modest full-length white Abaya/Jubah draping down
-      const torsoGeo = new THREE.CylinderGeometry(0.26, 0.48, 1.15, 12);
-      this.torso = new THREE.Mesh(torsoGeo, whiteClothMat);
-      this.torso.position.y = 0.82;
-      this.torso.castShadow = true;
-      this.group.add(this.torso);
+      // Female Pilgrim: Modest, elegant flowing white Abaya/Jubah
+      const dressBody = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.24, 0.46, 1.15, 16),
+        whiteClothMat
+      );
+      dressBody.castShadow = true;
+      this.torso.add(dressBody);
     }
+    this.group.add(this.torso);
 
-    // 2. Head & Hair/Hijab
-    const headGeo = new THREE.BoxGeometry(0.3, 0.32, 0.28);
-    this.head = new THREE.Mesh(headGeo, skinMat);
-    this.head.position.y = this.gender === 'male' ? 1.55 : 1.52;
-    this.head.castShadow = true;
-    this.group.add(this.head);
+    // 2. Head Group & Hair / Hijab
+    this.head = new THREE.Group();
+    this.head.position.y = this.gender === 'male' ? 1.54 : 1.50;
+
+    // Neck
+    const neck = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.09, 0.14, 12),
+      skinMat
+    );
+    neck.position.y = -0.14;
+    this.head.add(neck);
+
+    // Head Cranium & Face (Smooth rounded shape)
+    const headCranium = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 16, 16),
+      skinMat
+    );
+    headCranium.castShadow = true;
+    this.head.add(headCranium);
+
+    // Subtle jaw / chin
+    const jaw = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.08, 0.12, 12),
+      skinMat
+    );
+    jaw.position.set(0, -0.08, 0.04);
+    this.head.add(jaw);
 
     if (this.gender === 'male') {
-      // Male Hair (neatly trimmed or shaved)
-      const hairGeo = new THREE.BoxGeometry(0.32, 0.12, 0.3);
-      const hair = new THREE.Mesh(hairGeo, hairMat);
-      hair.position.y = 0.14;
-      this.head.add(hair);
-    } else {
-      // Female Hijab / Khimar: Complete modest head, neck, and shoulder covering in pure white
-      const hijabTop = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.24, 0.32, 0.38, 12),
-        whiteClothMat
+      // Modern short neatly trimmed hair (matches screenshot)
+      const hairCrown = new THREE.Mesh(
+        new THREE.SphereGeometry(0.165, 16, 14, 0, Math.PI * 2, 0, Math.PI * 0.58),
+        hairMat
       );
-      hijabTop.position.y = 0.08;
-      this.head.add(hijabTop);
+      hairCrown.position.set(0, 0.02, -0.01);
+      this.head.add(hairCrown);
 
-      // Modest Khimar drape over chest and back
-      const hijabDrape = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.32, 0.52, 0.48, 12),
+      // Back of head hairline
+      const hairBack = new THREE.Mesh(
+        new THREE.BoxGeometry(0.26, 0.14, 0.12),
+        hairMat
+      );
+      hairBack.position.set(0, 0.01, -0.11);
+      this.head.add(hairBack);
+    } else {
+      // Female Hijab / Khimar: Modest, draped pure white covering
+      const hijabCrown = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 16, 14),
         whiteClothMat
       );
-      hijabDrape.position.y = -0.26;
+      this.head.add(hijabCrown);
+
+      const hijabDrape = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.20, 0.44, 0.48, 16),
+        whiteClothMat
+      );
+      hijabDrape.position.y = -0.25;
       this.head.add(hijabDrape);
     }
+    this.group.add(this.head);
 
-    // 3. Arms
+    // 3. Arms (Articulated shoulder pivot)
     this.leftArm = new THREE.Group();
     this.rightArm = new THREE.Group();
 
-    const armGeo = new THREE.BoxGeometry(0.14, 0.55, 0.14);
+    // Left Arm (Wrapped in white cloth on top, skin forearm)
+    const leftArmShoulderY = 1.32;
+    this.leftArm.position.set(-0.32, leftArmShoulderY, 0);
 
-    // Left Arm (White cloth sleeve)
-    const leftArmMesh = new THREE.Mesh(armGeo, whiteClothMat);
-    leftArmMesh.position.y = -0.22;
-    leftArmMesh.castShadow = true;
-    this.leftArm.add(leftArmMesh);
+    const leftUpperArm = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.07, 0.065, 0.28, 12),
+      whiteClothMat
+    );
+    leftUpperArm.position.y = -0.12;
+    leftUpperArm.castShadow = true;
+    this.leftArm.add(leftUpperArm);
 
-    // Left hand
-    const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.14, 0.11), skinMat);
-    leftHand.position.y = -0.52;
+    const leftForearm = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.05, 0.26, 12),
+      skinMat
+    );
+    leftForearm.position.y = -0.34;
+    leftForearm.castShadow = true;
+    this.leftArm.add(leftForearm);
+
+    const leftHand = new THREE.Mesh(
+      new THREE.SphereGeometry(0.05, 10, 10),
+      skinMat
+    );
+    leftHand.position.y = -0.48;
     this.leftArm.add(leftHand);
-
-    this.leftArm.position.set(-0.35, 1.3, 0);
     this.group.add(this.leftArm);
 
-    // Right Arm (Skin for male idtiba' shoulder/arm, white cloth for female)
-    const rightArmMesh = new THREE.Mesh(armGeo, this.gender === 'male' ? skinMat : whiteClothMat);
-    rightArmMesh.position.y = -0.22;
-    rightArmMesh.castShadow = true;
-    this.rightArm.add(rightArmMesh);
+    // Right Arm (Skin shoulder & upper arm for male idtiba', white cloth for female)
+    const rightArmShoulderY = 1.32;
+    this.rightArm.position.set(0.32, rightArmShoulderY, 0);
 
-    // Right hand
-    const rightHand = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.14, 0.11), skinMat);
-    rightHand.position.y = -0.52;
+    const rightUpperArm = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.07, 0.065, 0.28, 12),
+      this.gender === 'male' ? skinMat : whiteClothMat
+    );
+    rightUpperArm.position.y = -0.12;
+    rightUpperArm.castShadow = true;
+    this.rightArm.add(rightUpperArm);
+
+    const rightForearm = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.05, 0.26, 12),
+      skinMat
+    );
+    rightForearm.position.y = -0.34;
+    rightForearm.castShadow = true;
+    this.rightArm.add(rightForearm);
+
+    const rightHand = new THREE.Mesh(
+      new THREE.SphereGeometry(0.05, 10, 10),
+      skinMat
+    );
+    rightHand.position.y = -0.48;
     this.rightArm.add(rightHand);
-
-    this.rightArm.position.set(0.35, 1.3, 0);
     this.group.add(this.rightArm);
 
-    // 4. Legs
+    // 4. Legs & Lower Ihram Garment (Izar)
     this.leftLeg = new THREE.Group();
     this.rightLeg = new THREE.Group();
 
-    const legGeo = new THREE.BoxGeometry(0.18, 0.65, 0.18);
-    const legMat = whiteClothMat; // Izar cloth / lower robe
+    const legPivotY = 0.74;
+    this.leftLeg.position.set(-0.13, legPivotY, 0);
+    this.rightLeg.position.set(0.13, legPivotY, 0);
 
-    // Left Leg
-    const leftLegMesh = new THREE.Mesh(legGeo, legMat);
-    leftLegMesh.position.y = -0.32;
-    leftLegMesh.castShadow = true;
-    this.leftLeg.add(leftLegMesh);
+    // Left Leg: Upper Izar drape + lower calf + sandal
+    const leftIzar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.14, 0.42, 12),
+      whiteClothMat
+    );
+    leftIzar.position.y = -0.18;
+    leftIzar.castShadow = true;
+    this.leftLeg.add(leftIzar);
 
-    // Sandal
-    const leftSandal = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.08, 0.28), sandalMat);
-    leftSandal.position.set(0, -0.66, 0.04);
+    const leftCalf = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.065, 0.055, 0.32, 10),
+      skinMat
+    );
+    leftCalf.position.y = -0.48;
+    leftCalf.castShadow = true;
+    this.leftLeg.add(leftCalf);
+
+    const leftSandal = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.06, 0.24),
+      sandalMat
+    );
+    leftSandal.position.set(0, -0.68, 0.04);
+    leftSandal.castShadow = true;
     this.leftLeg.add(leftSandal);
-
-    this.leftLeg.position.set(-0.16, 0.72, 0);
     this.group.add(this.leftLeg);
 
-    // Right Leg
-    const rightLegMesh = new THREE.Mesh(legGeo, legMat);
-    rightLegMesh.position.y = -0.32;
-    rightLegMesh.castShadow = true;
-    this.rightLeg.add(rightLegMesh);
+    // Right Leg: Upper Izar drape + lower calf + sandal
+    const rightIzar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.14, 0.42, 12),
+      whiteClothMat
+    );
+    rightIzar.position.y = -0.18;
+    rightIzar.castShadow = true;
+    this.rightLeg.add(rightIzar);
 
-    // Sandal
-    const rightSandal = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.08, 0.28), sandalMat);
-    rightSandal.position.set(0, -0.66, 0.04);
+    const rightCalf = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.065, 0.055, 0.32, 10),
+      skinMat
+    );
+    rightCalf.position.y = -0.48;
+    rightCalf.castShadow = true;
+    this.rightLeg.add(rightCalf);
+
+    const rightSandal = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.06, 0.24),
+      sandalMat
+    );
+    rightSandal.position.set(0, -0.68, 0.04);
+    rightSandal.castShadow = true;
     this.rightLeg.add(rightSandal);
-
-    this.rightLeg.position.set(0.16, 0.72, 0);
     this.group.add(this.rightLeg);
 
-    // 5. Ground Halo Ring (Color-coded to player's group)
-    const ringGeo = new THREE.RingGeometry(0.48, 0.64, 28);
+    // 5. Subtle Shadow / Ground Halo Ring
+    const ringGeo = new THREE.RingGeometry(0.38, 0.52, 28);
     const ringMat = new THREE.MeshBasicMaterial({
       color: new THREE.Color(this.groupColor),
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.75
+      opacity: 0.35
     });
     this.groundRing = new THREE.Mesh(ringGeo, ringMat);
     this.groundRing.rotation.x = -Math.PI / 2;
     this.groundRing.position.y = 0.02;
     this.group.add(this.groundRing);
 
-    // 6. Overhead Floating Name Tag & Group Badge (Canvas Sprite Billboard)
+    // 6. Overhead Floating Name Tag
+    // For local player in third-person mode, keep it hidden by default (clean view as in screenshot),
+    // but available for remote players or when explicitly enabled
     this.spriteCanvas = document.createElement('canvas');
     this.spriteCanvas.width = 512;
     this.spriteCanvas.height = 192;
@@ -205,11 +341,16 @@ export class AvatarModel {
     });
 
     this.overheadSprite = new THREE.Sprite(spriteMat);
-    this.overheadSprite.scale.set(1.9, 0.72, 1);
-    this.overheadSprite.position.set(0, 2.35, 0);
+    this.overheadSprite.scale.set(1.6, 0.6, 1);
+    this.overheadSprite.position.set(0, 2.30, 0);
+    this.overheadSprite.visible = data.showOverheadTag ?? false;
     this.group.add(this.overheadSprite);
 
     this.updateNameTag(this.name, this.groupName, this.groupColor, this.role, data.currentLap || 1);
+  }
+
+  public setOverheadTagVisible(visible: boolean) {
+    this.overheadSprite.visible = visible;
   }
 
   /**
@@ -227,15 +368,13 @@ export class AvatarModel {
     this.groupColor = groupColor;
     this.role = role;
 
-    // Update ground ring color
     (this.groundRing.material as THREE.MeshBasicMaterial).color.set(groupColor);
 
     const ctx = this.spriteContext;
     ctx.clearRect(0, 0, 512, 192);
 
-    // Rounded Box Background
     const radius = 24;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)'; // Slate 900 translucent
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
     ctx.strokeStyle = groupColor;
     ctx.lineWidth = 6;
 
@@ -254,17 +393,15 @@ export class AvatarModel {
     const nameY = isLeader ? 55 : 68;
     ctx.fillText(displayName, 256, nameY);
 
-    // Group Badge Line
     ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
     ctx.fillStyle = groupColor;
     const badgeText = `[ ${groupName} ]  •  Pusingan ${lap}`;
     const badgeY = isLeader ? 104 : 118;
     ctx.fillText(badgeText, 256, badgeY);
 
-    // Role sub-label
     if (isLeader) {
       ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#FBBF24'; // Gold
+      ctx.fillStyle = '#FBBF24';
       ctx.fillText('★ KETUA ROMBONGAN / MUTAWWIF ★', 256, 145);
     }
 
@@ -278,9 +415,9 @@ export class AvatarModel {
     this.animTimer += delta * (isMoving ? 8 * speedMultiplier : 1.8);
 
     if (isMoving) {
-      // Walking / running limb swings
-      const legAngle = Math.sin(this.animTimer) * 0.65;
-      const armAngle = -Math.sin(this.animTimer) * 0.65;
+      // Natural walking / running limb swings
+      const legAngle = Math.sin(this.animTimer) * 0.62;
+      const armAngle = -Math.sin(this.animTimer) * 0.62;
 
       this.leftLeg.rotation.x = legAngle;
       this.rightLeg.rotation.x = -legAngle;
@@ -289,10 +426,11 @@ export class AvatarModel {
       this.rightArm.rotation.x = -armAngle;
 
       // Natural vertical bobbing
-      const baseTorsoY = this.gender === 'male' ? 1.05 : 0.82;
-      const baseHeadY = this.gender === 'male' ? 1.55 : 1.52;
-      this.torso.position.y = baseTorsoY + Math.abs(Math.sin(this.animTimer * 2)) * 0.04;
-      this.head.position.y = baseHeadY + Math.abs(Math.sin(this.animTimer * 2)) * 0.04;
+      const baseTorsoY = this.gender === 'male' ? 1.05 : 0.85;
+      const baseHeadY = this.gender === 'male' ? 1.54 : 1.50;
+      const bob = Math.abs(Math.sin(this.animTimer * 2)) * 0.04;
+      this.torso.position.y = baseTorsoY + bob;
+      this.head.position.y = baseHeadY + bob;
     } else {
       // Idle gentle breathing
       const breath = Math.sin(this.animTimer) * 0.015;
@@ -301,21 +439,17 @@ export class AvatarModel {
       this.leftArm.rotation.x = 0.05 + breath;
       this.rightArm.rotation.x = 0.05 + breath;
 
-      const baseTorsoY = this.gender === 'male' ? 1.05 : 0.82;
-      const baseHeadY = this.gender === 'male' ? 1.55 : 1.52;
+      const baseTorsoY = this.gender === 'male' ? 1.05 : 0.85;
+      const baseHeadY = this.gender === 'male' ? 1.54 : 1.50;
       this.torso.position.y = baseTorsoY + breath;
       this.head.position.y = baseHeadY + breath;
     }
   }
 
-  /**
-   * Interpolate remote player coordinates smoothly
-   */
   public interpolate(delta: number) {
     const lerpFactor = Math.min(delta * 12, 1.0);
     this.group.position.lerp(this.targetPosition, lerpFactor);
 
-    // Rotation shortest angle interpolation
     let diff = this.targetRotation - this.group.rotation.y;
     while (diff < -Math.PI) diff += Math.PI * 2;
     while (diff > Math.PI) diff -= Math.PI * 2;
@@ -324,9 +458,6 @@ export class AvatarModel {
     this.update(delta, this.isMoving);
   }
 
-  /**
-   * Clean up Three.js resources
-   */
   public dispose() {
     this.spriteTexture.dispose();
     this.group.traverse((obj) => {
