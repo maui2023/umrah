@@ -254,18 +254,24 @@ export class HUD {
 
   public updateDockedTabPosition() {
     if (!this.descDockedTabEl) return;
+    
+    // Read the safe-area-inset-top if available or default to 10px padding
+    const safeTop = 10;
+
     if (this.isTitleCardHidden) {
       if (this.titleMiniPillEl && this.titleMiniPillEl.style.display !== 'none') {
+        // When mini pill is shown, dock tab is aligned just below or beside the mini pill
         const pillRect = this.titleMiniPillEl.getBoundingClientRect();
-        this.descDockedTabEl.style.top = Math.max(54, Math.round(pillRect.bottom + 8)) + 'px';
+        this.descDockedTabEl.style.top = Math.max(safeTop, Math.round(pillRect.bottom + 8)) + 'px';
       } else {
-        this.descDockedTabEl.style.top = '54px';
+        this.descDockedTabEl.style.top = `${safeTop}px`;
       }
     } else if (this.titleCardEl && !this.titleCardEl.classList.contains('is-hidden-up')) {
+      // When title card is visible, dock tab is positioned right below it
       const titleRect = this.titleCardEl.getBoundingClientRect();
-      this.descDockedTabEl.style.top = Math.max(140, Math.round(titleRect.bottom + 8)) + 'px';
+      this.descDockedTabEl.style.top = Math.max(safeTop, Math.round(titleRect.bottom + 8)) + 'px';
     } else {
-      this.descDockedTabEl.style.top = '140px';
+      this.descDockedTabEl.style.top = `${safeTop}px`;
     }
   }
 
@@ -283,7 +289,7 @@ export class HUD {
   private render() {
     this.container.innerHTML = `
       <!-- DOCKED TAB: Appears docked on the left edge when Card 2 (Info) is auto/manually hidden to the side -->
-      <button id="hud-desc-docked-tab" style="display: none;" title="Papar Info & Panduan" class="hud-docked-tab-anim interactive-ui pointer-events-auto fixed left-0 top-[140px] z-40 flex items-center gap-1.5 px-3 py-2 rounded-r-2xl bg-white/95 backdrop-blur-md shadow-[2px_6px_20px_rgba(0,0,0,0.12)] border-y border-r border-stone-200/80 text-stone-800 text-xs font-semibold hover:bg-stone-50 active:scale-95 transition-all cursor-pointer">
+      <button id="hud-desc-docked-tab" style="display: none;" title="Papar Info & Panduan" class="hud-docked-tab-anim interactive-ui pointer-events-auto fixed left-0 top-[10px] z-40 flex items-center gap-1.5 px-3 py-2 rounded-r-2xl bg-white/95 backdrop-blur-md shadow-[2px_6px_20px_rgba(0,0,0,0.12)] border-y border-r border-stone-200/80 text-stone-800 text-xs font-semibold hover:bg-stone-50 active:scale-95 transition-all cursor-pointer">
         <span class="text-sm">📖</span>
         <span class="font-medium text-stone-800">Info & Panduan</span>
         <span class="text-stone-400 text-[10px]">▶</span>
@@ -419,13 +425,13 @@ export class HUD {
         <div class="pointer-events-auto flex flex-col gap-2.5 z-40 items-end">
           
           <!-- 1. Info Rombongan & Mutawwif Button -->
-          <button id="btn-top-roster" title="Info Jemaah & Jarak Mutawwif" class="interactive-ui h-11 sm:h-12 px-2.5 sm:px-3 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center gap-2 text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer">
-            <span class="text-base sm:text-lg">👥</span>
-            <div class="flex flex-col text-left leading-none pr-1">
-              <span id="top-roster-group-label" class="text-[9px] font-bold text-stone-400 uppercase tracking-wider truncate max-w-[80px] sm:max-w-[100px]">ROMBONGAN</span>
-              <span id="top-roster-status-text" class="text-[11px] font-bold text-stone-800 truncate max-w-[80px] sm:max-w-[100px]">1 Ahli</span>
+          <button id="btn-top-roster" title="Info Jemaah & Jarak Mutawwif" class="interactive-ui min-h-[44px] px-3 sm:px-3.5 py-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center gap-2 text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer max-w-[155px] sm:max-w-[200px]">
+            <span class="text-base sm:text-lg shrink-0">👥</span>
+            <div class="flex flex-col text-left leading-tight pr-0.5 overflow-hidden">
+              <span id="top-roster-group-label" class="text-[9px] font-bold text-stone-400 uppercase tracking-wider truncate">ROMBONGAN</span>
+              <span id="top-roster-status-text" class="text-[11px] font-bold text-stone-800 truncate whitespace-nowrap">1 Ahli</span>
             </div>
-            <span id="top-roster-badge" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="top-roster-badge" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-auto"></span>
           </button>
 
           <!-- 2. Jadual Ziarah & Peta (Book Icon) -->
