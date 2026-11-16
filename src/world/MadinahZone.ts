@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import { CheckpointZone } from '../types';
+import { BusController } from '../controllers/BusController';
 
 export class MadinahZone {
   public group: THREE.Group;
+  public busController!: BusController;
   public busGroup!: THREE.Group;
   public birAliMesh!: THREE.Group;
   public qubaMesh!: THREE.Group;
@@ -36,19 +38,19 @@ export class MadinahZone {
   private createHighwayRoad() {
     this.highwayGroup = new THREE.Group();
 
-    // Road asphalt surface
+    // Road asphalt surface (extended length)
     const roadWidth = 14;
-    const roadLength = 160;
+    const roadLength = 200;
     const roadGeo = new THREE.PlaneGeometry(roadWidth, roadLength);
     const roadMat = new THREE.MeshLambertMaterial({ color: 0x24282f });
     const road = new THREE.Mesh(roadGeo, roadMat);
     road.rotation.x = -Math.PI / 2;
-    road.position.set(-140, 0.02, 0);
+    road.position.set(-140, 0.02, 10);
     road.receiveShadow = true;
     this.highwayGroup.add(road);
 
     // Yellow center lines (dashed)
-    for (let z = -75; z <= 75; z += 6) {
+    for (let z = -85; z <= 100; z += 6) {
       const lineGeo = new THREE.PlaneGeometry(0.3, 3.5);
       const lineMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
       const line = new THREE.Mesh(lineGeo, lineMat);
@@ -63,9 +65,47 @@ export class MadinahZone {
       const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
       const line = new THREE.Mesh(lineGeo, lineMat);
       line.rotation.x = -Math.PI / 2;
-      line.position.set(-140 + offset, 0.03, 0);
+      line.position.set(-140 + offset, 0.03, 10);
       this.highwayGroup.add(line);
     });
+
+    // Paved Branch Parking Bays & Roadside Turnouts
+    const bayMat = new THREE.MeshLambertMaterial({ color: 0x24282f });
+
+    // 1. Madinah Station / Start Bay (x: -133, z: -8)
+    const bayStation = new THREE.Mesh(new THREE.PlaneGeometry(16, 26), bayMat);
+    bayStation.rotation.x = -Math.PI / 2;
+    bayStation.position.set(-133, 0.02, -8);
+    bayStation.receiveShadow = true;
+    this.highwayGroup.add(bayStation);
+
+    // 2. Masjid Quba Bay (x: -125, z: -35)
+    const bayQuba = new THREE.Mesh(new THREE.PlaneGeometry(24, 20), bayMat);
+    bayQuba.rotation.x = -Math.PI / 2;
+    bayQuba.position.set(-126, 0.02, -35);
+    bayQuba.receiveShadow = true;
+    this.highwayGroup.add(bayQuba);
+
+    // 3. Ladang Kurma Bay (x: -133, z: -45)
+    const bayKurma = new THREE.Mesh(new THREE.PlaneGeometry(16, 18), bayMat);
+    bayKurma.rotation.x = -Math.PI / 2;
+    bayKurma.position.set(-133, 0.02, -45);
+    bayKurma.receiveShadow = true;
+    this.highwayGroup.add(bayKurma);
+
+    // 4. Jabal Uhud Bay (x: -151, z: -55)
+    const bayUhud = new THREE.Mesh(new THREE.PlaneGeometry(22, 20), bayMat);
+    bayUhud.rotation.x = -Math.PI / 2;
+    bayUhud.position.set(-150, 0.02, -55);
+    bayUhud.receiveShadow = true;
+    this.highwayGroup.add(bayUhud);
+
+    // 5. Masjid Bir Ali Bay (x: -148, z: 32)
+    const bayBirAli = new THREE.Mesh(new THREE.PlaneGeometry(18, 26), bayMat);
+    bayBirAli.rotation.x = -Math.PI / 2;
+    bayBirAli.position.set(-148, 0.02, 32);
+    bayBirAli.receiveShadow = true;
+    this.highwayGroup.add(bayBirAli);
 
     // Overhead Highway Gantry Signboard (Madinah ➔ Miqat Bir Ali ➔ Makkah)
     const gantry = new THREE.Group();
@@ -135,195 +175,11 @@ export class MadinahZone {
   }
 
   /**
-   * 3D Umrah Tour Bus (Bas Ziarah Rombongan)
+   * 3D Umrah Tour Bus Controller & Interactive Coach
    */
   private createUmrahTourBus() {
-    this.busGroup = new THREE.Group();
-    this.busGroup.name = 'BasZiarahUmrah';
-
-    const busLength = 13.5;
-    const busWidth = 3.6;
-    const busHeight = 3.8;
-
-    // 1. Bus Main Body (Aerodynamic luxury coach)
-    const bodyMat = new THREE.MeshLambertMaterial({ color: 0xfafafa }); // Pearl White
-    const greenAccentMat = new THREE.MeshLambertMaterial({ color: 0x059669 }); // Emerald Green Livery
-    const goldMat = new THREE.MeshLambertMaterial({ color: 0xd97706 }); // Golden Trim
-    const glassMat = new THREE.MeshLambertMaterial({
-      color: 0x1e293b,
-      transparent: true,
-      opacity: 0.85
-    });
-
-    const busBody = new THREE.Mesh(
-      new THREE.BoxGeometry(busWidth, busHeight - 0.8, busLength),
-      bodyMat
-    );
-    busBody.position.y = busHeight / 2 + 0.5;
-    busBody.castShadow = true;
-    busBody.receiveShadow = true;
-    this.busGroup.add(busBody);
-
-    // Emerald Green side swooshes / livery band
-    const sideBandGeo = new THREE.BoxGeometry(busWidth + 0.05, 0.9, busLength - 1);
-    const sideBand = new THREE.Mesh(sideBandGeo, greenAccentMat);
-    sideBand.position.y = 1.9;
-    this.busGroup.add(sideBand);
-
-    // Golden accent pin-stripes
-    const goldStripe = new THREE.Mesh(
-      new THREE.BoxGeometry(busWidth + 0.06, 0.15, busLength - 0.8),
-      goldMat
-    );
-    goldStripe.position.y = 2.45;
-    this.busGroup.add(goldStripe);
-
-    // 2. Large Tinted Glass Windows (Side Windows)
-    const windowLength = busLength - 2.5;
-    const windowGeo = new THREE.BoxGeometry(busWidth + 0.08, 1.25, windowLength);
-    const windows = new THREE.Mesh(windowGeo, glassMat);
-    windows.position.y = 3.1;
-    this.busGroup.add(windows);
-
-    // Front Windshield (Angled curved glass)
-    const frontWindshield = new THREE.Mesh(
-      new THREE.BoxGeometry(busWidth - 0.2, 1.5, 0.4),
-      glassMat
-    );
-    frontWindshield.position.set(0, 3.0, busLength / 2 + 0.05);
-    frontWindshield.rotation.x = -0.15;
-    this.busGroup.add(frontWindshield);
-
-    // Rear Window
-    const rearWindow = new THREE.Mesh(
-      new THREE.BoxGeometry(busWidth - 0.4, 1.2, 0.2),
-      glassMat
-    );
-    rearWindow.position.set(0, 3.1, -busLength / 2 - 0.02);
-    this.busGroup.add(rearWindow);
-
-    // 3. LED Destination Board (Above Front Windshield)
-    const ledCanvas = document.createElement('canvas');
-    ledCanvas.width = 512;
-    ledCanvas.height = 128;
-    const ledCtx = ledCanvas.getContext('2d')!;
-    ledCtx.fillStyle = '#0f172a';
-    ledCtx.fillRect(0, 0, 512, 128);
-    ledCtx.strokeStyle = '#22c55e';
-    ledCtx.lineWidth = 6;
-    ledCtx.strokeRect(6, 6, 500, 116);
-
-    ledCtx.fillStyle = '#4ade80';
-    ledCtx.textAlign = 'center';
-    ledCtx.font = 'bold 36px Amiri, serif';
-    ledCtx.fillText('حَافِلَة العُمْرَة • المَدِينَة ➔ مَكَّة', 256, 52);
-
-    ledCtx.fillStyle = '#facc15';
-    ledCtx.font = 'bold 28px Inter, sans-serif';
-    ledCtx.fillText('BAS ZIARAH UMRAH & MIQAT', 256, 95);
-
-    const ledTexture = new THREE.CanvasTexture(ledCanvas);
-    const ledMat = new THREE.MeshBasicMaterial({ map: ledTexture });
-    const ledScreen = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 0.65), ledMat);
-    ledScreen.position.set(0, 3.9, busLength / 2 + 0.06);
-    this.busGroup.add(ledScreen);
-
-    // Side Livery Banner: "ROMBONGAN UMRAH - ZIARAH MADINAH & MIQAT"
-    const sideBannerCanvas = document.createElement('canvas');
-    sideBannerCanvas.width = 512;
-    sideBannerCanvas.height = 128;
-    const sideCtx = sideBannerCanvas.getContext('2d')!;
-    sideCtx.fillStyle = '#065f46';
-    sideCtx.fillRect(0, 0, 512, 128);
-    sideCtx.fillStyle = '#fef08a';
-    sideCtx.textAlign = 'center';
-    sideCtx.font = 'bold 32px Amiri, serif';
-    sideCtx.fillText('زِيَارَة المَدِينَة المُنَوَّرَة • مِيقَات بِئْر عَلِي', 256, 50);
-    sideCtx.fillStyle = '#ffffff';
-    sideCtx.font = 'bold 26px Inter, sans-serif';
-    sideCtx.fillText('BAS ZIARAH & MIQAT BIR ALI', 256, 96);
-
-    const sideBannerTexture = new THREE.CanvasTexture(sideBannerCanvas);
-    const sideBannerMat = new THREE.MeshBasicMaterial({ map: sideBannerTexture });
-
-    const rightBanner = new THREE.Mesh(new THREE.PlaneGeometry(6.5, 1.2), sideBannerMat);
-    rightBanner.position.set(busWidth / 2 + 0.06, 1.9, 0);
-    rightBanner.rotation.y = Math.PI / 2;
-    this.busGroup.add(rightBanner);
-
-    const leftBanner = new THREE.Mesh(new THREE.PlaneGeometry(6.5, 1.2), sideBannerMat);
-    leftBanner.position.set(-busWidth / 2 - 0.06, 1.9, 0);
-    leftBanner.rotation.y = -Math.PI / 2;
-    this.busGroup.add(leftBanner);
-
-    // 4. Passenger Door (Entrance Steps on Right Side)
-    const doorMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
-    const door = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.3), doorMat);
-    door.position.set(busWidth / 2 + 0.06, 1.6, busLength / 2 - 1.8);
-    door.rotation.y = Math.PI / 2;
-    this.busGroup.add(door);
-
-    // Welcome mat outside bus door
-    const welcomeMat = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.8, 1.2),
-      new THREE.MeshLambertMaterial({ color: 0x059669 })
-    );
-    welcomeMat.rotation.x = -Math.PI / 2;
-    welcomeMat.position.set(busWidth / 2 + 1.2, 0.04, busLength / 2 - 1.8);
-    this.busGroup.add(welcomeMat);
-
-    // 5. Wheels (Rubber Tires with Chrome Hubcaps)
-    const wheelMat = new THREE.MeshLambertMaterial({ color: 0x1f2937 });
-    const rimMat = new THREE.MeshLambertMaterial({ color: 0xd1d5db });
-
-    const wheelPositions = [
-      { x: busWidth / 2 + 0.05, z: busLength / 2 - 2.5 },
-      { x: -busWidth / 2 - 0.05, z: busLength / 2 - 2.5 },
-      { x: busWidth / 2 + 0.05, z: -busLength / 2 + 3.8 },
-      { x: -busWidth / 2 - 0.05, z: -busLength / 2 + 3.8 },
-      { x: busWidth / 2 + 0.05, z: -busLength / 2 + 2.0 },
-      { x: -busWidth / 2 - 0.05, z: -busLength / 2 + 2.0 }
-    ];
-
-    wheelPositions.forEach((wp) => {
-      const wheelGroup = new THREE.Group();
-      const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.45, 16), wheelMat);
-      tire.rotation.z = Math.PI / 2;
-      const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.48, 16), rimMat);
-      rim.rotation.z = Math.PI / 2;
-      wheelGroup.add(tire, rim);
-      wheelGroup.position.set(wp.x, 0.7, wp.z);
-      wheelGroup.castShadow = true;
-      this.busGroup.add(wheelGroup);
-    });
-
-    // 6. Rooftop Air-Conditioning Pods
-    const acMat = new THREE.MeshLambertMaterial({ color: 0xe2e8f0 });
-    const acUnit1 = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.45, 3.2), acMat);
-    acUnit1.position.set(0, busHeight + 0.35, 1.2);
-    const acUnit2 = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.45, 2.5), acMat);
-    acUnit2.position.set(0, busHeight + 0.35, -2.8);
-    this.busGroup.add(acUnit1, acUnit2);
-
-    // 7. Headlights & Taillights
-    const headlightMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
-    const taillightMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
-
-    [-1.2, 1.2].forEach((xOffset) => {
-      const hl = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 12), headlightMat);
-      hl.rotation.x = Math.PI / 2;
-      hl.position.set(xOffset, 1.2, busLength / 2 + 0.05);
-      this.busGroup.add(hl);
-
-      const tl = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.1), taillightMat);
-      tl.position.set(xOffset, 1.4, -busLength / 2 - 0.05);
-      this.busGroup.add(tl);
-    });
-
-    // Position the bus on the roadside bay at Madinah Station
-    this.busGroup.position.set(-135, 0, -8);
-    this.busGroup.rotation.y = 0; // Pointing forward along the highway towards Miqat Bir Ali!
-    this.group.add(this.busGroup);
+    this.busController = new BusController(this.group);
+    this.busGroup = this.busController.busGroup;
   }
 
   /**

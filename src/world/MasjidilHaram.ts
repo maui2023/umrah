@@ -324,6 +324,27 @@ export class MasjidilHaram {
       this.scene.add(p2);
     }
 
+    // Mas'a Solid Outer Walls & Safety Glass Enclosure (Prevents falling off/walking through)
+    const wallScreenMat = new THREE.MeshLambertMaterial({ color: 0xf3efe6 });
+    // East wall (full length)
+    const eastWall = new THREE.Mesh(new THREE.BoxGeometry(0.45, 3.8, masaLength), wallScreenMat);
+    eastWall.position.set(masaX + masaWidth / 2, 1.9, 0);
+    this.scene.add(eastWall);
+
+    // West wall (with opening connecting Mataf between z: -2 and +8)
+    const westWallNorth = new THREE.Mesh(new THREE.BoxGeometry(0.45, 3.8, 48), wallScreenMat);
+    westWallNorth.position.set(masaX - masaWidth / 2, 1.9, -29);
+    const westWallSouth = new THREE.Mesh(new THREE.BoxGeometry(0.45, 3.8, 44), wallScreenMat);
+    westWallSouth.position.set(masaX - masaWidth / 2, 1.9, 29);
+    this.scene.add(westWallNorth, westWallSouth);
+
+    // North & South End Walls behind Bukit Safa & Marwah
+    const northWall = new THREE.Mesh(new THREE.BoxGeometry(masaWidth + 1, 4.5, 0.5), wallScreenMat);
+    northWall.position.set(masaX, 2.25, marwahZ - 7);
+    const southWall = new THREE.Mesh(new THREE.BoxGeometry(masaWidth + 1, 4.5, 0.5), wallScreenMat);
+    southWall.position.set(masaX, 2.25, safaZ + 7);
+    this.scene.add(northWall, southWall);
+
     // 1. Bukit Safa (Jabal Safa)
     this.safaHillMesh = new THREE.Group();
     const rockMat = new THREE.MeshLambertMaterial({ color: 0x7a6a58 });
@@ -426,6 +447,26 @@ export class MasjidilHaram {
       const dome = new THREE.Mesh(new THREE.SphereGeometry(1.6, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2), archMat);
       dome.position.set(px, 12, pz);
       this.scene.add(dome);
+
+      // Solid Islamic Architectural Wall Segment behind colonnade
+      // Skip grand openings: Mas'a (angle ~ 0), Bab Abdul Aziz (angle ~ -PI/2), Bab Umrah (angle ~ PI)
+      const midAngle = angle + (Math.PI / 24);
+      const isMasaOpen = Math.abs(midAngle) < 0.38 || Math.abs(midAngle - Math.PI * 2) < 0.38;
+      const isSouthGate = Math.abs(midAngle - (3 * Math.PI / 2)) < 0.22;
+      const isNorthWestGate = Math.abs(midAngle - Math.PI) < 0.22;
+
+      if (!isMasaOpen && !isSouthGate && !isNorthWestGate) {
+        const wx = Math.cos(midAngle) * (colonnadeRadius + 0.8);
+        const wz = Math.sin(midAngle) * (colonnadeRadius + 0.8);
+        const wallSegment = new THREE.Mesh(
+          new THREE.BoxGeometry(14, 7.5, 0.9),
+          archMat
+        );
+        wallSegment.position.set(wx, 3.75, wz);
+        wallSegment.rotation.y = -midAngle + Math.PI / 2;
+        wallSegment.castShadow = true;
+        this.scene.add(wallSegment);
+      }
     }
 
     // 4 Majestic Minarets at Outer Corners

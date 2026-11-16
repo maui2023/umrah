@@ -28,6 +28,10 @@ export class HUD {
   private onSelectZiarahIndexCallback: ((index: number) => void) | null = null;
   private onJoystickMoveCallback: ((x: number, y: number) => void) | null = null;
   private onSprintToggleCallback: ((sprinting: boolean) => void) | null = null;
+  private onBoardBusCallback: (() => void) | null = null;
+  private onExitBusCallback: (() => void) | null = null;
+  private onAutoCruiseCallback: (() => void) | null = null;
+  public isBusBoarded: boolean = false;
 
   constructor() {
     this.container = document.createElement('div');
@@ -88,6 +92,9 @@ export class HUD {
     onSelectZiarahIndex?: (index: number) => void;
     onJoystickMove: (x: number, y: number) => void;
     onSprintToggle: (sprinting: boolean) => void;
+    onBoardBus?: () => void;
+    onExitBus?: () => void;
+    onAutoCruise?: () => void;
   }) {
     this.onTeleportCallback = options.onTeleport;
     this.onActionButtonCallback = options.onActionButton;
@@ -96,6 +103,9 @@ export class HUD {
     this.onSelectZiarahIndexCallback = options.onSelectZiarahIndex || null;
     this.onJoystickMoveCallback = options.onJoystickMove;
     this.onSprintToggleCallback = options.onSprintToggle;
+    this.onBoardBusCallback = options.onBoardBus || null;
+    this.onExitBusCallback = options.onExitBus || null;
+    this.onAutoCruiseCallback = options.onAutoCruise || null;
   }
 
   private render() {
@@ -153,9 +163,15 @@ export class HUD {
           </div>
 
           <!-- Jadual Ziarah Button (Matches user screenshot) -->
-          <button id="btn-itinerary-modal" title="Jadual & Laluan Ziarah" class="interactive-ui px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold transition flex items-center gap-1">
+          <button id="btn-itinerary-modal" title="Jadual & Laluan Ziarah" class="interactive-ui px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold transition flex items-center gap-1 cursor-pointer">
             <span>🗺️</span>
             <span class="hidden sm:inline">Jadual Ziarah</span>
+          </button>
+
+          <!-- Quick Bus Board / Disembark Button -->
+          <button id="btn-top-bus-toggle" title="Naik atau Turun Bas Ziarah" class="interactive-ui px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/40 border border-emerald-500/50 text-emerald-300 text-xs font-semibold transition flex items-center gap-1 cursor-pointer">
+            <span>🚌</span>
+            <span class="hidden sm:inline">Naik Bas</span>
           </button>
 
           <!-- Talbiyah Audio Button -->
@@ -360,6 +376,52 @@ export class HUD {
             </button>
           </div>
         </div>
+
+        <!-- Floating Bus Door Prompt (appears when approaching bus entrance) -->
+        <div id="bus-door-prompt" style="display: none;" class="interactive-ui pointer-events-auto fixed bottom-32 sm:bottom-36 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-emerald-950/95 border-2 border-amber-400 shadow-2xl text-white backdrop-blur-md animate-bounce cursor-pointer">
+          <span class="text-2xl">🚌</span>
+          <div>
+            <div class="font-bold text-sm sm:text-base text-amber-300">Tekan [E] atau Klik untuk Naik Bas</div>
+            <div class="text-[11px] text-emerald-200">Pintu Masuk Bas Ziarah Rombongan</div>
+          </div>
+          <button id="btn-prompt-board-bus" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md transition cursor-pointer">
+            Naik Bas ➔
+          </button>
+        </div>
+
+        <!-- Bus Driving / Riding Dashboard (appears when player is inside the bus) -->
+        <div id="bus-dashboard-card" style="display: none;" class="interactive-ui pointer-events-auto fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-40 w-[94%] sm:w-auto sm:min-w-[460px] bg-slate-900/95 backdrop-blur-md border-2 border-emerald-500/70 rounded-2xl p-3 sm:p-4 shadow-2xl text-white">
+          <div class="flex items-center justify-between gap-3 pb-2 mb-2 border-b border-slate-700/60">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl animate-pulse">🚌</span>
+              <div>
+                <div class="font-bold text-sm text-emerald-300">Bas Ziarah Sedang Beroperasi</div>
+                <div id="bus-dashboard-dest" class="text-xs text-slate-300 font-medium">Destinasi: Masjid Quba</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="px-2.5 py-1 rounded-xl bg-slate-800 border border-slate-700 text-amber-300 font-mono font-bold text-xs sm:text-sm">
+                <span id="bus-speedometer">0</span> km/j
+              </div>
+              <button id="btn-exit-bus" title="Turun Dari Bas" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition flex items-center gap-1 shadow cursor-pointer">
+                <span>🚪</span>
+                <span>Turun Bas</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div class="text-slate-400 text-[11px] flex items-center gap-1">
+              <span>🕹️ Kawalan: <b>WASD / Joystick</b> untuk memandu bas</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button id="btn-auto-cruise" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs shadow transition flex items-center gap-1 cursor-pointer">
+                <span>▶️</span>
+                <span id="btn-auto-cruise-text">Pandu Automatik ke Destinasi</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     `;
 
@@ -540,6 +602,40 @@ export class HUD {
     });
     window.addEventListener('mouseup', () => {
       toggleSprint(false);
+    });
+
+    // Bus Prompt Board Button
+    const promptBoardBtn = this.container.querySelector('#btn-prompt-board-bus') as HTMLButtonElement;
+    promptBoardBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onBoardBusCallback?.();
+    });
+
+    const busDoorPrompt = this.container.querySelector('#bus-door-prompt') as HTMLElement;
+    busDoorPrompt?.addEventListener('click', () => {
+      this.onBoardBusCallback?.();
+    });
+
+    // Top Bar Bus Toggle Button
+    const topBusBtn = this.container.querySelector('#btn-top-bus-toggle') as HTMLButtonElement;
+    topBusBtn?.addEventListener('click', () => {
+      if (this.isBusBoarded) {
+        this.onExitBusCallback?.();
+      } else {
+        this.onBoardBusCallback?.();
+      }
+    });
+
+    // Exit Bus Button on Driving Dashboard
+    const exitBusBtn = this.container.querySelector('#btn-exit-bus') as HTMLButtonElement;
+    exitBusBtn?.addEventListener('click', () => {
+      this.onExitBusCallback?.();
+    });
+
+    // Auto Cruise Button
+    const autoCruiseBtn = this.container.querySelector('#btn-auto-cruise') as HTMLButtonElement;
+    autoCruiseBtn?.addEventListener('click', () => {
+      this.onAutoCruiseCallback?.();
     });
   }
 
@@ -803,6 +899,47 @@ export class HUD {
     if (colActionText && actionText) colActionText.innerText = actionText.innerText;
     if (colActionIcon && actionIcon) colActionIcon.innerText = actionIcon.innerText;
     if (colTitle && stageNameEl) colTitle.innerText = stageNameEl.innerText;
+  }
+
+  public setNearBusDoor(isNear: boolean) {
+    const prompt = this.container.querySelector('#bus-door-prompt') as HTMLElement;
+    if (prompt) {
+      prompt.style.display = isNear && !this.isBusBoarded ? 'flex' : 'none';
+    }
+  }
+
+  public setBusBoarded(inBus: boolean) {
+    this.isBusBoarded = inBus;
+    const dashboard = this.container.querySelector('#bus-dashboard-card') as HTMLElement;
+    const prompt = this.container.querySelector('#bus-door-prompt') as HTMLElement;
+    if (dashboard) {
+      dashboard.style.display = inBus ? 'block' : 'none';
+    }
+    if (prompt && inBus) {
+      prompt.style.display = 'none';
+    }
+    const busBtn = this.container.querySelector('#btn-top-bus-toggle') as HTMLElement;
+    if (busBtn) {
+      busBtn.innerHTML = inBus ? '<span>🚪</span><span>Turun Bas</span>' : '<span>🚌</span><span>Naik Bas</span>';
+      busBtn.className = inBus
+        ? 'interactive-ui px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-600/30 hover:bg-rose-600/40 border border-rose-500/50 text-rose-300 text-xs font-semibold transition flex items-center gap-1 cursor-pointer'
+        : 'interactive-ui px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/40 border border-emerald-500/50 text-emerald-300 text-xs font-semibold transition flex items-center gap-1 cursor-pointer';
+    }
+  }
+
+  public updateBusDrivingHUD(speedKmh: number, isCruising: boolean, destName?: string) {
+    const speedEl = this.container.querySelector('#bus-speedometer') as HTMLElement;
+    if (speedEl) speedEl.innerText = speedKmh.toString();
+
+    const cruiseBtnText = this.container.querySelector('#btn-auto-cruise-text') as HTMLElement;
+    if (cruiseBtnText) {
+      cruiseBtnText.innerText = isCruising ? '⏸️ Berhenti Automatik' : '▶️ Pandu Automatik ke Destinasi';
+    }
+
+    if (destName) {
+      const destEl = this.container.querySelector('#bus-dashboard-dest') as HTMLElement;
+      if (destEl) destEl.innerText = `Destinasi: ${destName}`;
+    }
   }
 
   public updateSolatZamzamStatus(solatSunatDone: boolean, zamzamDone: boolean) {

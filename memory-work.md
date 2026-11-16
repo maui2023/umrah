@@ -778,3 +778,49 @@ Pelan ini telah dilaksanakan pada 2026-11-16 18:43:16
    - Panggilan Talbiyah automatik sebaik sahaja Niat Umrah dilafazkan di Miqat.
 
 
+
+---
+
+## 🗓️ Sesi Pelaksanaan: 2026-11-16 21:18:00 (Sistem Fizik Perlanggaran Dinding & Bas Bergerak)
+
+### 💬 Keperluan / Input Terkini Pengguna:
+* Arahan Pengguna: *"Dinding dan bas sepatutnya tidak boleh langgar tembus. Bas perlu naik dan bergerak. Kemaskini"*
+* Tangkap Layar Rujukan: `.miqa/uploads/screenshot_20261116_193654.jpg` menunjukkan watak avatar berada di dalam badan bas/dinding kerana tiada sempadan perlanggaran (*collision clipping*).
+
+### 🚀 Perubahan Kod & Seni Bina Baharu:
+
+1. **Sistem Pengesanan Perlanggaran Menyeluruh (*Collision & Wall-Sliding System*) (`src/controllers/PlayerController.ts`)**:
+   - Menghapuskan masalah tembus dinding (*langgar tembus*) sepenuhnya.
+   - Perlanggaran kotak Kaabah, dinding marmar separuh bulatan Hijr Ismail (Hateem), kepungan Maqam Ibrahim, dan kios stesen Zamzam.
+   - Sempadan dinding Galeri Mas'a (dinding Timur penuh, dinding Barat dengan koridor laluan ke Mataf, serta dinding belakang Safa dan Marwah).
+   - Dinding arked perimeter Masjidil Haram (radius ~54-58m dengan pintu masuk Bab Abdul Aziz, Bab Umrah, dan laluan Mas'a) serta 4 menara penjuru.
+   - Perlanggaran badan Bas Ziarah secara matematik OBB (*Oriented Bounding Box*) 360 darjah apabila pemain berada di luar bas.
+   - Dinding bangunan Masjid Quba, dinding kepungan Makam 70 Syuhada Uhud, banjaran bukit Jabal Uhud, menara Masjid Bir Ali, batang pokok kurma, dan tiang gantry lebuhraya.
+   - Had sempadan dunia (*World Boundaries*) menghalang pemain jatuh ke ruang kosong.
+   - Fizik luncuran dinding (*axis-separated wall sliding*): Avatar menggelongsor lancar di sepanjang permukaan dinding tanpa tersangkut.
+
+2. **Pengendali Bas Ziarah Interaktif & Kenderaan Bergerak (`src/controllers/BusController.ts`)**:
+   - Model 3D Bas Pelancongan Mewah lengkap dengan kabin penumpang (lorong karpet hijau, 4 baris tempat duduk baldu biru, papan pemuka pemandu & stereng).
+   - **Menaiki Bas (*Boarding*)**:
+     - Pengesanan zon pintu masuk penumpang (berhampiran tikar sambutan hijau di sebelah kanan bas).
+     - Lencana 3D terapung holografik `🚌 [E] NAIK BAS • PINTU MASUK` menyala di pintu.
+     - Butang interaktif dan kad notifikasi terapung `[E] Tekan atau Klik untuk Naik Bas`.
+     - Watak avatar diletakkan duduk di dalam bas mengadap ke hadapan di tepi tingkap panoramik.
+   - **Bas Bergerak (*Vehicle Movement*)**:
+     - **Kawalan Pemanduan Manual**: Pemain boleh memandu bas secara bebas menggunakan papan kekunci (WASD / Anak Panah) atau Touch Joystick mudah alih (pecutan hadapan, undur, brek, dan belokan stereng).
+     - **Pandu Automatik (*Auto-Cruising*)**: Butang `▶️ Pandu Automatik ke Destinasi` membolehkan bas meluncur dan membelok sendiri di sepanjang lebuhraya ke perhentian ziarah yang dipilih.
+     - **Animasi Roda Berputar**: Kesemua 6 tayar getah berputar mengikut kelajuan bas, dan tayar hadapan membelok mengikut sudut stereng.
+     - **Lampu Hadapan Aktif**: Dwi lampu limpah Three.js SpotLight menyinari permukaan jalan raya.
+   - **Turun Dari Bas (*Disembarking*)**:
+     - Butang `🚪 Turun Bas` di papan pemuka dan kekunci `[E]` meletakkan pemain di atas turapan di luar pintu bas untuk meneruskan ziarah/solat dengan berjalan kaki.
+
+3. **Kemaskini Reka Bentuk Visual Dinding (`src/world/MasjidilHaram.ts` & `src/world/MadinahZone.ts`)**:
+   - Membina segmen dinding perimeter arked Islamik yang nyata dan kukuh di belakang tiang colonnade Mataf.
+   - Membina dinding skrin marmar dan kaca di sepanjang galeri Mas'a.
+   - Membina jalan susur dan zon parkir berturap di Stesen Madinah, Masjid Quba, Ladang Kurma, Jabal Uhud, dan Masjid Bir Ali.
+
+4. **Antara Muka Interaktif HUD (`src/ui/HUD.ts` & `src/main.ts`)**:
+   - Prompt interaktif pintu bas `🚌 Tekan [E] atau Klik untuk Naik Bas` apabila pemain berada berhampiran pintu.
+   - Butang pintas `🚌 Naik Bas` / `🚪 Turun Bas` pada bar atas.
+   - Papan pemuka pemanduan bas dengan meter kelajuan (*Speedometer*), destinasi semasa, dan butang pandu automatik.
+   - Notifikasi ketibaan bas di setiap lokasi ziarah.

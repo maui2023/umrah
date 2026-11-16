@@ -21,6 +21,7 @@ class UmrahSimulationApp {
   private supabaseService: SupabaseService;
   private workflow: UmrahWorkflow;
   private hud!: HUD;
+  private masjidilHaram!: MasjidilHaram;
 
   // Remote Players (Map of avatar models)
   private remoteAvatars: Map<string, AvatarModel> = new Map();
@@ -67,7 +68,7 @@ class UmrahSimulationApp {
   }
 
   private initWorld() {
-    new MasjidilHaram(this.scene);
+    this.masjidilHaram = new MasjidilHaram(this.scene);
   }
 
   private showOnboarding() {
@@ -80,10 +81,10 @@ class UmrahSimulationApp {
     const playerId = 'player_' + Math.random().toString(36).substring(2, 9);
     const startAtMadinah = data.startLocation !== 'makkah';
 
-    // Position player next to Bas Ziarah at Madinah Station if starting from beginning!
-    const initX = startAtMadinah ? -130 : 18;
+    // Position player next to Bas Ziarah entrance door at Madinah Station if starting from beginning!
+    const initX = startAtMadinah ? -129.5 : 18;
     const initY = 0;
-    const initZ = startAtMadinah ? -8 : 18;
+    const initZ = startAtMadinah ? -3.0 : 18;
     const initRot = startAtMadinah ? -Math.PI / 2 : -3 * Math.PI / 4;
 
     this.playerData = {
@@ -117,17 +118,36 @@ class UmrahSimulationApp {
     this.localAvatar.group.rotation.y = this.playerData.rotation;
     this.scene.add(this.localAvatar.group);
 
-    // 2. Initialize Player Controller (True 3rd-Person PUBG style camera)
+    const busController = this.masjidilHaram.madinahZone.busController;
+
+    // 2. Initialize Player Controller (True 3rd-Person PUBG style camera & vehicle physics)
     this.playerController = new PlayerController(
       this.localAvatar,
       this.camera,
       this.renderer.domElement,
-      this.playerData.rotation
+      this.playerData.rotation,
+      busController
     );
 
     // 3. Initialize HUD
     this.hud = new HUD();
     this.setupHUDCallbacks();
+
+    // Wire Bus Controller Events with HUD
+    this.playerController.onNearDoorStateChange = (isNear) => {
+      this.hud.setNearBusDoor(isNear);
+    };
+
+    this.playerController.onBusBoardStateChange = (inBus) => {
+      this.hud.setBusBoarded(inBus);
+      const spot = this.workflow.getCurrentZiarahSpot();
+      this.hud.updateBusDrivingHUD(0, false, spot?.title);
+    };
+
+    this.playerController.onBusSpeedChange = (speedKmh, isCruising) => {
+      const spot = this.workflow.getCurrentZiarahSpot();
+      this.hud.updateBusDrivingHUD(speedKmh, isCruising, spot?.title);
+    };
 
     // 4. Register Workflow Callbacks
     this.workflow.registerCallbacks({
@@ -158,12 +178,34 @@ class UmrahSimulationApp {
       },
       onZiarahChanged: (spot, index, total) => {
         this.hud.updateZiarahSpot(spot, index, total);
+        if (spot.id === 'tiba_di_makkah_tawaf') {
+          if (this.playerController.isInBus) {
+            this.playerController.exitBus();
+          }
+          this.playerController.teleport(18, 18, -3 * Math.PI / 4);
+          return;
+        }
+
+        const isBusTransport = spot.transportType === 'bus_pass' || spot.transportType === 'bus_stop' || spot.transportType === 'bus_travel';
+        if (isBusTransport && !this.playerController.isInBus) {
+          this.playerController.boardBus();
+        }
+
+        if (this.playerController.isInBus && spot.coordinates && busController) {
+          busController.cruiseTo(spot.coordinates.x, spot.coordinates.z, undefined, spot.title, () => {
+            soundManager.playCheckpointSound();
+          });
+        }
       },
       onDuaTriggered: (dua, alertMessage) => {
         this.hud.displayDua(dua, alertMessage);
       },
       onTeleportRequested: (x, z, rot) => {
-        this.playerController.teleport(x, z, rot ?? 0);
+        if (this.playerController.isInBus && busController) {
+          busController.cruiseTo(x, z, rot);
+        } else {
+          this.playerController.teleport(x, z, rot ?? 0);
+        }
       }
     });
 
@@ -183,11 +225,21 @@ class UmrahSimulationApp {
   }
 
   private setupHUDCallbacks() {
+    const busController = this.masjidilHaram.madinahZone.busController;
+
     // Quick Teleport Handler
     this.hud.registerCallbacks({
       onTeleport: (loc) => {
         if (loc === 'madinah_bus') {
-          this.playerController.teleport(-130, -8, -Math.PI / 2);
+          if (busController) {
+            this.playerController.teleport(
+              busController.position.x + 3.2,
+              busController.position.z + 2.0,
+              -Math.PI / 2
+            );
+          } else {
+            this.playerController.teleport(-131, -8, -Math.PI / 2);
+          }
         } else if (loc === 'saqifah') {
           this.playerController.teleport(-130, 2, 0);
         } else if (loc === 'muwajahah') {
@@ -214,6 +266,40 @@ class UmrahSimulationApp {
           this.playerController.teleport(65, 42, Math.PI);
         } else if (loc === 'marwah') {
           this.playerController.teleport(65, -42, 0);
+        }
+      },
+      onBoardBus: () => {
+        if (!this.playerController.isInBus && busController) {
+          const pos = this.localAvatar.group.position;
+          // If player is far away, move player near door first
+          if (!busController.isNearDoor(pos.x, pos.z)) {
+            const doorPos = busController.position.clone().add(
+              new THREE.Vector3(busController.busWidth / 2 + 1.2, 0, busController.busLength / 2 - 1.8)
+                .applyAxisAngle(new THREE.Vector3(0, 1, 0), busController.rotationY)
+            );
+            this.playerController.teleport(doorPos.x, doorPos.z, busController.rotationY);
+          }
+          this.playerController.boardBus();
+        }
+      },
+      onExitBus: () => {
+        this.playerController.exitBus();
+      },
+      onAutoCruise: () => {
+        if (busController) {
+          if (busController.isAutoCruising) {
+            busController.isAutoCruising = false;
+            busController.speed = 0;
+            const spot = this.workflow.getCurrentZiarahSpot();
+            this.hud.updateBusDrivingHUD(0, false, spot?.title);
+          } else {
+            const spot = this.workflow.getCurrentZiarahSpot();
+            if (spot && spot.coordinates) {
+              busController.cruiseTo(spot.coordinates.x, spot.coordinates.z, undefined, spot.title, () => {
+                soundManager.playCheckpointSound();
+              });
+            }
+          }
         }
       },
       onActionButton: (stage) => {
@@ -350,6 +436,7 @@ class UmrahSimulationApp {
       this.playerData.z = pos.z;
       this.playerData.rotation = rot;
       this.playerData.isMoving = this.playerController.isMoving;
+      this.playerData.isInBus = this.playerController.isInBus;
 
       // Broadcast position to Supabase Realtime (Throttled 10-12Hz)
       this.supabaseService.broadcastPosition(this.playerData);

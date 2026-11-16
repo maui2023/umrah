@@ -29,6 +29,7 @@ export interface PlayerData {
   isMoving: boolean;
   currentLap: number;
   stage: UmrahStage;
+  isInBus?: boolean;
   lastUpdated?: number;
 }
 
