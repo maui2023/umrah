@@ -7,6 +7,7 @@ export interface OnboardingData {
   groupId: string;
   groupName: string;
   groupColor: string;
+  startLocation: 'madinah' | 'makkah';
 }
 
 export class OnboardingModal {
@@ -22,7 +23,6 @@ export class OnboardingModal {
   }
 
   private render() {
-    // Check if previously saved
     const savedName = localStorage.getItem('umrah_player_name') || 'Ahmad';
     const savedGender = (localStorage.getItem('umrah_gender') as Gender) || 'male';
     const savedGroupName = localStorage.getItem('umrah_group_name') || 'Kumpulan Safwa';
@@ -30,19 +30,53 @@ export class OnboardingModal {
     const savedRole = (localStorage.getItem('umrah_role') as PlayerRole) || 'mutawwif';
 
     this.container.innerHTML = `
-      <div class="relative w-full max-w-lg bg-slate-900 border border-emerald-500/40 rounded-2xl shadow-2xl p-6 sm:p-8 text-white my-8">
+      <div class="relative w-full max-w-lg bg-slate-900 border-2 border-emerald-500/50 rounded-3xl shadow-2xl p-6 sm:p-8 text-white my-8">
         
         <!-- Header -->
-        <div class="text-center mb-6">
-          <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 mb-3 shadow-inner">
+        <div class="text-center mb-5">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 mb-2.5 shadow-inner">
             <span class="text-3xl">🕋</span>
           </div>
           <h2 class="text-2xl font-bold tracking-tight text-emerald-300">Simulasi Ibadah Umrah 3D</h2>
-          <p class="text-xs sm:text-sm text-slate-400 mt-1">Dunia Awam Terbuka & Sistem Rombongan (Groups)</p>
+          <p class="text-xs sm:text-sm text-slate-300 mt-1">Perjalanan Lengkap: Madinah ➔ Bas Ziarah ➔ Miqat Bir Ali ➔ Makkah</p>
         </div>
 
-        <form id="onboarding-form" class="space-y-5">
-          <!-- 1. Nama Pemain -->
+        <form id="onboarding-form" class="space-y-4">
+          
+          <!-- 1. Pilihan Titik Permulaan (Starting Point) -->
+          <div class="p-3.5 rounded-2xl bg-slate-800/90 border border-emerald-500/40 space-y-2">
+            <label class="block text-xs font-bold uppercase tracking-wider text-emerald-400">
+              📍 Titik Permulaan Simulasi (Alur Perjalanan)
+            </label>
+            <div class="space-y-2">
+              <label class="relative flex items-start gap-3 p-2.5 rounded-xl border border-emerald-500/70 bg-emerald-500/10 cursor-pointer hover:bg-emerald-500/15 transition select-none">
+                <input type="radio" name="start_point" value="madinah" checked class="mt-1 accent-emerald-500" />
+                <div class="flex-1">
+                  <div class="flex items-center gap-1.5 font-bold text-xs text-emerald-300">
+                    <span>🚌 Bermula Dari Awal: Madinah & Bas Ziarah</span>
+                    <span class="text-[10px] px-2 py-0.2 rounded-full bg-emerald-500 text-slate-950 font-bold">Disyorkan</span>
+                  </div>
+                  <p class="text-[11px] text-slate-300 mt-0.5 leading-snug">
+                    Ziarah Dalam & Luar Madinah, menaiki bas rombongan, persediaan ihram, solat & niat di Miqat Bir Ali, sehingga tiba di Makkah.
+                  </p>
+                </div>
+              </label>
+
+              <label class="relative flex items-start gap-3 p-2.5 rounded-xl border border-slate-700 bg-slate-900/60 cursor-pointer hover:border-slate-500 transition select-none">
+                <input type="radio" name="start_point" value="makkah" class="mt-1 accent-emerald-500" />
+                <div class="flex-1">
+                  <div class="font-bold text-xs text-slate-200">
+                    <span>🕋 Terus ke Makkah (Tawaf Masjidil Haram)</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                    Mulakan terus dari Dataran Kaabah untuk Tawaf, Solat, Zamzam, Sa'i dan Tahallul.
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- 2. Nama Pemain -->
           <div>
             <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Nama Jemaah</label>
             <input 
@@ -56,9 +90,9 @@ export class OnboardingModal {
             />
           </div>
 
-          <!-- 2. Pilihan Avatar & Jantina -->
+          <!-- 3. Pilihan Avatar & Jantina -->
           <div>
-            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">Pilihan Avatar & Pakaian Ihram</label>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Pilihan Avatar</label>
             <div class="grid grid-cols-2 gap-3">
               <label class="relative flex flex-col items-center p-3 rounded-xl border border-slate-700 bg-slate-800/80 cursor-pointer hover:border-emerald-500 transition select-none">
                 <input type="radio" name="gender" value="male" class="sr-only" ${savedGender === 'male' ? 'checked' : ''} />
@@ -72,15 +106,15 @@ export class OnboardingModal {
                 <input type="radio" name="gender" value="female" class="sr-only" ${savedGender === 'female' ? 'checked' : ''} />
                 <span class="text-2xl mb-1">🧕</span>
                 <span class="text-sm font-medium text-slate-200">Wanita</span>
-                <span class="text-[11px] text-slate-400 text-center mt-0.5">Ihram lengkap & tudung labuh</span>
+                <span class="text-[11px] text-slate-400 text-center mt-0.5">Pakaian ihram sopan & tudung</span>
                 <div class="gender-indicator absolute inset-0 rounded-xl border-2 pointer-events-none transition ${savedGender === 'female' ? 'border-emerald-500 bg-emerald-500/10' : 'border-transparent'}"></div>
               </label>
             </div>
           </div>
 
-          <!-- 3. Mod Penyertaan: Solo vs Kumpulan -->
+          <!-- 4. Mod Penyertaan: Solo vs Kumpulan -->
           <div>
-            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">Penyertaan Dunia Simulasi</label>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Penyertaan Rombongan</label>
             <div class="grid grid-cols-3 gap-2">
               <button type="button" id="tab-solo" class="px-2.5 py-2 text-xs font-semibold rounded-lg border transition">
                 Masuk Solo
@@ -95,21 +129,21 @@ export class OnboardingModal {
           </div>
 
           <!-- Group Details Form Section -->
-          <div id="group-details-container" class="p-4 rounded-xl bg-slate-800/60 border border-slate-700/80 space-y-3.5">
+          <div id="group-details-container" class="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/80 space-y-3">
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1" id="group-name-label">Nama Kumpulan / Rombongan</label>
               <input 
                 type="text" 
                 id="group-name-input" 
                 value="${savedGroupName}"
-                placeholder="cth: Rombongan Safwa" 
+                placeholder="cth: Kumpulan Safwa 1" 
                 class="w-full px-3.5 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <!-- Group Color Selection -->
             <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1.5">Warna Tema Kumpulan (Penanda Ahli & Ring)</label>
+              <label class="block text-xs font-medium text-slate-300 mb-1.5">Warna Tema Rombongan</label>
               <div class="flex items-center gap-2.5 flex-wrap" id="color-palette">
                 ${['#10B981', '#3B82F6', '#F59E0B', '#EC4899', '#8B5CF6', '#EF4444', '#14B8A6'].map(col => `
                   <button type="button" data-color="${col}" class="color-btn w-7 h-7 rounded-full border-2 transition ${col === savedGroupColor ? 'border-white scale-110 shadow-lg' : 'border-transparent'}" style="background-color: ${col};"></button>
@@ -117,15 +151,15 @@ export class OnboardingModal {
               </div>
             </div>
 
-            <!-- Peranan: Mutawwif (Ketua) vs Jemaah -->
+            <!-- Role Selector -->
             <div id="role-selector-row">
-              <label class="block text-xs font-medium text-slate-300 mb-1.5">Peranan Anda Dalam Kumpulan</label>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Peranan Anda</label>
               <div class="flex gap-2">
-                <label class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-slate-700 bg-slate-900 cursor-pointer text-xs">
+                <label class="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-slate-700 bg-slate-900 cursor-pointer text-xs">
                   <input type="radio" name="role" value="mutawwif" ${savedRole === 'mutawwif' ? 'checked' : ''} />
                   <span>🚩 Ketua (Mutawwif)</span>
                 </label>
-                <label class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-slate-700 bg-slate-900 cursor-pointer text-xs">
+                <label class="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-slate-700 bg-slate-900 cursor-pointer text-xs">
                   <input type="radio" name="role" value="jemaah" ${savedRole === 'jemaah' ? 'checked' : ''} />
                   <span>Jemaah Biasa</span>
                 </label>
@@ -138,12 +172,12 @@ export class OnboardingModal {
             type="submit" 
             class="w-full py-3.5 px-6 rounded-xl font-bold text-sm tracking-wide bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/25 transition duration-200 flex items-center justify-center gap-2 mt-2"
           >
-            <span>🚀 Masuk Ke Dunia Simulasi Umrah</span>
+            <span>🚀 Mulakan Simulasi Umrah</span>
           </button>
         </form>
 
         <p class="text-[11px] text-slate-500 text-center mt-3">
-          Kawalan: WASD/Panah di Desktop • Virtual Joystick di Skrin Sentuh Telefon
+          Kawalan: WASD/Panah di Komputer • Virtual Joystick di Skrin Sentuh Telefon
         </p>
       </div>
     `;
@@ -229,6 +263,7 @@ export class OnboardingModal {
 
       const name = (this.container.querySelector('#player-name') as HTMLInputElement).value.trim() || 'Jemaah';
       const gender = ((this.container.querySelector('input[name="gender"]:checked') as HTMLInputElement)?.value as Gender) || 'male';
+      const startLocation = ((this.container.querySelector('input[name="start_point"]:checked') as HTMLInputElement)?.value as 'madinah' | 'makkah') || 'madinah';
 
       let groupId = 'SOLO';
       let groupName = 'Solo';
@@ -265,7 +300,8 @@ export class OnboardingModal {
         role,
         groupId,
         groupName,
-        groupColor
+        groupColor,
+        startLocation
       });
     });
   }

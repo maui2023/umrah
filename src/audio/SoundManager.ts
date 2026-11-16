@@ -153,6 +153,77 @@ export class SoundManager {
   }
 
   /**
+   * Play Bus departure chime / engine rumble sound cue
+   */
+  public playBusDepartureSound() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    
+    // Low rumble engine pitch rise
+    const engineOsc = this.ctx.createOscillator();
+    const engineGain = this.ctx.createGain();
+    engineOsc.type = 'sawtooth';
+    engineOsc.frequency.setValueAtTime(55, now);
+    engineOsc.frequency.exponentialRampToValueAtTime(110, now + 0.8);
+    engineGain.gain.setValueAtTime(0.08, now);
+    engineGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+    engineOsc.connect(engineGain);
+    engineGain.connect(this.ctx.destination);
+    engineOsc.start(now);
+    engineOsc.stop(now + 1.25);
+
+    // Friendly 2-tone coach departure chime
+    [293.66, 392.0].forEach((freq, i) => {
+      if (!this.ctx) return;
+      const chimeOsc = this.ctx.createOscillator();
+      const chimeGain = this.ctx.createGain();
+      chimeOsc.type = 'sine';
+      chimeOsc.frequency.setValueAtTime(freq, now + 0.15 + i * 0.18);
+      chimeGain.gain.setValueAtTime(0, now + 0.15 + i * 0.18);
+      chimeGain.gain.linearRampToValueAtTime(0.2, now + 0.18 + i * 0.18);
+      chimeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.65 + i * 0.18);
+      chimeOsc.connect(chimeGain);
+      chimeGain.connect(this.ctx.destination);
+      chimeOsc.start(now + 0.15 + i * 0.18);
+      chimeOsc.stop(now + 0.7 + i * 0.18);
+    });
+  }
+
+  /**
+   * Play gentle spiritual Solat chime (Solat Sunat Quba / Bir Ali)
+   */
+  public playSolatChime() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const notes = [261.63, 349.23, 440.0, 523.25]; // F major soothing chime
+    const now = this.ctx.currentTime;
+
+    notes.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.15);
+
+      gain.gain.setValueAtTime(0, now + idx * 0.15);
+      gain.gain.linearRampToValueAtTime(0.18, now + idx * 0.15 + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.15 + 1.2);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now + idx * 0.15);
+      osc.stop(now + idx * 0.15 + 1.25);
+    });
+  }
+
+  /**
    * Start peaceful ambient sound of the grand courtyard
    */
   public startCourtyardAmbience() {

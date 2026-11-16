@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CheckpointZone } from '../types';
+import { MadinahZone } from './MadinahZone';
 
 export class MasjidilHaram {
   public scene: THREE.Scene;
@@ -12,6 +13,7 @@ export class MasjidilHaram {
   public safaHillMesh!: THREE.Group;
   public marwahHillMesh!: THREE.Group;
   public greenLightsMesh!: THREE.Group;
+  public madinahZone!: MadinahZone;
   public checkpoints: CheckpointZone[] = [];
 
   constructor(scene: THREE.Scene) {
@@ -30,6 +32,7 @@ export class MasjidilHaram {
     this.createZamzamStations();
     this.createMasaGallery();
     this.createMosqueArchitecture();
+    this.madinahZone = new MadinahZone(this.scene);
   }
 
   private setupLighting() {
@@ -524,5 +527,9 @@ export class MasjidilHaram {
         description: 'Lelaki disunatkan berlari-lari anak (Harwalah / Raml) sambil berdoa.'
       }
     ];
+
+    if (this.madinahZone && this.madinahZone.checkpoints) {
+      this.checkpoints.push(...this.madinahZone.checkpoints);
+    }
   }
 }

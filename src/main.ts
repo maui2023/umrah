@@ -78,6 +78,14 @@ class UmrahSimulationApp {
 
   private startSimulation(data: OnboardingData) {
     const playerId = 'player_' + Math.random().toString(36).substring(2, 9);
+    const startAtMadinah = data.startLocation !== 'makkah';
+
+    // Position player next to Bas Ziarah at Madinah Station if starting from beginning!
+    const initX = startAtMadinah ? -130 : 18;
+    const initY = 0;
+    const initZ = startAtMadinah ? -8 : 18;
+    const initRot = startAtMadinah ? -Math.PI / 2 : Math.PI / 4;
+
     this.playerData = {
       id: playerId,
       name: data.name,
@@ -86,13 +94,13 @@ class UmrahSimulationApp {
       groupId: data.groupId,
       groupName: data.groupName,
       groupColor: data.groupColor,
-      x: 18,
-      y: 0,
-      z: 18,
-      rotation: Math.PI / 4,
+      x: initX,
+      y: initY,
+      z: initZ,
+      rotation: initRot,
       isMoving: false,
       currentLap: 1,
-      stage: 'niat'
+      stage: startAtMadinah ? 'ziarah_dalam' : 'tawaf'
     };
 
     // 1. Create Local Avatar
@@ -115,6 +123,12 @@ class UmrahSimulationApp {
       this.camera,
       this.renderer.domElement
     );
+
+    // Initial camera position for Madinah scenic overview
+    if (startAtMadinah) {
+      this.camera.position.set(initX + 8, 4.5, initZ + 6);
+      this.camera.lookAt(initX - 4, 1.8, initZ);
+    }
 
     // 3. Initialize HUD
     this.hud = new HUD();
@@ -147,13 +161,19 @@ class UmrahSimulationApp {
           lap
         );
       },
+      onZiarahChanged: (spot, index, total) => {
+        this.hud.updateZiarahSpot(spot, index, total);
+      },
       onDuaTriggered: (dua, alertMessage) => {
         this.hud.displayDua(dua, alertMessage);
+      },
+      onTeleportRequested: (x, z, rot) => {
+        this.playerController.teleport(x, z, rot ?? 0);
       }
     });
 
-    // Start Umrah ritual
-    this.workflow.startUmrah();
+    // Start Umrah ritual from Madinah or directly Makkah
+    this.workflow.startUmrah(startAtMadinah);
 
     // 5. Connect Multiplayer / Public World
     this.supabaseService.connect(this.playerData, (remotePlayers: PlayerData[]) => {
@@ -171,10 +191,30 @@ class UmrahSimulationApp {
     // Quick Teleport Handler
     this.hud.registerCallbacks({
       onTeleport: (loc) => {
-        if (loc === 'hajar_aswad') {
+        if (loc === 'madinah_bus') {
+          this.playerController.teleport(-130, -8, -Math.PI / 2);
+        } else if (loc === 'saqifah') {
+          this.playerController.teleport(-130, 2, 0);
+        } else if (loc === 'muwajahah') {
+          this.playerController.teleport(-135, 12, 0);
+        } else if (loc === 'raudhah') {
+          this.playerController.teleport(-136, 15, 0);
+        } else if (loc === 'baqi') {
+          this.playerController.teleport(-138, 18, 0);
+        } else if (loc === 'masjid_quba') {
+          this.playerController.teleport(-115, -25, Math.PI);
+        } else if (loc === 'jabal_uhud') {
+          this.playerController.teleport(-160, -45, Math.PI);
+        } else if (loc === 'ladang_kurma') {
+          this.playerController.teleport(-130, -42, 0);
+        } else if (loc === 'miqat_bir_ali') {
+          this.playerController.teleport(-155, 25, 0);
+        } else if (loc === 'hajar_aswad') {
           this.playerController.teleport(18, 18, Math.PI / 4);
         } else if (loc === 'maqam_ibrahim') {
           this.playerController.teleport(14, 4.5, -Math.PI / 2);
+        } else if (loc === 'zamzam') {
+          this.playerController.teleport(38, 8, -Math.PI / 4);
         } else if (loc === 'safa') {
           this.playerController.teleport(65, 42, Math.PI);
         } else if (loc === 'marwah') {
@@ -182,8 +222,18 @@ class UmrahSimulationApp {
         }
       },
       onActionButton: (stage) => {
-        if (stage === 'niat') {
-          this.workflow.confirmNiat();
+        if (stage === 'ziarah_dalam' || stage === 'ziarah_luar_bus' || stage === 'ziarah_wida_hotel') {
+          const spot = this.workflow.getCurrentZiarahSpot();
+          if (spot.id === 'masjid_quba' && !this.workflow.qubaSolatDone) {
+            this.workflow.performSolatQuba();
+          } else if (spot.id === 'memakai_ihram_hotel' && !this.workflow.ihramWorn) {
+            this.workflow.wearIhramAtHotel();
+          }
+          this.workflow.nextZiarahSpot();
+        } else if (stage === 'miqat_bir_ali') {
+          this.workflow.confirmNiatAtMiqat();
+        } else if (stage === 'perjalanan_makkah' || stage === 'niat') {
+          this.workflow.arriveAtMakkah();
         } else if (stage === 'tawaf') {
           soundManager.playIstilamSound();
         } else if (stage === 'solat_zamzam') {
@@ -208,6 +258,15 @@ class UmrahSimulationApp {
             })
           });
         }
+      },
+      onPrevZiarah: () => {
+        this.workflow.prevZiarahSpot();
+      },
+      onNextZiarah: () => {
+        this.workflow.nextZiarahSpot();
+      },
+      onSelectZiarahIndex: (idx) => {
+        this.workflow.goToZiarahSpot(idx);
       },
       onJoystickMove: (x, y) => {
         this.playerController.setJoystickVector(x, y);

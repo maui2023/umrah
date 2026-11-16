@@ -730,3 +730,51 @@ Pelan pembangunan dan penerbitan ke GitHub Pages telah selesai dilaksanakan seca
 4. **URL Laman Web Rasmi**:
    - URL GitHub Pages: `https://maui2023.github.io/umrah/`
 
+## 🗓️ Sesi Perbincangan: 2026-11-16 18:43:16
+
+### 💬 Keperluan / Idea Pengguna:
+/execute
+
+### 📐 Analisis & Pelan Kerja AI:
+Pelan ini telah dilaksanakan pada 2026-11-16 18:43:16
+
+---
+
+## 🗓️ Sesi Pelaksanaan: 2026-11-16 19:15:00 (Alur Ziarah Madinah, Bas Rombongan & Miqat Bir Ali)
+
+### 💬 Keperluan / Input Terkini Pengguna:
+* Fail Rujukan Gambar: `/home/maui/github/umrah/.miqa/uploads/screenshot_20261116_190409.jpg`
+* Arahan Pengguna: *"Mulakan simulasi ini Dari awal ini, menaiki bus dan ziarah sehingga niat"*
+* Kandungan Jadual Pakej dalam Gambar:
+  1. **ZIARAH DALAM MADINAH** (Berjalan kaki bersama Mutawwif): Saqifah Bani Saedah, Masjid Alghamamah / Abu Bakar / Ali, Maqam Rasulullah ﷺ & Para Sahabat, Raudhah Syarifah (permohonan Nusuk), Perkuburan Baqi' (salam dari jauh).
+  2. **ZIARAH LUAR MADINAH** (Menaiki bas):
+     - Melintasi dan memandang dari dalam bas: Masjid Ijabah, Masjid Bilal, Masjid Jumaah, Masjid Qiblatain.
+     - Turun & bergambar / solat: Masjid Quba (Solat di masjid), Ladang Kurma, Masjid 7 / Khandak, Jabal Uhud & Makam 70 Shuhada & Bukit Pemanah, Ziarah Badar.
+  3. **ZIARAH PILIHAN MADINAH**: Jejak Rasul & Sahabat (SR 60).
+  4. **PERSEDIAAN & MIQAT**: Ziarah Wida' (salam dari jauh), Memakai ihram dari hotel penginapan di Madinah, Bertolak ke Makkah (MIQAT di Masjid Bir Ali untuk Umrah pertama), Tiba di Makkah untuk Tawaf & Saie berkumpulan.
+
+### 🚀 Perubahan Kod & Seni Bina Baharu:
+1. **Modul Data Ziarah Lengkap (`src/data/ziarahData.ts`)**:
+   - 15 perhentian terperinci merangkumi kesemua 100% item dalam jadual gambar pengguna.
+   - Mengandungi kisah sejarah bersuara mutawwif, sunnah & adab, doa berbahasa Arab, transliterasi rumi, dan terjemahan bahasa Melayu.
+2. **Persekitaran 3D Madinah & Miqat (`src/world/MadinahZone.ts`)**:
+   - **Bas Ziarah Umrah 3D**: Model bas pelancongan realistik berjalur hijau zamrud dan emas, tayar getah beroda krom, cermin gelap, pintu masuk, dan papan LED berlampu "BAS ZIARAH UMRAH & MIQAT".
+   - **Masjid Bir Ali (Dzulhulaifah)**: Menara tangga bertingkat ikonik, arked tiang melengkung Islamik, permaidani solat hijau, papan tanda "MIQAT MASJID BIR ALI - NIAT UMRAH PERTAMA", dan lingkaran suci niat.
+   - **Jabal Uhud & Bukit Pemanah**: Banjaran bukit batu kemerahan Uhud, Bukit Pemanah (Jabal Rumat) bertangga dan bendera, serta dinding kepungan Makam 70 Syuhada Uhud (termasuk Sayyidina Hamzah R.A.).
+   - **Masjid Quba**: Bangunan kubah putih Masjid Quba (solat sunat = pahala 1 umrah).
+   - **Ladang Kurma (Bustaan An-Nakhl)**: 8+ pohon pokok kurma berbuah lebat dengan tandan kurma Ajwa.
+   - **Lebuhraya Hijrah Madinah-Makkah**: Jalan raya berturap berserta papan tanda gantry rasmi "LEBUHRAYA HIJRAH: MADINAH ➔ MIQAT BIR ALI ➔ MAKKAH (450KM)" dan tiang lampu jalan.
+3. **Penyelarasan Alur Kerja Umrah (`src/simulation/UmrahWorkflow.ts`)**:
+   - Menambah peringkat awal: `ziarah_dalam`, `ziarah_luar_bus`, `ziarah_wida_hotel`, `miqat_bir_ali`, `perjalanan_makkah`.
+   - Mod mula lalai automatik di Madinah (`startUmrah(true)`), dengan sokongan lompatan bebas dan navigasi langkah (*stepper*).
+4. **Antara Muka Interaktif HUD (`src/ui/HUD.ts` & `src/ui/OnboardingModal.ts`)**:
+   - Pilihan permulaan di modal pendaftaran (Disyorkan: Bermula Dari Awal Madinah & Bas Ziarah).
+   - Butang **"🗺️ Jadual Ziarah"** membuka modal senarai semak visual yang sepadan tepat dengan gambar pengguna.
+   - Kad panduan ziarah interaktif dengan kotak penceritaan sejarah mutawwif, butang main audio TTS, dan butang tindakan pantas ("Naik Bas", "Solat di Quba", "Pakai Ihram", "Lafaz Niat di Bir Ali").
+   - Menu lompat pantas (*Teleport*) diperluaskan ke semua lokasi Madinah dan Masjidil Haram.
+5. **Kesan Bunyi & Audio Web (`src/audio/SoundManager.ts`)**:
+   - Bunyi deruman enjin bas dan loceng pelepasan (*bus departure chime*).
+   - Nada solat sunat yang tenang (*spiritual chime*) untuk Solat di Masjid Quba dan Masjid Bir Ali.
+   - Panggilan Talbiyah automatik sebaik sahaja Niat Umrah dilafazkan di Miqat.
+
+
