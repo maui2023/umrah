@@ -18,6 +18,8 @@ export class AvatarModel {
   private rightLeg: THREE.Group;
   private overheadSprite: THREE.Sprite;
   private groundRing: THREE.Mesh;
+  private mutawwifFlagGroup!: THREE.Group;
+  private mutawwifFlagMesh!: THREE.Mesh;
   private animTimer: number = Math.random() * 10;
   private spriteCanvas: HTMLCanvasElement;
   private spriteContext: CanvasRenderingContext2D;
@@ -457,6 +459,61 @@ export class AvatarModel {
       faceFrameTrim.rotation.z = Math.PI * 0.8;
       this.head.add(faceFrameTrim);
     }
+
+    // =========================================================================
+    // 2B. MUTAWWIF OVERHEAD GROUP FLAG (Bendera Penanda Mutawwif)
+    // =========================================================================
+    this.mutawwifFlagGroup = new THREE.Group();
+    // Position pole on top-right of head so it flutters clearly above
+    this.mutawwifFlagGroup.position.set(0.04, 0.18, -0.02);
+
+    // Slim lightweight flagpole / tiang bendera
+    const poleMat = new THREE.MeshStandardMaterial({
+      color: 0xdcdcdc,
+      metalness: 0.85,
+      roughness: 0.25
+    });
+    const pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.009, 0.009, 0.72, 8),
+      poleMat
+    );
+    pole.position.set(0, 0.36, 0);
+    pole.castShadow = true;
+    this.mutawwifFlagGroup.add(pole);
+
+    // Golden dome finial on top of flagpole
+    const finialMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      metalness: 0.9,
+      roughness: 0.2
+    });
+    const finial = new THREE.Mesh(new THREE.SphereGeometry(0.024, 10, 10), finialMat);
+    finial.position.set(0, 0.72, 0);
+    this.mutawwifFlagGroup.add(finial);
+
+    // Triangular Pennant Flag (matches user sketch on mutawwif's head)
+    const flagShape = new THREE.Shape();
+    flagShape.moveTo(0, 0);
+    flagShape.lineTo(0.36, 0.12); // Tip pointing right/back
+    flagShape.lineTo(0, 0.24); // Upper attachment
+    flagShape.closePath();
+
+    const flagGeo = new THREE.ShapeGeometry(flagShape);
+    const flagMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(this.groupColor),
+      side: THREE.DoubleSide,
+      roughness: 0.45,
+      metalness: 0.05
+    });
+    this.mutawwifFlagMesh = new THREE.Mesh(flagGeo, flagMat);
+    this.mutawwifFlagMesh.position.set(0.005, 0.46, 0);
+    this.mutawwifFlagMesh.castShadow = true;
+    this.mutawwifFlagGroup.add(this.mutawwifFlagMesh);
+
+    // Initial visibility according to role
+    this.mutawwifFlagGroup.visible = this.role === 'mutawwif';
+    this.head.add(this.mutawwifFlagGroup);
+
     this.group.add(this.head);
 
     // =========================================================================
@@ -774,6 +831,14 @@ export class AvatarModel {
 
     (this.groundRing.material as THREE.MeshBasicMaterial).color.set(groupColor);
 
+    // Update mutawwif overhead flag visibility & color
+    if (this.mutawwifFlagGroup) {
+      this.mutawwifFlagGroup.visible = role === 'mutawwif';
+    }
+    if (this.mutawwifFlagMesh) {
+      (this.mutawwifFlagMesh.material as THREE.MeshStandardMaterial).color.set(groupColor);
+    }
+
     const ctx = this.spriteContext;
     ctx.clearRect(0, 0, 512, 192);
 
@@ -840,6 +905,12 @@ export class AvatarModel {
       const bob = Math.abs(Math.sin(this.animTimer * 2)) * 0.04;
       this.torso.position.y = baseTorsoY + bob;
       this.head.position.y = baseHeadY + bob;
+
+      // Realistic flag flutter & wind dynamic reaction while moving
+      if (this.mutawwifFlagMesh && this.mutawwifFlagGroup.visible) {
+        this.mutawwifFlagMesh.rotation.y = Math.sin(this.animTimer * 2.2) * 0.28;
+        this.mutawwifFlagMesh.rotation.z = Math.cos(this.animTimer * 1.8) * 0.08;
+      }
     } else {
       // Idle gentle breathing
       const breath = Math.sin(this.animTimer) * 0.015;
@@ -854,6 +925,12 @@ export class AvatarModel {
       const baseHeadY = this.gender === 'male' ? 1.54 : 1.48;
       this.torso.position.y = baseTorsoY + breath;
       this.head.position.y = baseHeadY + breath;
+
+      // Gentle subtle flag wave in gentle breeze while standing
+      if (this.mutawwifFlagMesh && this.mutawwifFlagGroup.visible) {
+        this.mutawwifFlagMesh.rotation.y = Math.sin(this.animTimer * 1.2) * 0.12;
+        this.mutawwifFlagMesh.rotation.z = Math.cos(this.animTimer * 1.0) * 0.03;
+      }
     }
   }
 

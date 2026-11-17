@@ -419,22 +419,22 @@ export class HUD {
             </div>
           </div>
 
-          <!-- Card 3: Info Kumpulan / Roster Button (Pindah ke bawah Info & Panduan) -->
-          <button id="btn-top-roster" title="Info Jemaah & Jarak Mutawwif" class="interactive-ui self-start min-h-[42px] px-3.5 py-2 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center gap-2.5 text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer w-auto max-w-[280px]">
+        </div>
+
+        <!-- TOP-RIGHT: ACTION BUTTON STACK (Matches screenshot + Rombongan) -->
+        <div class="pointer-events-auto flex flex-col gap-2.5 z-40 items-end">
+          
+          <!-- 1. Info Rombongan & Mutawwif Button (Asal di bucu atas kanan seperti ditunjukkan anak panah lakaran) -->
+          <button id="btn-top-roster" title="Info Jemaah & Jarak Mutawwif" class="interactive-ui min-h-[44px] px-3 sm:px-3.5 py-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center gap-2 text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer max-w-[155px] sm:max-w-[200px]">
             <span class="text-base sm:text-lg shrink-0">👥</span>
-            <div class="flex flex-col text-left leading-tight pr-1 overflow-hidden">
+            <div class="flex flex-col text-left leading-tight pr-0.5 overflow-hidden">
               <span id="top-roster-group-label" class="text-[9px] font-bold text-stone-400 uppercase tracking-wider truncate">ROMBONGAN</span>
               <span id="top-roster-status-text" class="text-[11px] font-bold text-stone-800 truncate whitespace-nowrap">1 Ahli</span>
             </div>
             <span id="top-roster-badge" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-auto"></span>
           </button>
 
-        </div>
-
-        <!-- TOP-RIGHT: ACTION BUTTON STACK (Matches screenshot) -->
-        <div class="pointer-events-auto flex flex-col gap-2.5 z-40 items-end">
-          
-          <!-- 1. Jadual Ziarah & Peta (Book Icon) -->
+          <!-- 2. Jadual Ziarah & Peta (Book Icon) -->
           <button id="btn-top-itinerary" title="Jadual & Laluan Ziarah Lengkap" class="interactive-ui w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center justify-center text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer">
             <svg class="w-5 h-5 text-stone-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
