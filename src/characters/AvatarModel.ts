@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Gender, PlayerRole } from '../types';
+import { SolatAvatarPose } from '../data/solatData';
 
 // =============================================================================
 // SHARED PROCEDURAL TEXTURE CACHE (High-Resolution Textures for Realistic Look)
@@ -339,6 +340,11 @@ export class AvatarModel {
   public targetPosition = new THREE.Vector3();
   public targetRotation = 0;
   public isMoving = false;
+  public prayerPose: SolatAvatarPose = 'berdiri';
+
+  public setPrayerPose(pose: SolatAvatarPose) {
+    this.prayerPose = pose;
+  }
 
   constructor(data: {
     name: string;
@@ -1288,6 +1294,100 @@ export class AvatarModel {
       if (this.mutawwifFlagMesh && this.mutawwifFlagGroup.visible) {
         this.mutawwifFlagMesh.rotation.y = Math.sin(this.animTimer * 2.2) * 0.28;
         this.mutawwifFlagMesh.rotation.z = Math.cos(this.animTimer * 1.8) * 0.08;
+      }
+    } else if (this.prayerPose !== 'berdiri') {
+      // Interactive Prayer Poser (Rukun Solat Poses)
+      const baseTorsoY = this.gender === 'male' ? 1.05 : 0.95;
+      const baseHeadY = this.gender === 'male' ? 1.54 : 1.48;
+
+      if (this.prayerPose === 'takbir') {
+        // Takbiratul Ihram: Hands raised beside ears/shoulders
+        this.leftArm.rotation.set(-2.3, 0.1, -0.45);
+        this.rightArm.rotation.set(-2.3, -0.1, 0.45);
+        this.head.rotation.set(0.18, 0, 0);
+        this.torso.rotation.set(0, 0, 0);
+        this.leftLeg.rotation.set(0, 0, 0);
+        this.rightLeg.rotation.set(0, 0, 0);
+        this.torso.position.y = baseTorsoY;
+        this.head.position.y = baseHeadY;
+        this.head.position.z = 0;
+      } else if (this.prayerPose === 'qiyam') {
+        // Qiyam: Hands folded across chest (bersedekap)
+        this.leftArm.rotation.set(-1.25, 0.25, 0.42);
+        this.rightArm.rotation.set(-1.32, -0.25, -0.42);
+        this.head.rotation.set(0.24, 0, 0);
+        this.torso.rotation.set(0, 0, 0);
+        this.leftLeg.rotation.set(0, 0, 0);
+        this.rightLeg.rotation.set(0, 0, 0);
+        this.torso.position.y = baseTorsoY;
+        this.head.position.y = baseHeadY;
+        this.head.position.z = 0;
+      } else if (this.prayerPose === 'ruku') {
+        // Ruku': Torso bent forward ~80-90 degrees, hands holding knees
+        this.torso.rotation.set(1.35, 0, 0);
+        this.head.rotation.set(0.1, 0, 0);
+        this.leftArm.rotation.set(0.25, 0, -0.1);
+        this.rightArm.rotation.set(0.25, 0, 0.1);
+        this.leftLeg.rotation.set(0, 0, 0);
+        this.rightLeg.rotation.set(0, 0, 0);
+        this.torso.position.y = baseTorsoY - 0.25;
+        this.head.position.y = baseHeadY - 0.58;
+        this.head.position.z = 0.52;
+      } else if (this.prayerPose === 'itidal') {
+        // I'tidal: Standing upright after bowing
+        this.torso.rotation.set(0, 0, 0);
+        this.head.rotation.set(0.12, 0, 0);
+        this.leftArm.rotation.set(0.08, 0, 0);
+        this.rightArm.rotation.set(0.08, 0, 0);
+        this.leftLeg.rotation.set(0, 0, 0);
+        this.rightLeg.rotation.set(0, 0, 0);
+        this.torso.position.y = baseTorsoY;
+        this.head.position.y = baseHeadY;
+        this.head.position.z = 0;
+      } else if (this.prayerPose === 'sujud1' || this.prayerPose === 'sujud2') {
+        // Sujud: Prostrating down to the ground
+        this.torso.rotation.set(1.57, 0, 0);
+        this.head.rotation.set(0.35, 0, 0);
+        this.leftArm.rotation.set(1.35, 0, -0.35);
+        this.rightArm.rotation.set(1.35, 0, 0.35);
+        this.leftLeg.rotation.set(1.55, 0, 0);
+        this.rightLeg.rotation.set(1.55, 0, 0);
+        this.torso.position.y = 0.34;
+        this.head.position.y = 0.2;
+        this.head.position.z = 0.65;
+      } else if (this.prayerPose === 'duduk' || this.prayerPose === 'tahiyyat' || this.prayerPose === 'selesai') {
+        // Sitting on the ground (iftirasy / tawarruk)
+        this.torso.rotation.set(0, 0, 0);
+        this.head.rotation.set(0.22, 0, 0);
+        this.leftArm.rotation.set(-0.6, 0, 0.15);
+        this.rightArm.rotation.set(-0.6, 0, -0.15);
+        this.leftLeg.rotation.set(1.48, 0, 0);
+        this.rightLeg.rotation.set(1.48, 0, 0);
+        this.torso.position.y = 0.52;
+        this.head.position.y = 0.98;
+        this.head.position.z = 0;
+      } else if (this.prayerPose === 'salam_kanan') {
+        // Salam to the right
+        this.torso.rotation.set(0, 0, 0);
+        this.head.rotation.set(0.1, -1.05, 0);
+        this.leftArm.rotation.set(-0.6, 0, 0.15);
+        this.rightArm.rotation.set(-0.6, 0, -0.15);
+        this.leftLeg.rotation.set(1.48, 0, 0);
+        this.rightLeg.rotation.set(1.48, 0, 0);
+        this.torso.position.y = 0.52;
+        this.head.position.y = 0.98;
+        this.head.position.z = 0;
+      } else if (this.prayerPose === 'salam_kiri') {
+        // Salam to the left
+        this.torso.rotation.set(0, 0, 0);
+        this.head.rotation.set(0.1, 1.05, 0);
+        this.leftArm.rotation.set(-0.6, 0, 0.15);
+        this.rightArm.rotation.set(-0.6, 0, -0.15);
+        this.leftLeg.rotation.set(1.48, 0, 0);
+        this.rightLeg.rotation.set(1.48, 0, 0);
+        this.torso.position.y = 0.52;
+        this.head.position.y = 0.98;
+        this.head.position.z = 0;
       }
     } else {
       // Idle gentle breathing

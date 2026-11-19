@@ -8,6 +8,9 @@ export class MadinahZone {
   public busGroup!: THREE.Group;
   public birAliMesh!: THREE.Group;
   public qubaMesh!: THREE.Group;
+  public nabawiMesh!: THREE.Group;
+  public qiblatainMesh!: THREE.Group;
+  public ghamamahMesh!: THREE.Group;
   public uhudMesh!: THREE.Group;
   public datePalmsGroup!: THREE.Group;
   public highwayGroup!: THREE.Group;
@@ -25,8 +28,11 @@ export class MadinahZone {
   private buildZone() {
     this.createHighwayRoad();
     this.createUmrahTourBus();
+    this.createMasjidNabawi();
     this.createMasjidBirAli();
     this.createMasjidQuba();
+    this.createMasjidQiblatain();
+    this.createMasjidAlghamamah();
     this.createJabalUhud();
     this.createDatePalmOasis();
     this.createHistoricalWaypoints();
@@ -258,8 +264,8 @@ export class MadinahZone {
     mCtx.fillText('مِيقَات مَسْجِد ذِي الحُلَيْفَة (آبَار عَلِي)', 512, 85);
 
     mCtx.fillStyle = '#ffffff';
-    mCtx.font = 'bold 40px Inter, sans-serif';
-    mCtx.fillText('MIQAT MASJID BIR ALI - NIAT UMRAH PERTAMA', 512, 155);
+    mCtx.font = 'bold 36px Inter, sans-serif';
+    mCtx.fillText('🚪 PINTU MASUK MASJID BIR ALI (MIQAT)', 512, 155);
 
     mCtx.fillStyle = '#86efac';
     mCtx.font = 'bold 30px Inter, sans-serif';
@@ -299,29 +305,165 @@ export class MadinahZone {
   }
 
   /**
-   * Masjid Quba (Solat di Masjid = Pahala 1 Umrah)
+   * Masjid Nabawi (Kubah Hijau & Raudhah Syarifah)
+   */
+  private createMasjidNabawi() {
+    this.nabawiMesh = new THREE.Group();
+    this.nabawiMesh.name = 'MasjidNabawi';
+
+    const stoneMat = new THREE.MeshLambertMaterial({ color: 0xf5f3ee });
+    const greenDomeMat = new THREE.MeshLambertMaterial({ color: 0x047857 }); // Iconic Green Dome
+    const goldMat = new THREE.MeshLambertMaterial({ color: 0xd97706 });
+    const raudhahCarpetMat = new THREE.MeshLambertMaterial({ color: 0x059669 }); // Raudhah Green Carpet
+
+    // 1. Raised Courtyard Base
+    const base = new THREE.Mesh(new THREE.BoxGeometry(20, 0.35, 18), stoneMat);
+    base.position.set(0, 0.17, 0);
+    base.receiveShadow = true;
+    this.nabawiMesh.add(base);
+
+    // 2. Raudhah Syarifah Prayer Carpet (Interior Green Carpet)
+    const raudhahCarpet = new THREE.Mesh(new THREE.PlaneGeometry(16, 12), raudhahCarpetMat);
+    raudhahCarpet.rotation.x = -Math.PI / 2;
+    raudhahCarpet.position.set(0, 0.36, 1);
+    this.nabawiMesh.add(raudhahCarpet);
+
+    // Gold Saf Lines on Raudhah Carpet
+    [-3.5, -1.2, 1.2, 3.5].forEach((zOff) => {
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(15.5, 0.08), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(0, 0.37, 1 + zOff);
+      this.nabawiMesh.add(line);
+    });
+
+    // 3. Iconic Kubah Hijau (Green Dome of the Prophet's Mosque)
+    const greenDome = new THREE.Mesh(
+      new THREE.SphereGeometry(3.6, 24, 24, 0, Math.PI * 2, 0, Math.PI / 2),
+      greenDomeMat
+    );
+    greenDome.position.set(-3.5, 7.5, -3);
+    const crescent = new THREE.Mesh(new THREE.ConeGeometry(0.5, 2.0, 12), goldMat);
+    crescent.position.set(-3.5, 12.2, -3);
+    this.nabawiMesh.add(greenDome, crescent);
+
+    // 4. White Domes of Masjid Nabawi
+    [
+      [3.5, -3],
+      [-3.5, 3],
+      [3.5, 3]
+    ].forEach(([dx, dz]) => {
+      const wDome = new THREE.Mesh(
+        new THREE.SphereGeometry(2.0, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+        stoneMat
+      );
+      wDome.position.set(dx, 7.2, dz);
+      this.nabawiMesh.add(wDome);
+    });
+
+    // 5. Grand Minaret of Masjid Nabawi
+    const minaret = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.6, 26, 12), stoneMat);
+    minaret.position.set(7.5, 13, -6.5);
+    const minaretSpire = new THREE.Mesh(new THREE.ConeGeometry(1.2, 5, 12), goldMat);
+    minaretSpire.position.set(7.5, 28, -6.5);
+    this.nabawiMesh.add(minaret, minaretSpire);
+
+    // 6. Colonnade Pillars & Arches
+    for (let x = -7; x <= 7; x += 3.5) {
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 6.8, 12), stoneMat);
+      pillar.position.set(x, 3.4, -5);
+      this.nabawiMesh.add(pillar);
+    }
+
+    // 7. Grand Entrance Gate (Bab As-Salam) at South Face
+    const gateArch = new THREE.Mesh(new THREE.BoxGeometry(10, 1.6, 1.4), stoneMat);
+    gateArch.position.set(0, 6.2, 7.5);
+    const postL = new THREE.Mesh(new THREE.BoxGeometry(1.2, 6, 1.4), stoneMat);
+    postL.position.set(-4.5, 3, 7.5);
+    const postR = new THREE.Mesh(new THREE.BoxGeometry(1.2, 6, 1.4), stoneMat);
+    postR.position.set(4.5, 3, 7.5);
+    this.nabawiMesh.add(gateArch, postL, postR);
+
+    // Dual Signboards: Bab As-Salam & Pintu Masuk Masjid Nabawi
+    const nabawiCanvas = document.createElement('canvas');
+    nabawiCanvas.width = 1024;
+    nabawiCanvas.height = 256;
+    const nCtx = nabawiCanvas.getContext('2d')!;
+    nCtx.fillStyle = '#064e3b';
+    nCtx.fillRect(0, 0, 1024, 256);
+    nCtx.strokeStyle = '#d4af37';
+    nCtx.lineWidth = 14;
+    nCtx.strokeRect(10, 10, 1004, 236);
+
+    nCtx.fillStyle = '#fef08a';
+    nCtx.textAlign = 'center';
+    nCtx.font = 'bold 50px Amiri, serif';
+    nCtx.fillText('المَسْجِد النَّبَوِي الشَّرِيف • بَاب السَّلاَم', 512, 85);
+
+    nCtx.fillStyle = '#ffffff';
+    nCtx.font = 'bold 36px Inter, sans-serif';
+    nCtx.fillText('🚪 PINTU MASUK MASJID NABAWI (RAUDHAH)', 512, 155);
+
+    nCtx.fillStyle = '#86efac';
+    nCtx.font = 'bold 24px Inter, sans-serif';
+    nCtx.fillText('SOLAT DI MASJID NABAWI = 1,000 KALI GANDA PAHALA', 512, 210);
+
+    const nabawiTexture = new THREE.CanvasTexture(nabawiCanvas);
+    const nabawiSignMat = new THREE.MeshBasicMaterial({ map: nabawiTexture });
+    const signFront = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 2.1), nabawiSignMat);
+    signFront.position.set(0, 6.2, 8.25);
+    this.nabawiMesh.add(signFront);
+
+    // Welcome Green Carpet Runner entering through gate
+    const runner = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 8), raudhahCarpetMat);
+    runner.rotation.x = -Math.PI / 2;
+    runner.position.set(0, 0.2, 8);
+    this.nabawiMesh.add(runner);
+
+    // Position Masjid Nabawi at x: -134, z: 14
+    this.nabawiMesh.position.set(-134, 0, 14);
+    this.group.add(this.nabawiMesh);
+  }
+
+  /**
+   * Masjid Quba (Accessible Building with Entrance Door & Interior Prayer Hall)
    */
   private createMasjidQuba() {
     this.qubaMesh = new THREE.Group();
     this.qubaMesh.name = 'MasjidQuba';
 
-    const whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-    const domeMat = new THREE.MeshLambertMaterial({ color: 0xfafafa });
+    const whiteMat = new THREE.MeshLambertMaterial({ color: 0xfafafa });
+    const domeMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const greenCarpetMat = new THREE.MeshLambertMaterial({ color: 0x065f46 });
+    const goldMat = new THREE.MeshLambertMaterial({ color: 0xd97706 });
 
-    // Courtyard base
-    const base = new THREE.Mesh(new THREE.BoxGeometry(22, 0.4, 22), whiteMat);
-    base.position.y = 0.2;
+    // 1. Courtyard Base
+    const base = new THREE.Mesh(new THREE.BoxGeometry(22, 0.35, 22), whiteMat);
+    base.position.y = 0.17;
+    base.receiveShadow = true;
     this.qubaMesh.add(base);
 
-    // Central Grand Dome
+    // 2. Interior Emerald Green Prayer Carpet
+    const carpet = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), greenCarpetMat);
+    carpet.rotation.x = -Math.PI / 2;
+    carpet.position.set(0, 0.36, 0);
+    this.qubaMesh.add(carpet);
+
+    // Saf Lines
+    [-5, -2.5, 0, 2.5, 5].forEach((zOff) => {
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(13.5, 0.08), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(0, 0.37, zOff);
+      this.qubaMesh.add(line);
+    });
+
+    // 3. Central Grand Dome & 4 Corner Domes
     const dome = new THREE.Mesh(
       new THREE.SphereGeometry(4.2, 20, 20, 0, Math.PI * 2, 0, Math.PI / 2),
       domeMat
     );
-    dome.position.set(0, 6, 0);
+    dome.position.set(0, 6.2, 0);
     this.qubaMesh.add(dome);
 
-    // 4 Corner domes
     [
       [-5.5, -5.5],
       [5.5, -5.5],
@@ -332,44 +474,260 @@ export class MadinahZone {
         new THREE.SphereGeometry(1.8, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
         domeMat
       );
-      miniDome.position.set(cx, 6, cz);
+      miniDome.position.set(cx, 6.2, cz);
       this.qubaMesh.add(miniDome);
     });
 
-    // Walls & Facade
-    const mainBuilding = new THREE.Mesh(new THREE.BoxGeometry(16, 6, 16), whiteMat);
-    mainBuilding.position.y = 3;
-    mainBuilding.castShadow = true;
-    this.qubaMesh.add(mainBuilding);
+    // 4. Roof Slab with Central Aperture
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(16, 0.5, 16), whiteMat);
+    roof.position.y = 6;
+    this.qubaMesh.add(roof);
 
-    // Signboard: MASJID QUBA
+    // 5. Walls with Open Entrance Doorway on South Wall
+    // North Wall (Solid, with interior Mihrab)
+    const northWall = new THREE.Mesh(new THREE.BoxGeometry(16, 6, 0.8), whiteMat);
+    northWall.position.set(0, 3, -7.6);
+    northWall.castShadow = true;
+    this.qubaMesh.add(northWall);
+
+    // Mihrab on North Wall
+    const mihrab = new THREE.Mesh(new THREE.BoxGeometry(3, 4, 0.6), goldMat);
+    mihrab.position.set(0, 2.2, -7.1);
+    this.qubaMesh.add(mihrab);
+
+    // East Wall (Solid with decorative relief)
+    const eastWall = new THREE.Mesh(new THREE.BoxGeometry(0.8, 6, 16), whiteMat);
+    eastWall.position.set(7.6, 3, 0);
+    eastWall.castShadow = true;
+    this.qubaMesh.add(eastWall);
+
+    // West Wall (Solid with decorative relief)
+    const westWall = new THREE.Mesh(new THREE.BoxGeometry(0.8, 6, 16), whiteMat);
+    westWall.position.set(-7.6, 3, 0);
+    westWall.castShadow = true;
+    this.qubaMesh.add(westWall);
+
+    // South Wall Left Segment
+    const southWallL = new THREE.Mesh(new THREE.BoxGeometry(5.5, 6, 0.8), whiteMat);
+    southWallL.position.set(-5.25, 3, 7.6);
+    this.qubaMesh.add(southWallL);
+
+    // South Wall Right Segment
+    const southWallR = new THREE.Mesh(new THREE.BoxGeometry(5.5, 6, 0.8), whiteMat);
+    southWallR.position.set(5.25, 3, 7.6);
+    this.qubaMesh.add(southWallR);
+
+    // Archway Lintel above entrance door
+    const doorLintel = new THREE.Mesh(new THREE.BoxGeometry(5.0, 1.8, 1.0), whiteMat);
+    doorLintel.position.set(0, 5.1, 7.6);
+    this.qubaMesh.add(doorLintel);
+
+    // 6. Signboard: PINTU MASUK MASJID QUBA
     const qubaCanvas = document.createElement('canvas');
-    qubaCanvas.width = 512;
-    qubaCanvas.height = 128;
+    qubaCanvas.width = 1024;
+    qubaCanvas.height = 256;
     const qCtx = qubaCanvas.getContext('2d')!;
     qCtx.fillStyle = '#0f766e';
-    qCtx.fillRect(0, 0, 512, 128);
+    qCtx.fillRect(0, 0, 1024, 256);
     qCtx.strokeStyle = '#ffffff';
-    qCtx.lineWidth = 8;
-    qCtx.strokeRect(6, 6, 500, 116);
+    qCtx.lineWidth = 12;
+    qCtx.strokeRect(10, 10, 1004, 236);
+
     qCtx.fillStyle = '#ffffff';
     qCtx.textAlign = 'center';
-    qCtx.font = 'bold 36px Amiri, serif';
-    qCtx.fillText('مَسْجِد قُبَاء • أَوَّل مَسْجِد فِي الإِسْلاَم', 256, 48);
-    qCtx.font = 'bold 26px Inter, sans-serif';
-    qCtx.fillText('MASJID QUBA (SOLAT = PAHALA 1 UMRAH)', 256, 95);
+    qCtx.font = 'bold 50px Amiri, serif';
+    qCtx.fillText('مَسْجِد قُبَاء • أَوَّل مَسْجِد فِي الإِسْلاَم', 512, 85);
+
+    qCtx.fillStyle = '#fef08a';
+    qCtx.font = 'bold 36px Inter, sans-serif';
+    qCtx.fillText('🚪 PINTU MASUK UTAMA MASJID QUBA', 512, 155);
+
+    qCtx.fillStyle = '#ffffff';
+    qCtx.font = 'bold 24px Inter, sans-serif';
+    qCtx.fillText('SOLAT DI SINI = GANJARAN PAHALA 1 UMRAH', 512, 210);
 
     const qubaTexture = new THREE.CanvasTexture(qubaCanvas);
     const qubaSign = new THREE.Mesh(
-      new THREE.PlaneGeometry(8, 2),
+      new THREE.PlaneGeometry(7.5, 1.9),
       new THREE.MeshBasicMaterial({ map: qubaTexture })
     );
-    qubaSign.position.set(0, 4.5, 8.05);
+    qubaSign.position.set(0, 5.2, 8.2);
     this.qubaMesh.add(qubaSign);
+
+    // Welcome carpet runner through door
+    const doorRunner = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 5.5), greenCarpetMat);
+    doorRunner.rotation.x = -Math.PI / 2;
+    doorRunner.position.set(0, 0.2, 8.5);
+    this.qubaMesh.add(doorRunner);
+
+    // Interior chandelier
+    const chandelier = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(0.8),
+      new THREE.MeshBasicMaterial({ color: 0xfef08a })
+    );
+    chandelier.position.set(0, 4.5, 0);
+    this.qubaMesh.add(chandelier);
 
     // Position at x: -115, z: -35
     this.qubaMesh.position.set(-115, 0, -35);
     this.group.add(this.qubaMesh);
+  }
+
+  /**
+   * Masjid Qiblatain (Dua Kiblat)
+   */
+  private createMasjidQiblatain() {
+    this.qiblatainMesh = new THREE.Group();
+    this.qiblatainMesh.name = 'MasjidQiblatain';
+
+    const stoneMat = new THREE.MeshLambertMaterial({ color: 0xf1f5f9 });
+    const goldMat = new THREE.MeshLambertMaterial({ color: 0xd97706 });
+    const carpetMat = new THREE.MeshLambertMaterial({ color: 0x0f766e });
+
+    // Base & carpet
+    const base = new THREE.Mesh(new THREE.BoxGeometry(16, 0.35, 14), stoneMat);
+    base.position.y = 0.17;
+    this.qiblatainMesh.add(base);
+
+    const carpet = new THREE.Mesh(new THREE.PlaneGeometry(12, 10), carpetMat);
+    carpet.rotation.x = -Math.PI / 2;
+    carpet.position.set(0, 0.36, 0);
+    this.qiblatainMesh.add(carpet);
+
+    // Twin Minarets
+    [-6, 6].forEach((xOff) => {
+      const minaret = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.1, 16, 12), stoneMat);
+      minaret.position.set(xOff, 8, -4);
+      const spire = new THREE.Mesh(new THREE.ConeGeometry(0.9, 3.5, 12), goldMat);
+      spire.position.set(xOff, 17.5, -4);
+      this.qiblatainMesh.add(minaret, spire);
+    });
+
+    // Central Dome
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(3.0, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+      stoneMat
+    );
+    dome.position.set(0, 5.5, -2);
+    this.qiblatainMesh.add(dome);
+
+    // Entrance Portal Gate Archway
+    const arch = new THREE.Mesh(new THREE.BoxGeometry(8, 1.4, 1.0), stoneMat);
+    arch.position.set(0, 5.2, 5.5);
+    const postL = new THREE.Mesh(new THREE.BoxGeometry(1.0, 5, 1.0), stoneMat);
+    postL.position.set(-3.5, 2.5, 5.5);
+    const postR = new THREE.Mesh(new THREE.BoxGeometry(1.0, 5, 1.0), stoneMat);
+    postR.position.set(3.5, 2.5, 5.5);
+    this.qiblatainMesh.add(arch, postL, postR);
+
+    // Signboard
+    const signCanvas = document.createElement('canvas');
+    signCanvas.width = 512;
+    signCanvas.height = 128;
+    const sCtx = signCanvas.getContext('2d')!;
+    sCtx.fillStyle = '#0f766e';
+    sCtx.fillRect(0, 0, 512, 128);
+    sCtx.strokeStyle = '#ffffff';
+    sCtx.lineWidth = 6;
+    sCtx.strokeRect(4, 4, 504, 120);
+
+    sCtx.fillStyle = '#ffffff';
+    sCtx.textAlign = 'center';
+    sCtx.font = 'bold 30px Amiri, serif';
+    sCtx.fillText('مَسْجِد القِبْلَتَيْن', 256, 45);
+
+    sCtx.fillStyle = '#fef08a';
+    sCtx.font = 'bold 22px Inter, sans-serif';
+    sCtx.fillText('🚪 PINTU MASUK MASJID QIBLATAIN', 256, 85);
+
+    sCtx.fillStyle = '#ffffff';
+    sCtx.font = '16px Inter, sans-serif';
+    sCtx.fillText('PERISTIWA PERTUKARAN KIBLAT KE KAABAH', 256, 112);
+
+    const sign = new THREE.Mesh(
+      new THREE.PlaneGeometry(6, 1.5),
+      new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(signCanvas) })
+    );
+    sign.position.set(0, 5.2, 6.1);
+    this.qiblatainMesh.add(sign);
+
+    this.qiblatainMesh.position.set(-150, 0, -18);
+    this.group.add(this.qiblatainMesh);
+  }
+
+  /**
+   * Masjid Alghamamah & Abu Bakar
+   */
+  private createMasjidAlghamamah() {
+    this.ghamamahMesh = new THREE.Group();
+    this.ghamamahMesh.name = 'MasjidAlghamamah';
+
+    const basaltMat = new THREE.MeshLambertMaterial({ color: 0x334155 }); // Dark volcanic basalt stone
+    const whiteMat = new THREE.MeshLambertMaterial({ color: 0xf8fafc });
+    const carpetMat = new THREE.MeshLambertMaterial({ color: 0x064e3b });
+
+    // Base & carpet
+    const base = new THREE.Mesh(new THREE.BoxGeometry(14, 0.35, 12), basaltMat);
+    base.position.y = 0.17;
+    this.ghamamahMesh.add(base);
+
+    const carpet = new THREE.Mesh(new THREE.PlaneGeometry(10, 8), carpetMat);
+    carpet.rotation.x = -Math.PI / 2;
+    carpet.position.set(0, 0.36, 0);
+    this.ghamamahMesh.add(carpet);
+
+    // Multi-domed basalt roof
+    [-3, 0, 3].forEach((xOff) => {
+      const dome = new THREE.Mesh(
+        new THREE.SphereGeometry(1.8, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+        whiteMat
+      );
+      dome.position.set(xOff, 4.8, -2);
+      this.ghamamahMesh.add(dome);
+    });
+
+    // Entrance Gate
+    const arch = new THREE.Mesh(new THREE.BoxGeometry(7, 1.2, 0.8), basaltMat);
+    arch.position.set(0, 4.6, 4.5);
+    const postL = new THREE.Mesh(new THREE.BoxGeometry(0.8, 4.5, 0.8), basaltMat);
+    postL.position.set(-3.1, 2.25, 4.5);
+    const postR = new THREE.Mesh(new THREE.BoxGeometry(0.8, 4.5, 0.8), basaltMat);
+    postR.position.set(3.1, 2.25, 4.5);
+    this.ghamamahMesh.add(arch, postL, postR);
+
+    // Signboard
+    const signCanvas = document.createElement('canvas');
+    signCanvas.width = 512;
+    signCanvas.height = 128;
+    const sCtx = signCanvas.getContext('2d')!;
+    sCtx.fillStyle = '#1e293b';
+    sCtx.fillRect(0, 0, 512, 128);
+    sCtx.strokeStyle = '#d4af37';
+    sCtx.lineWidth = 6;
+    sCtx.strokeRect(4, 4, 504, 120);
+
+    sCtx.fillStyle = '#fef08a';
+    sCtx.textAlign = 'center';
+    sCtx.font = 'bold 30px Amiri, serif';
+    sCtx.fillText('مَسْجِد الغَمَامَة', 256, 45);
+
+    sCtx.fillStyle = '#ffffff';
+    sCtx.font = 'bold 22px Inter, sans-serif';
+    sCtx.fillText('🚪 PINTU MASUK MASJID ALGHAMAMAH', 256, 85);
+
+    sCtx.fillStyle = '#94a3b8';
+    sCtx.font = '16px Inter, sans-serif';
+    sCtx.fillText('TAPAK SOLAT ISTISQA\' MEMOHON HUJAN', 256, 112);
+
+    const sign = new THREE.Mesh(
+      new THREE.PlaneGeometry(5.5, 1.4),
+      new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(signCanvas) })
+    );
+    sign.position.set(0, 4.6, 5.0);
+    this.ghamamahMesh.add(sign);
+
+    this.ghamamahMesh.position.set(-132, 0, 6);
+    this.group.add(this.ghamamahMesh);
   }
 
   /**

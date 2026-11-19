@@ -32,6 +32,8 @@ export class MasjidilHaram {
     this.createZamzamStations();
     this.createMasaGallery();
     this.createMosqueArchitecture();
+    this.createGrandMosqueEntrance();
+    this.createHaramPrayerHall();
     this.madinahZone = new MadinahZone(this.scene);
   }
 
@@ -528,10 +530,11 @@ export class MasjidilHaram {
       // Skip grand openings: Mas'a (angle ~ 0), Bab Abdul Aziz (angle ~ -PI/2), Bab Umrah (angle ~ PI)
       const midAngle = angle + (Math.PI / 24);
       const isMasaOpen = Math.abs(midAngle) < 0.38 || Math.abs(midAngle - Math.PI * 2) < 0.38;
+      const isBabAbdulAziz = Math.abs(midAngle - (Math.PI / 2)) < 0.22;
       const isSouthGate = Math.abs(midAngle - (3 * Math.PI / 2)) < 0.22;
       const isNorthWestGate = Math.abs(midAngle - Math.PI) < 0.22;
 
-      if (!isMasaOpen && !isSouthGate && !isNorthWestGate) {
+      if (!isMasaOpen && !isSouthGate && !isNorthWestGate && !isBabAbdulAziz) {
         const wx = Math.cos(midAngle) * (colonnadeRadius + 0.8);
         const wz = Math.sin(midAngle) * (colonnadeRadius + 0.8);
         const wallSegment = new THREE.Mesh(
@@ -583,6 +586,154 @@ export class MasjidilHaram {
       minaretGroup.position.set(pos.x, 0, pos.z);
       this.scene.add(minaretGroup);
     });
+  }
+
+  /**
+   * Pintu Masuk Utama Masjidil Haram (Bab King Abdul Aziz Gate)
+   */
+  private createGrandMosqueEntrance() {
+    const entranceGroup = new THREE.Group();
+    entranceGroup.name = 'PintuMasukMasjidilHaram';
+
+    const stoneMat = new THREE.MeshLambertMaterial({ color: 0xf3efe6 });
+    const goldMat = new THREE.MeshLambertMaterial({ color: 0xd4af37 });
+    const carpetMat = new THREE.MeshLambertMaterial({ color: 0x991b1b });
+
+    // 1. Two Grand Flanking Portal Towers
+    [-4.5, 4.5].forEach((offset) => {
+      const tower = new THREE.Mesh(new THREE.BoxGeometry(2.8, 12, 3.2), stoneMat);
+      tower.position.set(offset, 6, 54.5);
+      tower.castShadow = true;
+      entranceGroup.add(tower);
+
+      // Gold-trimmed balcony & spire
+      const spire = new THREE.Mesh(new THREE.ConeGeometry(1.2, 4.5, 12), goldMat);
+      spire.position.set(offset, 14.25, 54.5);
+      entranceGroup.add(spire);
+    });
+
+    // 2. Grand Arch Spanning the Top
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(11.8, 2.8, 3.4), stoneMat);
+    lintel.position.set(0, 10.6, 54.5);
+    entranceGroup.add(lintel);
+
+    const archCrown = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 3.1, 3.2, 16, 1, false, 0, Math.PI), stoneMat);
+    archCrown.rotation.z = Math.PI;
+    archCrown.rotation.y = Math.PI / 2;
+    archCrown.position.set(0, 9.2, 54.5);
+    entranceGroup.add(archCrown);
+
+    // 3. Dual Signboards (Front: Plaza facing, Back: Mataf facing)
+    const signCanvas = document.createElement('canvas');
+    signCanvas.width = 1024;
+    signCanvas.height = 256;
+    const sCtx = signCanvas.getContext('2d')!;
+    sCtx.fillStyle = '#065f46';
+    sCtx.fillRect(0, 0, 1024, 256);
+    sCtx.strokeStyle = '#d4af37';
+    sCtx.lineWidth = 14;
+    sCtx.strokeRect(10, 10, 1004, 236);
+
+    sCtx.fillStyle = '#fef08a';
+    sCtx.textAlign = 'center';
+    sCtx.font = 'bold 50px Amiri, serif';
+    sCtx.fillText('بَاب الْمَلِك عَبْد العَزِيز • المَسْجِد الحَرَام', 512, 90);
+
+    sCtx.fillStyle = '#ffffff';
+    sCtx.font = 'bold 32px Inter, sans-serif';
+    sCtx.fillText('🚪 PINTU MASUK UTAMA MASJIDIL HARAM', 512, 155);
+
+    sCtx.fillStyle = '#cbd5e1';
+    sCtx.font = '22px Inter, sans-serif';
+    sCtx.fillText('SOLAT DI SINI = 100,000 KALI GANDA PAHALA', 512, 210);
+
+    const signTexture = new THREE.CanvasTexture(signCanvas);
+    const signMat = new THREE.MeshBasicMaterial({ map: signTexture });
+
+    // Front Sign
+    const frontSign = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.25), signMat);
+    frontSign.position.set(0, 11, 56.25);
+    entranceGroup.add(frontSign);
+
+    // Back Sign
+    const backSign = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.25), signMat);
+    backSign.position.set(0, 11, 52.75);
+    backSign.rotation.y = Math.PI;
+    entranceGroup.add(backSign);
+
+    // 4. Crimson & Gold Entrance Welcome Carpet Runner
+    const carpet = new THREE.Mesh(new THREE.PlaneGeometry(6, 16), carpetMat);
+    carpet.rotation.x = -Math.PI / 2;
+    carpet.position.set(0, 0.03, 54);
+    entranceGroup.add(carpet);
+
+    // Glowing threshold lights
+    const beacon = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.8, 0.8, 0.08, 16),
+      new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.85 })
+    );
+    beacon.position.set(0, 0.05, 54);
+    entranceGroup.add(beacon);
+
+    this.scene.add(entranceGroup);
+  }
+
+  /**
+   * Dedicated Prayer Carpet Area inside Masjidil Haram (near Maqam Ibrahim / Mataf)
+   */
+  private createHaramPrayerHall() {
+    const prayerGroup = new THREE.Group();
+    prayerGroup.name = 'RuangSolatMasjidilHaram';
+
+    const carpetMat = new THREE.MeshLambertMaterial({ color: 0x991b1b });
+    const goldMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+
+    // 1. Raised Prayer Carpet on Mataf
+    const carpet = new THREE.Mesh(new THREE.PlaneGeometry(16, 10), carpetMat);
+    carpet.rotation.x = -Math.PI / 2;
+    carpet.position.set(14, 0.03, 4.5);
+    prayerGroup.add(carpet);
+
+    // Saf Lines
+    [-3, -1, 1, 3].forEach((zOff) => {
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(15.6, 0.08), goldMat);
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(14, 0.04, 4.5 + zOff);
+      prayerGroup.add(line);
+    });
+
+    // 2. Prayer Area Floor Signboard
+    const prayerCanvas = document.createElement('canvas');
+    prayerCanvas.width = 512;
+    prayerCanvas.height = 128;
+    const pCtx = prayerCanvas.getContext('2d')!;
+    pCtx.fillStyle = '#991b1b';
+    pCtx.fillRect(0, 0, 512, 128);
+    pCtx.strokeStyle = '#d4af37';
+    pCtx.lineWidth = 6;
+    pCtx.strokeRect(4, 4, 504, 120);
+
+    pCtx.fillStyle = '#fef08a';
+    pCtx.textAlign = 'center';
+    pCtx.font = 'bold 30px Amiri, serif';
+    pCtx.fillText('رِحَاب الصَّلاَة • المَسْجِد الحَرَام', 256, 45);
+
+    pCtx.fillStyle = '#ffffff';
+    pCtx.font = 'bold 22px Inter, sans-serif';
+    pCtx.fillText('🕌 RUANG SOLAT MASJIDIL HARAM', 256, 85);
+
+    pCtx.fillStyle = '#fde68a';
+    pCtx.font = '16px Inter, sans-serif';
+    pCtx.fillText('100,000 PAHALA BERBANDING MASJID LAIN', 256, 112);
+
+    const prayerSign = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.5, 1.15),
+      new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(prayerCanvas) })
+    );
+    prayerSign.position.set(14, 1.2, 9.6);
+    prayerGroup.add(prayerSign);
+
+    this.scene.add(prayerGroup);
   }
 
   private setupCheckpoints() {

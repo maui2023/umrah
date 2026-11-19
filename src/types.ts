@@ -123,6 +123,10 @@ export interface SavedUmrahState {
   qubaSolatDone?: boolean;
   ihramWorn?: boolean;
   miqatNiatDone?: boolean;
+  totalPahala?: number;
+  soloSolatCount?: number;
+  jemaahSolatCount?: number;
+  visitedMosques?: string[];
   lastPosition?: {
     x: number;
     y: number;

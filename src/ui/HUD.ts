@@ -2,6 +2,7 @@ import { DuaItem, PlayerData, PlayerRole, UmrahStage, ZiarahSpot } from '../type
 import { soundManager } from '../audio/SoundManager';
 import { TALBIYAH_DUA } from '../data/duas';
 import { ZIARAH_SPOTS } from '../data/ziarahData';
+import { MosqueLocation, MOSQUE_LOCATIONS } from '../data/solatData';
 
 export class HUD {
   private container: HTMLElement;
@@ -48,6 +49,16 @@ export class HUD {
   public isBusBoarded: boolean = false;
   public isAutoWalking: boolean = false;
 
+  // Mosque & Pahala State
+  public currentNearMosque: MosqueLocation | null = null;
+  public currentInsideMosque: MosqueLocation | null = null;
+  public currentPahala: number = 0;
+  public soloSolatCount: number = 0;
+  public jemaahSolatCount: number = 0;
+  public visitedMosques: string[] = [];
+  public onEnterMosqueDoorCallback: ((mosque: MosqueLocation) => void) | null = null;
+  public onStartSolatCallback: ((mosque: MosqueLocation) => void) | null = null;
+
   constructor() {
     this.container = document.createElement('div');
     this.container.id = 'umrah-hud-overlay';
@@ -80,6 +91,8 @@ export class HUD {
     onAutoCruise?: () => void;
     onResetProgress?: () => void;
     onManualSave?: () => void;
+    onEnterMosqueDoor?: (mosque: MosqueLocation) => void;
+    onStartSolat?: (mosque: MosqueLocation) => void;
   }) {
     this.onTeleportCallback = options.onTeleport;
     this.onActionButtonCallback = options.onActionButton;
@@ -93,6 +106,8 @@ export class HUD {
     this.onAutoCruiseCallback = options.onAutoCruise || null;
     this.onResetProgressCallback = options.onResetProgress || null;
     this.onManualSaveCallback = options.onManualSave || null;
+    this.onEnterMosqueDoorCallback = options.onEnterMosqueDoor || null;
+    this.onStartSolatCallback = options.onStartSolat || null;
   }
 
   public toggleRosterHide(_force?: boolean) {}
@@ -308,6 +323,8 @@ export class HUD {
             <span id="hud-mini-lap-pill" class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md shrink-0">Pusingan 1</span>
             <span class="text-stone-300 shrink-0">•</span>
             <span id="hud-mini-mutawwif-pill" class="text-[10px] font-semibold text-emerald-700 shrink-0">🧭 0m</span>
+            <span class="text-stone-300 shrink-0">•</span>
+            <span id="hud-mini-pahala-pill" class="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-md shrink-0">✨ <span id="hud-mini-pahala-val">0</span></span>
             <span class="text-stone-400 text-[10px] ml-0.5 shrink-0">▼</span>
           </button>
 
@@ -351,6 +368,11 @@ export class HUD {
                 <span id="hud-mutawwif-icon">🧭</span>
                 <span id="hud-mutawwif-dist-text">Mencari Mutawwif...</span>
               </span>
+              <button id="hud-status-pahala-badge" title="Buku Amalan & Rekod Pahala (Klik untuk lihat butiran)" class="interactive-ui inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/15 via-yellow-500/20 to-amber-500/15 border border-amber-300/80 text-amber-900 font-bold hover:scale-105 active:scale-95 transition cursor-pointer">
+                <span class="animate-pulse">✨</span>
+                <span id="hud-pahala-counter">0</span>
+                <span>Pahala</span>
+              </button>
             </div>
 
             <!-- Segmented Progress Indicator Bar -->
@@ -446,7 +468,13 @@ export class HUD {
             <span>Panduan</span>
           </button>
 
-          <!-- 3. Audio & Mute (Speaker Icon) -->
+          <!-- 3. Rekod Pahala & Solat -->
+          <button id="btn-top-pahala" title="Buku Amalan & Rekod Pahala Solat" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 hover:bg-stone-50 active:scale-95 transition cursor-pointer text-xs font-semibold whitespace-nowrap">
+            <span class="w-4 h-4 flex items-center justify-center text-xs">🌟</span>
+            <span>Rekod Pahala</span>
+          </button>
+
+          <!-- 4. Audio & Mute (Speaker Icon) -->
           <button id="btn-top-audio" title="Kawal Bunyi & Suara" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 hover:bg-stone-50 active:scale-95 transition cursor-pointer text-xs font-semibold whitespace-nowrap">
             <span id="top-audio-icon" class="w-4 h-4 flex items-center justify-center text-xs font-semibold">🔈x</span>
             <span>Audio</span>
@@ -510,6 +538,40 @@ export class HUD {
         <button id="btn-prompt-board-bus" class="px-3.5 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs shadow-md transition cursor-pointer">
           Naik Bas ➔
         </button>
+      </div>
+
+      <!-- FLOATING MOSQUE DOOR PROMPT (Appears when near any mosque entrance) -->
+      <div id="mosque-door-prompt" style="display: none;" class="interactive-ui pointer-events-auto fixed bottom-36 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-white/95 backdrop-blur-md border-2 border-emerald-600 shadow-2xl text-stone-900 cursor-pointer animate-bounce max-w-[94%] sm:max-w-md">
+        <span class="text-2xl shrink-0">🚪</span>
+        <div class="min-w-0">
+          <div id="mosque-door-title" class="font-bold text-sm text-stone-900 truncate">Pintu Masuk Masjid</div>
+          <div id="mosque-door-subtitle" class="text-[11px] text-emerald-800 font-medium truncate">Tekan [E] atau Klik untuk Masuk & Solat</div>
+        </div>
+        <button id="btn-prompt-enter-mosque" class="px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-1 shrink-0">
+          <span>Masuk</span>
+          <span>➔</span>
+        </button>
+      </div>
+
+      <!-- INSIDE MOSQUE PRAYER CARD (Appears when inside prayer hall) -->
+      <div id="mosque-prayer-card" style="display: none;" class="interactive-ui pointer-events-auto fixed bottom-36 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 flex items-center justify-between gap-3 px-5 py-3 rounded-2xl bg-white/95 backdrop-blur-md border-2 border-amber-500 shadow-2xl text-stone-900 transition-all w-[92%] max-w-lg">
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="text-3xl shrink-0 animate-pulse">🕌</span>
+          <div class="min-w-0">
+            <div id="mosque-prayer-name" class="font-bold text-sm text-stone-900 truncate">Ruang Solat Masjid</div>
+            <div id="mosque-prayer-desc" class="text-[11px] text-stone-600 truncate">Solo: 1 Pahala • Berjemaah: 27 Pahala (+27x)</div>
+          </div>
+        </div>
+        <button id="btn-prompt-start-solat" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-700 to-teal-800 hover:from-emerald-600 hover:to-teal-700 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-lg transition cursor-pointer flex items-center gap-1.5 shrink-0">
+          <span>🕌</span>
+          <span>Mula Solat</span>
+        </button>
+      </div>
+
+      <!-- FLOATING PAHALA NOTIFICATION BANNER -->
+      <div id="pahala-notification-banner" style="display: none;" class="pointer-events-none fixed top-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-stone-950 font-black text-sm sm:text-base shadow-2xl border-2 border-white animate-bounce">
+        <span class="text-xl">🌟</span>
+        <span id="pahala-notification-text">+27 Pahala Berjemaah Diperolehi!</span>
       </div>
 
       <!-- BUS DRIVING DASHBOARD (When riding or driving inside the bus - Positioned at bottom to avoid covering top guide/location info) -->
@@ -760,6 +822,42 @@ export class HUD {
     const autoCruiseBtn = this.container.querySelector('#btn-auto-cruise') as HTMLButtonElement;
     autoCruiseBtn?.addEventListener('click', () => {
       this.onAutoCruiseCallback?.();
+    });
+
+    // Pahala Badge & Records
+    const pahalaBadgeBtn = this.container.querySelector('#hud-status-pahala-badge') as HTMLButtonElement;
+    pahalaBadgeBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.showPahalaRecordModal();
+    });
+
+    const topPahalaBtn = this.container.querySelector('#btn-top-pahala') as HTMLButtonElement;
+    topPahalaBtn?.addEventListener('click', () => {
+      this.showPahalaRecordModal();
+    });
+
+    // Mosque Entrance Prompt Handlers
+    const enterMosqueBtn = this.container.querySelector('#btn-prompt-enter-mosque') as HTMLButtonElement;
+    enterMosqueBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (this.currentNearMosque) {
+        this.onEnterMosqueDoorCallback?.(this.currentNearMosque);
+      }
+    });
+
+    const mosqueDoorPrompt = this.container.querySelector('#mosque-door-prompt') as HTMLElement;
+    mosqueDoorPrompt?.addEventListener('click', () => {
+      if (this.currentNearMosque) {
+        this.onEnterMosqueDoorCallback?.(this.currentNearMosque);
+      }
+    });
+
+    // Inside Mosque Start Solat Button
+    const startSolatBtn = this.container.querySelector('#btn-prompt-start-solat') as HTMLButtonElement;
+    startSolatBtn?.addEventListener('click', () => {
+      if (this.currentInsideMosque) {
+        this.onStartSolatCallback?.(this.currentInsideMosque);
+      }
     });
   }
 
@@ -1080,6 +1178,186 @@ export class HUD {
     if (destName && destEl) {
       destEl.innerText = `Destinasi: ${destName}`;
     }
+  }
+
+  public setNearMosqueDoor(mosque: MosqueLocation | null) {
+    this.currentNearMosque = mosque;
+    const prompt = this.container.querySelector('#mosque-door-prompt') as HTMLElement;
+    const titleEl = this.container.querySelector('#mosque-door-title') as HTMLElement;
+    const subtitleEl = this.container.querySelector('#mosque-door-subtitle') as HTMLElement;
+
+    if (prompt) {
+      if (mosque && !this.isBusBoarded) {
+        if (titleEl) titleEl.innerText = mosque.entranceName;
+        if (subtitleEl) subtitleEl.innerText = `Masuk ${mosque.name} • Tekan [E] atau Klik untuk Masuk & Solat`;
+        prompt.style.display = 'flex';
+      } else {
+        prompt.style.display = 'none';
+      }
+    }
+  }
+
+  public setInsideMosque(mosque: MosqueLocation | null) {
+    this.currentInsideMosque = mosque;
+    const card = this.container.querySelector('#mosque-prayer-card') as HTMLElement;
+    const nameEl = this.container.querySelector('#mosque-prayer-name') as HTMLElement;
+    const descEl = this.container.querySelector('#mosque-prayer-desc') as HTMLElement;
+
+    if (card) {
+      if (mosque && !this.isBusBoarded) {
+        if (nameEl) nameEl.innerText = `Ruang Solat ${mosque.name}`;
+        if (descEl) descEl.innerText = `${mosque.fadhilat}`;
+        card.style.display = 'flex';
+      } else {
+        card.style.display = 'none';
+      }
+    }
+  }
+
+  public updatePahala(total: number, added?: number, isJemaah?: boolean, mosqueName?: string) {
+    this.currentPahala = total;
+    const counter = this.container.querySelector('#hud-pahala-counter') as HTMLElement;
+    const miniPahala = this.container.querySelector('#hud-mini-pahala-val') as HTMLElement;
+
+    if (counter) counter.innerText = total.toString();
+    if (miniPahala) miniPahala.innerText = total.toString();
+
+    if (added && typeof isJemaah === 'boolean') {
+      this.showPahalaNotification(added, isJemaah, mosqueName || '');
+    }
+  }
+
+  public showPahalaNotification(added: number, isJemaah: boolean, mosqueName: string) {
+    const banner = this.container.querySelector('#pahala-notification-banner') as HTMLElement;
+    const textEl = this.container.querySelector('#pahala-notification-text') as HTMLElement;
+    if (!banner || !textEl) return;
+
+    const mosqueDesc = mosqueName ? ` di ${mosqueName}` : '';
+    textEl.innerText = isJemaah
+      ? `+${added} PAHALA BERJEMAAH DIPEROLEHI! (27x DARJAT)${mosqueDesc} 🌟`
+      : `+${added} PAHALA SOLO DIPEROLEHI!${mosqueDesc} ⭐`;
+
+    banner.style.display = 'flex';
+    banner.classList.remove('opacity-0');
+    banner.classList.add('opacity-100');
+
+    setTimeout(() => {
+      banner.style.display = 'none';
+    }, 4500);
+  }
+
+  public showPahalaRecordModal() {
+    const existing = document.getElementById('pahala-record-modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'pahala-record-modal-overlay';
+    overlay.className = 'interactive-ui fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-3 sm:p-4 overflow-y-auto select-none';
+
+    overlay.innerHTML = `
+      <div class="relative w-full max-w-xl bg-white/95 backdrop-blur-xl border border-stone-200/90 rounded-3xl shadow-2xl p-5 sm:p-6 flex flex-col gap-4 text-stone-900 transition-all overflow-hidden my-auto">
+        <!-- Top decorative bar -->
+        <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-amber-500 via-yellow-400 to-emerald-600"></div>
+
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-2 border-b border-stone-200/80 pt-1">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">📖</span>
+            <div>
+              <h2 class="font-serif text-lg sm:text-xl font-bold text-stone-900 leading-tight">
+                Buku Amalan & Rekod Pahala Solat
+              </h2>
+              <div class="text-[11px] text-stone-500 font-medium">
+                Ganjaran Ibadah Solat di Tanah Suci Makkah & Madinah
+              </div>
+            </div>
+          </div>
+          <button id="btn-close-pahala-modal" class="p-1.5 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 text-sm transition cursor-pointer">
+            ✕
+          </button>
+        </div>
+
+        <!-- Total Pahala Hero Card -->
+        <div class="bg-gradient-to-br from-amber-500/15 via-yellow-500/10 to-emerald-500/15 border-2 border-amber-400/80 rounded-2xl p-4 text-center flex flex-col items-center justify-center shadow-sm">
+          <span class="text-xs font-bold text-amber-800 uppercase tracking-widest">JUMLAH PAHALA TERKUMPUL</span>
+          <div class="font-serif text-4xl sm:text-5xl font-black text-amber-900 my-1 flex items-center gap-2">
+            <span class="animate-pulse">✨</span>
+            <span>${this.currentPahala}</span>
+            <span class="text-2xl font-bold text-amber-700">Pahala</span>
+          </div>
+          <div class="text-[11px] text-stone-600">
+            Setiap Solat Solo = <b>1 Pahala</b> • Solat Berjemaah = <b>27 Pahala</b> (27 Darjat Keutamaan)
+          </div>
+        </div>
+
+        <!-- Statistics Grid -->
+        <div class="grid grid-cols-2 gap-2.5">
+          <div class="bg-stone-50 border border-stone-200 rounded-xl p-3 flex flex-col">
+            <span class="text-[10px] font-bold text-stone-500 uppercase">👥 Solat Berjemaah</span>
+            <span class="text-xl font-bold text-emerald-800">${this.jemaahSolatCount} kali</span>
+            <span class="text-[11px] text-emerald-600 font-semibold">+${this.jemaahSolatCount * 27} Pahala (x27)</span>
+          </div>
+          <div class="bg-stone-50 border border-stone-200 rounded-xl p-3 flex flex-col">
+            <span class="text-[10px] font-bold text-stone-500 uppercase">👤 Solat Solo</span>
+            <span class="text-xl font-bold text-stone-800">${this.soloSolatCount} kali</span>
+            <span class="text-[11px] text-stone-600 font-semibold">+${this.soloSolatCount * 1} Pahala (x1)</span>
+          </div>
+        </div>
+
+        <!-- List of Mosques Status -->
+        <div class="flex flex-col gap-2">
+          <span class="text-xs font-bold text-stone-700 flex items-center gap-1.5">
+            <span>🕌</span>
+            <span>Status Solat di Setiap Masjid:</span>
+          </span>
+          <div class="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-1">
+            ${MOSQUE_LOCATIONS.map(m => {
+              const hasPrayed = this.visitedMosques.includes(m.id);
+              return `
+                <div class="flex items-center justify-between p-2.5 rounded-xl border ${hasPrayed ? 'bg-emerald-50/70 border-emerald-200' : 'bg-stone-50 border-stone-200'} text-xs">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-base">${hasPrayed ? '✅' : '🕌'}</span>
+                    <div class="min-w-0">
+                      <div class="font-bold text-stone-900 truncate">${m.name}</div>
+                      <div class="text-[10px] text-stone-500 truncate">${m.city} • ${m.entranceName}</div>
+                    </div>
+                  </div>
+                  <button class="btn-teleport-mosque shrink-0 px-2.5 py-1 rounded-lg ${hasPrayed ? 'bg-emerald-600 text-white' : 'bg-stone-900 text-white'} text-[10px] font-bold hover:opacity-90 transition active:scale-95 cursor-pointer" data-id="${m.id}" data-x="${m.entranceCoord.x}" data-z="${m.entranceCoord.z}">
+                    Pergi ➔
+                  </button>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Hadith Note -->
+        <div class="bg-amber-50/80 border border-amber-200 rounded-xl p-2.5 text-[11px] text-amber-900 leading-relaxed text-center">
+          📜 Sabda Rasulullah ﷺ: <i>"Solat berjemaah itu lebih afdhal daripada solat bersendirian sebanyak 27 darjat."</i> (Hadis Sahih Bukhari & Muslim)
+        </div>
+
+        <div class="flex justify-end pt-1">
+          <button id="btn-close-pahala-bottom" class="px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs shadow transition cursor-pointer">
+            Tutup
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#btn-close-pahala-modal')?.addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#btn-close-pahala-bottom')?.addEventListener('click', () => overlay.remove());
+
+    overlay.querySelectorAll('.btn-teleport-mosque').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const target = e.currentTarget as HTMLElement;
+        const x = parseFloat(target.dataset.x || '0');
+        const z = parseFloat(target.dataset.z || '0');
+        overlay.remove();
+        this.onTeleportCallback?.(`mosque_coord_${x}_${z}`);
+      });
+    });
   }
 
   public updateSolatZamzamStatus(_solatSunatDone: boolean, _zamzamDone: boolean) {}

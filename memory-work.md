@@ -908,3 +908,62 @@ Pelan ini telah dilaksanakan pada 2026-11-16 18:43:16
      * Menambah butang `[ 🚶‍♂️ Auto-Jalan ]` di atas zon joystick.
      * Pemain boleh menekan butang ini atau mengetuk dua kali (*double tap*) pada joystick untuk mengunci pergerakan ke hadapan secara automatik.
      * Semasa Auto-Jalan aktif, pemain boleh bebas mengubah sudut kamera 360 darjah pada bila-bila masa, dan avatar akan terus melangkah ke hadapan mengikut arah pandangan baharu secara lancar dan bebas tangan (*hands-free*).
+
+---
+
+## 🗓️ Sesi Pelaksanaan: 2026-11-20 02:05:00 (Pintu Masuk Masjid, Solat Bertahap Solo vs Berjemaah, & Sistem Ganjaran 1 vs 27 Pahala)
+
+### 💬 Keperluan / Input Terkini Pengguna:
+* **Arahan Pengguna**: *"Buat pintu masuk setiap masjid, masuk dan click solat ikut step solo apa dahulu dan kemudian, setiap solat solo 1 pahala, jika berjemaah 27 pahala"*
+
+### 🚀 Perubahan Kod & Seni Bina Baharu:
+
+1. **Pintu Masuk 3D & Ruang Solat Setiap Masjid (`src/data/solatData.ts`, `src/world/MasjidilHaram.ts`, `src/world/MadinahZone.ts`)**:
+   - **Pintu Gerbang & Papan Tanda 3D Bercahaya**:
+     * **Masjidil Haram (Makkah)**: Pintu Masuk Utama Bab Abdul Aziz (`x: 0, z: 54`) dengan tiang portal, gerbang kubah, karpet sambutan, papan tanda `🚪 PINTU MASUK UTAMA MASJIDIL HARAM`, dan dewan solat permaidani merah di Dataran Mataf (`x: 14, z: 4.5`).
+     * **Masjid Nabawi (Madinah)**: Pintu Masuk Bab As-Salam (`x: -134, z: 10`), Kubah Hijau (*Green Dome*), dan Ruang Solat Raudhah Syarifah berkarpet hijau bunga zaitun (`x: -136, z: 15`).
+     * **Masjid Quba (Madinah)**: Bangunan 3D boleh dimasukki dengan bukaan pintu selatan (`x: -115, z: -27`), papan tanda `🚪 PINTU MASUK UTAMA MASJID QUBA`, dan dewan solat dalaman berkarpet saf hijau (`x: -115, z: -35`).
+     * **Masjid Bir Ali / Miqat Dzulhulaifah**: Pintu masuk Miqat (`x: -155, z: 30`) dan dewan solat sunat ihram (`x: -155, z: 22`).
+     * **Masjid Qiblatain**: Pintu gerbang (`x: -150, z: -18`) dan dewan solat dua kiblat (`x: -150, z: -14`).
+     * **Masjid Alghamamah**: Gerbang batu basalt (`x: -132, z: 6`) dan dewan solat awan rahmat (`x: -132, z: 3`).
+   - **Interaksi Pengesanan Berdekatan (Proximity Trigger)**:
+     * Apabila mendekati mana-mana pintu masjid: HUD memaparkan kad terapung `🚪 Pintu Masuk [Nama Masjid] • Tekan [E] atau Klik untuk Masuk & Solat`.
+     * Apabila berada di atas karpet solat di dalam masjid: HUD memaparkan kad solat `[ 🕌 Mula Solat (${mosque.name}) ]`.
+
+2. **Sistem Solat Interaktif 12 Langkah Berurutan (`src/ui/SolatModal.ts`)**:
+   - Dibina berasaskan rukun dan sunnah solat mengikut Mazhab Syafi'i:
+     1. *Niat & Qiyam* (Rukun Qalbi & Fi'li)
+     2. *Takbiratul Ihram* (Rukun Qauli)
+     3. *Qiyam & Doa Iftitah* (Sunnah Hai'ah)
+     4. *Membaca Surah Al-Fatihah* (Rukun Qauli)
+     5. *Ruku' & Thuma'ninah* (Rukun Fi'li)
+     6. *I'tidal & Bangkit Berdiri* (Rukun Fi'li)
+     7. *Sujud Pertama & Thuma'ninah* (Rukun Fi'li)
+     8. *Duduk Antara Dua Sujud* (Rukun Fi'li)
+     9. *Sujud Kedua & Thuma'ninah* (Rukun Fi'li)
+     10. *Tahiyyat Akhir & Selawat* (Rukun Qauli)
+     11. *Salam Kanan & Salam Kiri* (Rukun Qauli & Sunnah)
+     12. *Doa & Selesai Solat* (Sunnah)
+   - Setiap langkah dilengkapi kaligrafi Arab saiz besar, bacaan Rumi, terjemahan Melayu, tip sunnah praktikal, dan butang audio bacaan suara (*Text-to-Speech*).
+
+3. **Animasi 3D Anggota Badan Avatar (`src/characters/AvatarModel.ts`)**:
+   - Melaksanakan mod `prayerPose` dengan pergerakan sendi 3D prosedural yang lancar:
+     * `takbir`: Kedua-dua tangan diangkat ke paras bahu/telinga dengan tapak terbuka.
+     * `qiyam`: Tangan kanan memegang pergelangan tangan kiri di atas pusat.
+     * `ruku`: Pinggang membongkok 60 darjah, kepala selari, tapak tangan mencengkam lutut.
+     * `itidal`: Bangkit tegak semula dengan tangan lurus di sisi.
+     * `sujud1` & `sujud2`: Pinggul merendah ke lantai, dahi dan kedua-dua tapak tangan menyentuh karpet.
+     * `duduk` & `tahiyyat`: Duduk iftirasy / tawarruk di atas tumit dengan jari telunjuk mengisyaratkan syahadah.
+     * `salam_kanan` & `salam_kiri`: Kepala menoleh ke bahu kanan dan kiri.
+
+4. **Sistem Pahala & Mod Solo vs Berjemaah (1 vs 27 Pahala) (`src/simulation/UmrahWorkflow.ts`, `src/main.ts`, `src/ui/HUD.ts`)**:
+   - **Solat Solo**: Memperoleh **1 Pahala**.
+   - **Solat Berjemaah**: Memperoleh **27 Pahala** (berdasarkan Hadith Sahih Bukhari & Muslim: 27 darjat kelebihan berjemaah).
+   - **Kemunculan Jemaah NPC 3D**:
+     * Semasa mod Berjemaah dipilih, avatar 3D Imam Masjid dan makmum saf kanan & kiri muncul secara automatik di atas karpet.
+     * Kesemua avatar jemaah menunaikan solat secara serentak (*unison*) mengikut setiap langkah rukun.
+   - **Pemberitahuan & Simpanan Rekod**:
+     * Kaunter Pahala di bar atas HUD (`✨ X Pahala`) bersinar dan bertambah secara masa nyata.
+     * Letusan konfeti keraian (*confetti particles*) dan audio ganjaran istimewa.
+     * Modal Buku Amalan Pahala (`#btn-top-pahala`) membolehkan jemaah menyemak jumlah pahala terkumpul, pecahan solat solo vs berjemaah, dan senarai masjid yang telah dikunjungi.
+     * Semua rekod pahala disimpan secara automatik dalam `localStorage`.

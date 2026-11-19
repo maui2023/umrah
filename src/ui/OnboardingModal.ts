@@ -160,6 +160,22 @@ export class OnboardingModal {
               </div>
             ` : ''}
           </div>
+
+          <!-- Pahala Display in Resume View -->
+          <div class="p-3 rounded-xl bg-gradient-to-r from-amber-500/15 to-yellow-500/15 border border-amber-400/40 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🌟</span>
+              <div>
+                <div class="text-[10px] uppercase font-bold text-amber-300">Pahala Terkumpul</div>
+                <div class="text-xs text-slate-300">
+                  ${savedState.jemaahSolatCount || 0}x Jemaah (+27) • ${savedState.soloSolatCount || 0}x Solo (+1)
+                </div>
+              </div>
+            </div>
+            <div class="font-bold text-lg text-amber-300">
+              ${savedState.totalPahala || 0} <span class="text-xs font-normal text-amber-200">Pahala</span>
+            </div>
+          </div>
         </div>
 
         <!-- Action Buttons -->

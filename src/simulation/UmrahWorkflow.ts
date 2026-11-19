@@ -26,6 +26,10 @@ export class UmrahWorkflow {
   public qubaSolatDone: boolean = false;
   public ihramWorn: boolean = false;
   public miqatNiatDone: boolean = false;
+  public totalPahala: number = 0;
+  public soloSolatCount: number = 0;
+  public jemaahSolatCount: number = 0;
+  public visitedMosques: string[] = [];
 
   // Tawaf progress tracking (quadrant tracking to prevent cheating)
   private hasPassedYamani: boolean = false;
@@ -44,6 +48,7 @@ export class UmrahWorkflow {
   private onZiarahChangedCallback: ((spot: ZiarahSpot, index: number, total: number) => void) | null = null;
   private onDuaTriggeredCallback: ((dua: DuaItem, alertMessage?: string) => void) | null = null;
   private onTeleportRequestedCallback: ((x: number, z: number, rot?: number) => void) | null = null;
+  private onPahalaChangedCallback: ((total: number, added: number, isJemaah: boolean, mosqueName: string) => void) | null = null;
   public positionProvider: (() => { x: number; y: number; z: number; rotation: number; isInBus?: boolean }) | null = null;
 
   public static getSavedState(): SavedUmrahState | null {
@@ -66,12 +71,35 @@ export class UmrahWorkflow {
     onZiarahChanged?: (spot: ZiarahSpot, index: number, total: number) => void;
     onDuaTriggered: (dua: DuaItem, alertMessage?: string) => void;
     onTeleportRequested?: (x: number, z: number, rot?: number) => void;
+    onPahalaChanged?: (total: number, added: number, isJemaah: boolean, mosqueName: string) => void;
   }) {
     this.onStageChangedCallback = options.onStageChanged;
     this.onLapChangedCallback = options.onLapChanged;
     this.onZiarahChangedCallback = options.onZiarahChanged || null;
     this.onDuaTriggeredCallback = options.onDuaTriggered;
     this.onTeleportRequestedCallback = options.onTeleportRequested || null;
+    this.onPahalaChangedCallback = options.onPahalaChanged || null;
+  }
+
+  /**
+   * Add Pahala for completing Solat
+   * Solo: 1 Pahala
+   * Jemaah: 27 Pahala
+   */
+  public addPahala(isJemaah: boolean, mosqueId: string, mosqueName: string): number {
+    const points = isJemaah ? 27 : 1;
+    this.totalPahala += points;
+    if (isJemaah) {
+      this.jemaahSolatCount++;
+    } else {
+      this.soloSolatCount++;
+    }
+    if (!this.visitedMosques.includes(mosqueId)) {
+      this.visitedMosques.push(mosqueId);
+    }
+    this.saveState();
+    this.onPahalaChangedCallback?.(this.totalPahala, points, isJemaah, mosqueName);
+    return points;
   }
 
   public getCurrentZiarahSpot(): ZiarahSpot {
@@ -588,11 +616,16 @@ export class UmrahWorkflow {
     this.qubaSolatDone = false;
     this.ihramWorn = false;
     this.miqatNiatDone = false;
+    this.totalPahala = 0;
+    this.soloSolatCount = 0;
+    this.jemaahSolatCount = 0;
+    this.visitedMosques = [];
     this.hasPassedYamani = false;
     this.tawafAngularAccumulation = 0;
     this.onStageChangedCallback?.(this.stage);
     this.onLapChangedCallback?.('tawaf', 0);
     this.onZiarahChangedCallback?.(ZIARAH_SPOTS[0], 0, ZIARAH_SPOTS.length);
+    this.onPahalaChangedCallback?.(0, 0, false, '');
   }
 
   public saveState() {
@@ -629,6 +662,10 @@ export class UmrahWorkflow {
       qubaSolatDone: this.qubaSolatDone,
       ihramWorn: this.ihramWorn,
       miqatNiatDone: this.miqatNiatDone,
+      totalPahala: this.totalPahala,
+      soloSolatCount: this.soloSolatCount,
+      jemaahSolatCount: this.jemaahSolatCount,
+      visitedMosques: this.visitedMosques,
       lastPosition,
       lastSavedAt: new Date().toISOString(),
       completedAt: this.stage === 'completed' ? new Date().toISOString() : undefined
@@ -656,6 +693,10 @@ export class UmrahWorkflow {
       if (state.qubaSolatDone) this.qubaSolatDone = true;
       if (state.ihramWorn) this.ihramWorn = true;
       if (state.miqatNiatDone) this.miqatNiatDone = true;
+      if (typeof state.totalPahala === 'number') this.totalPahala = state.totalPahala;
+      if (typeof state.soloSolatCount === 'number') this.soloSolatCount = state.soloSolatCount;
+      if (typeof state.jemaahSolatCount === 'number') this.jemaahSolatCount = state.jemaahSolatCount;
+      if (Array.isArray(state.visitedMosques)) this.visitedMosques = state.visitedMosques;
     } catch (e) {
       console.warn('Failed to parse saved state:', e);
     }

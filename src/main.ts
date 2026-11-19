@@ -8,6 +8,8 @@ import { HUD } from './ui/HUD';
 import { OnboardingData, OnboardingModal } from './ui/OnboardingModal';
 import { PlayerData } from './types';
 import { soundManager } from './audio/SoundManager';
+import { MOSQUE_LOCATIONS, MosqueLocation } from './data/solatData';
+import { SolatModal } from './ui/SolatModal';
 
 class UmrahSimulationApp {
   private scene: THREE.Scene;
@@ -22,6 +24,10 @@ class UmrahSimulationApp {
   private workflow: UmrahWorkflow;
   private hud!: HUD;
   private masjidilHaram!: MasjidilHaram;
+
+  // Mosque & Solat Interactive Session
+  private currentSolatModal: SolatModal | null = null;
+  private congregationAvatars: AvatarModel[] = [];
 
   // Remote Players (Map of avatar models)
   private remoteAvatars: Map<string, AvatarModel> = new Map();
@@ -180,7 +186,21 @@ class UmrahSimulationApp {
 
     // 3. Initialize HUD
     this.hud = new HUD();
+    this.hud.currentPahala = this.workflow.totalPahala;
+    this.hud.soloSolatCount = this.workflow.soloSolatCount;
+    this.hud.jemaahSolatCount = this.workflow.jemaahSolatCount;
+    this.hud.visitedMosques = this.workflow.visitedMosques;
+    this.hud.updatePahala(this.workflow.totalPahala);
     this.setupHUDCallbacks();
+
+    // Wire Interactive Key (KeyE) for entering mosque doors and boarding/exiting bus
+    this.playerController.onInteractiveKeyPress = () => {
+      if (this.hud.currentNearMosque) {
+        this.hud.onEnterMosqueDoorCallback?.(this.hud.currentNearMosque);
+      } else {
+        this.playerController.toggleBusBoarding();
+      }
+    };
 
     // Wire Bus Controller Events with HUD
     this.playerController.onNearDoorStateChange = (isNear) => {
@@ -248,6 +268,12 @@ class UmrahSimulationApp {
       },
       onDuaTriggered: (dua, alertMessage) => {
         this.hud.displayDua(dua, alertMessage);
+      },
+      onPahalaChanged: (total, added, isJemaah, mosqueName) => {
+        this.hud.soloSolatCount = this.workflow.soloSolatCount;
+        this.hud.jemaahSolatCount = this.workflow.jemaahSolatCount;
+        this.hud.visitedMosques = this.workflow.visitedMosques;
+        this.hud.updatePahala(total, added, isJemaah, mosqueName);
       },
       onTeleportRequested: (x, z, rot) => {
         if (this.playerController.isInBus && busController) {
@@ -447,8 +473,125 @@ class UmrahSimulationApp {
       },
       onManualSave: () => {
         this.workflow.saveState();
+      },
+      onEnterMosqueDoor: (mosque: MosqueLocation) => {
+        if (this.playerController.isInBus) {
+          this.playerController.exitBus();
+        }
+        soundManager.playSolatChime();
+        this.playerController.teleport(mosque.prayerCoord.x, mosque.prayerCoord.z, 0);
+      },
+      onStartSolat: (mosque: MosqueLocation) => {
+        this.openSolatSession(mosque);
       }
     });
+  }
+
+  /**
+   * Open sequential step-by-step solat session modal (Solo 1 Pahala, Berjemaah 27 Pahala)
+   */
+  private openSolatSession(mosque: MosqueLocation) {
+    if (this.currentSolatModal) {
+      this.currentSolatModal.close();
+      this.currentSolatModal = null;
+    }
+
+    // Teleport player directly into prayer position on carpet
+    this.playerController.teleport(mosque.prayerCoord.x, mosque.prayerCoord.z, 0);
+
+    this.currentSolatModal = new SolatModal({
+      mosque,
+      localAvatar: this.localAvatar,
+      initialMode: 'solo',
+      onModeChange: (mode) => {
+        if (mode === 'jemaah') {
+          this.spawnCongregation(mosque);
+        } else {
+          this.clearCongregation();
+        }
+      },
+      onPoseChange: (pose) => {
+        // Mirrored unison prayer pose for all congregation avatars
+        for (const cong of this.congregationAvatars) {
+          cong.setPrayerPose(pose);
+        }
+      },
+      onComplete: (_points, isJemaah, m) => {
+        this.workflow.addPahala(isJemaah, m.id, m.name);
+      },
+      onClose: () => {
+        this.clearCongregation();
+        this.currentSolatModal = null;
+      }
+    });
+  }
+
+  /**
+   * Spawn NPC congregation (Imam + Saf members) for 27 Pahala Berjemaah mode
+   */
+  private spawnCongregation(mosque: MosqueLocation) {
+    this.clearCongregation();
+
+    const px = mosque.prayerCoord.x;
+    const pz = mosque.prayerCoord.z;
+
+    // Imam stands in front (z - 2.2)
+    const imam = new AvatarModel({
+      name: 'Imam Masjid',
+      gender: 'male',
+      role: 'mutawwif',
+      groupName: mosque.name,
+      groupColor: '#10B981',
+      showOverheadTag: true
+    });
+    imam.group.position.set(px, 0, pz - 2.2);
+    imam.group.rotation.y = 0;
+    this.scene.add(imam.group);
+    this.congregationAvatars.push(imam);
+
+    // Makmum A to the left
+    const makmumLeft = new AvatarModel({
+      name: 'Jemaah Saf (Kiri)',
+      gender: 'male',
+      role: 'jemaah',
+      groupName: 'Saf 1',
+      groupColor: '#3B82F6',
+      showOverheadTag: true
+    });
+    makmumLeft.group.position.set(px - 1.25, 0, pz);
+    makmumLeft.group.rotation.y = 0;
+    this.scene.add(makmumLeft.group);
+    this.congregationAvatars.push(makmumLeft);
+
+    // Makmum B to the right
+    const makmumRight = new AvatarModel({
+      name: 'Jemaah Saf (Kanan)',
+      gender: 'male',
+      role: 'jemaah',
+      groupName: 'Saf 1',
+      groupColor: '#F59E0B',
+      showOverheadTag: true
+    });
+    makmumRight.group.position.set(px + 1.25, 0, pz);
+    makmumRight.group.rotation.y = 0;
+    this.scene.add(makmumRight.group);
+    this.congregationAvatars.push(makmumRight);
+
+    // Synchronize initial pose with local avatar
+    for (const c of this.congregationAvatars) {
+      c.setPrayerPose(this.localAvatar.prayerPose);
+    }
+  }
+
+  /**
+   * Remove congregation avatars cleanly
+   */
+  private clearCongregation() {
+    for (const avatar of this.congregationAvatars) {
+      this.scene.remove(avatar.group);
+      avatar.dispose();
+    }
+    this.congregationAvatars = [];
   }
 
   /**
@@ -539,6 +682,25 @@ class UmrahSimulationApp {
       // Evaluate Umrah ritual checkpoints
       this.workflow.checkPosition(pos.x, pos.z);
 
+      // Detect proximity to mosque doors and prayer carpets
+      let nearMosque: MosqueLocation | null = null;
+      let insideMosque: MosqueLocation | null = null;
+
+      for (const m of MOSQUE_LOCATIONS) {
+        const distDoor = Math.hypot(pos.x - m.entranceCoord.x, pos.z - m.entranceCoord.z);
+        if (distDoor < m.triggerRadius) {
+          nearMosque = m;
+        }
+
+        const distPrayer = Math.hypot(pos.x - m.prayerCoord.x, pos.z - m.prayerCoord.z);
+        if (distPrayer < 8.5) {
+          insideMosque = m;
+        }
+      }
+
+      this.hud.setNearMosqueDoor(nearMosque);
+      this.hud.setInsideMosque(insideMosque);
+
       // Periodically keep HUD position and Mutawwif distance fresh
       if (this.hud) {
         this.hud.updateGroupRoster(
@@ -561,7 +723,12 @@ class UmrahSimulationApp {
       remoteAvatar.interpolate(delta);
     }
 
-    // 3. Render 3D Scene
+    // 3. Update Congregation Avatars in Prayer (Unison animation)
+    for (const cong of this.congregationAvatars) {
+      cong.update(delta, false);
+    }
+
+    // 4. Render 3D Scene
     this.renderer.render(this.scene, this.camera);
   };
 }

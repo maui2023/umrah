@@ -293,6 +293,126 @@ export class SoundManager {
 
     window.speechSynthesis.speak(utterance);
   }
+
+  /**
+   * Play Takbir Sound (Allahu Akbar deep reverent chime)
+   */
+  public playTakbirSound() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(220, now); // A3
+    osc1.frequency.exponentialRampToValueAtTime(164.81, now + 0.4); // E3
+
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(440, now);
+    osc2.frequency.exponentialRampToValueAtTime(329.63, now + 0.4);
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.35, now + 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + 1.25);
+    osc2.stop(now + 1.25);
+  }
+
+  /**
+   * Play Salam Sound (peaceful two-tone resolving chime)
+   */
+  public playSalamSound() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523.25, now); // C5
+    osc.frequency.setValueAtTime(659.25, now + 0.25); // E5
+    osc.frequency.setValueAtTime(783.99, now + 0.55); // G5
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 1.45);
+  }
+
+  /**
+   * Play Pahala Reward Sound (+1 Solo or +27 Berjemaah triumphant fanfare)
+   */
+  public playPahalaRewardSound(isJemaah: boolean = false) {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const notes = isJemaah 
+      ? [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50] // C4 to C6 full 27-reward flourish
+      : [329.63, 392.00, 523.25, 659.25]; // pleasant 1-reward chime
+
+    notes.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const noteOsc = this.ctx.createOscillator();
+      const noteGain = this.ctx.createGain();
+      const noteTime = now + idx * 0.09;
+
+      noteOsc.type = isJemaah ? 'triangle' : 'sine';
+      noteOsc.frequency.setValueAtTime(freq, noteTime);
+
+      noteGain.gain.setValueAtTime(0, noteTime);
+      noteGain.gain.linearRampToValueAtTime(isJemaah ? 0.35 : 0.22, noteTime + 0.02);
+      noteGain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.7);
+
+      noteOsc.connect(noteGain);
+      noteGain.connect(this.ctx.destination);
+
+      noteOsc.start(noteTime);
+      noteOsc.stop(noteTime + 0.75);
+    });
+  }
+
+  /**
+   * Speak solat step recitation
+   */
+  public speakSolatStep(stepTitle: string, transliteration: string) {
+    if (this.isMuted) return;
+    if (!('speechSynthesis' in window)) return;
+
+    window.speechSynthesis.cancel();
+    const cleanTranslit = transliteration.replace(/[^a-zA-Z0-9\s',.-]/g, '');
+    const speechText = `${stepTitle}. ${cleanTranslit}`;
+    const utterance = new SpeechSynthesisUtterance(speechText);
+    utterance.rate = 0.9;
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(v => v.lang.startsWith('ms') || v.lang.startsWith('id') || v.lang.startsWith('ar'));
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  }
 }
 
 export const soundManager = new SoundManager();

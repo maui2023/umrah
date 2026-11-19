@@ -36,6 +36,7 @@ export class PlayerController {
   public onNearDoorStateChange?: (isNear: boolean) => void;
   public onBusBoardStateChange?: (inBus: boolean) => void;
   public onBusSpeedChange?: (speedKmh: number, isCruising: boolean) => void;
+  public onInteractiveKeyPress?: () => void;
 
   constructor(
     avatar: AvatarModel,
@@ -63,9 +64,13 @@ export class PlayerController {
     window.addEventListener('keydown', (e) => {
       this.keys[e.code] = true;
 
-      // 'KeyE' interactive key for boarding / exiting the bus
+      // 'KeyE' interactive key for entering mosques or boarding / exiting the bus
       if (e.code === 'KeyE') {
-        this.toggleBusBoarding();
+        if (this.onInteractiveKeyPress) {
+          this.onInteractiveKeyPress();
+        } else {
+          this.toggleBusBoarding();
+        }
       }
     });
 
@@ -267,7 +272,11 @@ export class PlayerController {
       if (distFromCenter > 54.0 && distFromCenter < 58.0) {
         // Grand opening corridor connecting Mataf to Mas'a on the East
         const isMasaOpening = x > 38 && Math.abs(z) < 11;
-        if (!isMasaOpening) {
+        // Pintu Masuk Utama Bab Abdul Aziz (South)
+        const isBabAbdulAziz = Math.abs(x) < 4.8 && z > 51.5;
+        // Bab Umrah (North-West)
+        const isNorthWestGate = Math.abs(x) < 4.8 && z < -51.5;
+        if (!isMasaOpening && !isBabAbdulAziz && !isNorthWestGate) {
           return true;
         }
       }
@@ -285,9 +294,18 @@ export class PlayerController {
 
     // 8. Madinah Zone Colliders (X < -90)
     if (x < -90) {
-      // Masjid Quba Solid Main Building: center (-115, -35), size 16x16 (half 8.2)
-      if (Math.abs(x - (-115)) < 8.4 && Math.abs(z - (-35)) < 8.4) {
-        return true;
+      // Masjid Quba Accessible Building with Open South Doorway (x: -117.5 to -112.5)
+      // Center (-115, -35), outer boundary x: [-123.5, -106.5], z: [-43.5, -26.5]
+      if (Math.abs(x - (-115)) < 8.6 && Math.abs(z - (-35)) < 8.6) {
+        // North wall
+        if (z < -42.2) return true;
+        // East wall
+        if (x > -107.5) return true;
+        // West wall
+        if (x < -122.5) return true;
+        // South wall (leave entrance doorway open between -117.5 and -112.5)
+        if (z > -27.5 && (x < -117.5 || x > -112.5)) return true;
+        // Inside prayer hall: free to walk!
       }
 
       // Makam 70 Shuhada Uhud Enclosure Wall: center (-162, -47), width 14 (half 7.2), depth 10 (half 5.2)
