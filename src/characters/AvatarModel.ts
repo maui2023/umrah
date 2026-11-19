@@ -1,6 +1,316 @@
 import * as THREE from 'three';
 import { Gender, PlayerRole } from '../types';
 
+// =============================================================================
+// SHARED PROCEDURAL TEXTURE CACHE (High-Resolution Textures for Realistic Look)
+// =============================================================================
+let sharedIhramTexture: THREE.CanvasTexture | null = null;
+let sharedIhramBumpMap: THREE.CanvasTexture | null = null;
+let sharedHairTexture: THREE.CanvasTexture | null = null;
+let sharedLeatherTexture: THREE.CanvasTexture | null = null;
+let sharedAbayaTexture: THREE.CanvasTexture | null = null;
+let sharedAbayaBumpMap: THREE.CanvasTexture | null = null;
+
+/**
+ * Generate high-definition woven cotton Ihram cloth texture with authentic
+ * weave grain, diagonal drapery folds, crease shadow gradients, and tasseled fringe borders.
+ */
+function getIhramTexture(): THREE.CanvasTexture {
+  if (sharedIhramTexture) return sharedIhramTexture;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d')!;
+
+  // 1. Natural warm off-white / ivory base cloth tone
+  ctx.fillStyle = '#faf8f4';
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // 2. Micro-woven terrycloth / waffle cotton weave pattern
+  ctx.fillStyle = 'rgba(215, 208, 198, 0.22)';
+  for (let y = 0; y < 1024; y += 4) {
+    for (let x = 0; x < 1024; x += 4) {
+      if ((x + y) % 8 === 0) {
+        ctx.fillRect(x, y, 2, 2);
+      }
+    }
+  }
+
+  // 3. Diagonal cloth drape creases & tension fold shadow gradients
+  // (Mimics realistic fabric draping across shoulders, back, and waist)
+  const drawFoldGradient = (
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    width: number,
+    depth: number
+  ) => {
+    ctx.save();
+    const grad = ctx.createLinearGradient(x1, y1, x2, y2);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+    grad.addColorStop(0.35, `rgba(180, 172, 160, ${depth})`);
+    grad.addColorStop(0.5, `rgba(135, 126, 114, ${depth * 1.35})`);
+    grad.addColorStop(0.7, `rgba(190, 182, 170, ${depth * 0.7})`);
+    grad.addColorStop(1, 'rgba(255, 255, 255, 0.2)');
+
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.bezierCurveTo(
+      (x1 + x2) / 2 + 30,
+      y1 + 40,
+      (x1 + x2) / 2 - 30,
+      y2 - 40,
+      x2,
+      y2
+    );
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  // Diagonal sweeping shawl drape folds
+  drawFoldGradient(80, 120, 940, 480, 32, 0.25);
+  drawFoldGradient(60, 260, 960, 620, 28, 0.22);
+  drawFoldGradient(120, 400, 920, 780, 36, 0.28);
+  drawFoldGradient(180, 560, 880, 890, 24, 0.20);
+
+  // Vertical falling Izar skirt pleat folds
+  for (let x = 120; x < 950; x += 110) {
+    drawFoldGradient(x, 480, x + 15, 960, 18, 0.18);
+  }
+
+  // 4. Woven Fringe / Tassel Border along the lower hem (Bottom 64px)
+  const fringeY = 960;
+  ctx.fillStyle = 'rgba(225, 218, 208, 0.85)';
+  ctx.fillRect(0, fringeY - 6, 1024, 6); // Seam stitch line
+
+  // Fine vertical tassel threads with spacing & shadows
+  for (let x = 0; x < 1024; x += 6) {
+    const threadLen = 35 + Math.sin(x * 0.15) * 8 + Math.random() * 6;
+    ctx.strokeStyle = (x % 12 === 0) ? '#d0c8bd' : '#f5f2eb';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(x, fringeY);
+    ctx.lineTo(x + (Math.random() - 0.5) * 4, fringeY + threadLen);
+    ctx.stroke();
+  }
+
+  sharedIhramTexture = new THREE.CanvasTexture(canvas);
+  sharedIhramTexture.wrapS = THREE.RepeatWrapping;
+  sharedIhramTexture.wrapT = THREE.RepeatWrapping;
+  return sharedIhramTexture;
+}
+
+/**
+ * Generate 1024x1024 bump/normal map for Ihram cloth to produce dynamic 3D
+ * light-reacting fabric creases, cloth folds, and woven texture.
+ */
+function getIhramBumpMap(): THREE.CanvasTexture {
+  if (sharedIhramBumpMap) return sharedIhramBumpMap;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d')!;
+
+  // Mid-gray neutral base
+  ctx.fillStyle = '#808080';
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // Micro-weave noise
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+  for (let y = 0; y < 1024; y += 4) {
+    for (let x = 0; x < 1024; x += 4) {
+      if ((x + y) % 8 === 0) {
+        ctx.fillRect(x, y, 2, 2);
+      }
+    }
+  }
+
+  // Raised fold ridges (lighter gray) & crevice valleys (darker gray)
+  const drawBumpCrease = (
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    width: number
+  ) => {
+    ctx.save();
+    // Crevice shadow valley
+    ctx.strokeStyle = '#484848';
+    ctx.lineWidth = width * 0.6;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    // Raised lit ridge adjacent to crevice
+    ctx.strokeStyle = '#c4c4c4';
+    ctx.lineWidth = width * 0.4;
+    ctx.beginPath();
+    ctx.moveTo(x1 + 4, y1 - 4);
+    ctx.lineTo(x2 + 4, y2 - 4);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  drawBumpCrease(80, 120, 940, 480, 22);
+  drawBumpCrease(60, 260, 960, 620, 20);
+  drawBumpCrease(120, 400, 920, 780, 24);
+  drawBumpCrease(180, 560, 880, 890, 18);
+
+  for (let x = 120; x < 950; x += 110) {
+    drawBumpCrease(x, 480, x + 15, 960, 14);
+  }
+
+  sharedIhramBumpMap = new THREE.CanvasTexture(canvas);
+  sharedIhramBumpMap.wrapS = THREE.RepeatWrapping;
+  sharedIhramBumpMap.wrapT = THREE.RepeatWrapping;
+  return sharedIhramBumpMap;
+}
+
+/**
+ * Procedural dark textured wavy hair canvas texture.
+ */
+function getHairTexture(): THREE.CanvasTexture {
+  if (sharedHairTexture) return sharedHairTexture;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#181412';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Fine wavy hair strands
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 400; i++) {
+    const x = Math.random() * 512;
+    const y = Math.random() * 512;
+    const len = 30 + Math.random() * 40;
+    const alpha = 0.25 + Math.random() * 0.35;
+    ctx.strokeStyle = `rgba(55, 45, 38, ${alpha})`;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x + 10, y + len * 0.5, x + (Math.random() - 0.5) * 15, y + len);
+    ctx.stroke();
+  }
+
+  sharedHairTexture = new THREE.CanvasTexture(canvas);
+  sharedHairTexture.wrapS = THREE.RepeatWrapping;
+  sharedHairTexture.wrapT = THREE.RepeatWrapping;
+  return sharedHairTexture;
+}
+
+/**
+ * Procedural rich chestnut brown leather texture for sandals.
+ */
+function getLeatherTexture(): THREE.CanvasTexture {
+  if (sharedLeatherTexture) return sharedLeatherTexture;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#6b361a';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Subtle leather pores & grain
+  for (let i = 0; i < 2000; i++) {
+    const x = Math.random() * 512;
+    const y = Math.random() * 512;
+    ctx.fillStyle = (Math.random() > 0.5) ? 'rgba(125, 68, 38, 0.35)' : 'rgba(72, 34, 14, 0.4)';
+    ctx.fillRect(x, y, 2, 2);
+  }
+
+  // Edge burnishing & stitch line
+  ctx.strokeStyle = 'rgba(145, 85, 50, 0.6)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(8, 8, 496, 496);
+
+  sharedLeatherTexture = new THREE.CanvasTexture(canvas);
+  return sharedLeatherTexture;
+}
+
+/**
+ * Procedural Abaya / Jubah fabric texture for female pilgrim.
+ */
+function getAbayaTexture(): THREE.CanvasTexture {
+  if (sharedAbayaTexture) return sharedAbayaTexture;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#faf8f5';
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // Delicate crepe weave
+  ctx.fillStyle = 'rgba(210, 204, 196, 0.2)';
+  for (let y = 0; y < 1024; y += 4) {
+    for (let x = 0; x < 1024; x += 4) {
+      if ((x + y) % 6 === 0) ctx.fillRect(x, y, 1.5, 1.5);
+    }
+  }
+
+  // Graceful vertical pleat shadows
+  for (let x = 120; x < 950; x += 120) {
+    const grad = ctx.createLinearGradient(x - 20, 0, x + 20, 0);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
+    grad.addColorStop(0.5, 'rgba(175, 168, 158, 0.24)');
+    grad.addColorStop(1, 'rgba(255, 255, 255, 0.1)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x - 20, 0, 40, 1024);
+  }
+
+  sharedAbayaTexture = new THREE.CanvasTexture(canvas);
+  sharedAbayaTexture.wrapS = THREE.RepeatWrapping;
+  sharedAbayaTexture.wrapT = THREE.RepeatWrapping;
+  return sharedAbayaTexture;
+}
+
+function getAbayaBumpMap(): THREE.CanvasTexture {
+  if (sharedAbayaBumpMap) return sharedAbayaBumpMap;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#808080';
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  for (let x = 120; x < 950; x += 120) {
+    ctx.strokeStyle = '#5a5a5a';
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, 1024);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#b8b8b8';
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.moveTo(x + 8, 0);
+    ctx.lineTo(x + 8, 1024);
+    ctx.stroke();
+  }
+
+  sharedAbayaBumpMap = new THREE.CanvasTexture(canvas);
+  sharedAbayaBumpMap.wrapS = THREE.RepeatWrapping;
+  sharedAbayaBumpMap.wrapT = THREE.RepeatWrapping;
+  return sharedAbayaBumpMap;
+}
+
+// =============================================================================
+// AVATAR MODEL CLASS (Ultra-High-Definition Realistic 3D Pilgrim)
+// =============================================================================
 export class AvatarModel {
   public group: THREE.Group;
   public gender: Gender;
@@ -47,220 +357,304 @@ export class AvatarModel {
 
     this.group = new THREE.Group();
 
-    // Natural skin tone
+    // -------------------------------------------------------------------------
+    // HIGH-QUALITY PBR MATERIALS (Matched to Reference Images)
+    // -------------------------------------------------------------------------
+    // Natural sun-kissed skin tone with authentic subcutaneous warmth
     const skinMat = new THREE.MeshStandardMaterial({
-      color: this.gender === 'male' ? 0xc48e6c : 0xd19f7e,
-      roughness: 0.6,
-      metalness: 0.04
+      color: this.gender === 'male' ? 0xc48c69 : 0xd19f7e,
+      roughness: 0.62,
+      metalness: 0.03
     });
 
-    // Clean white cloth for Ihram & Abaya/Telekung
-    const whiteClothMat = new THREE.MeshStandardMaterial({
-      color: 0xfcfcfc,
+    // Pure clean Ihram woven cotton material with dynamic normal/bump creases
+    const ihramClothMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      map: getIhramTexture(),
+      bumpMap: getIhramBumpMap(),
+      bumpScale: 0.052,
       roughness: 0.82,
       metalness: 0.02
     });
 
-    // Shadowed / inner folds cloth material for depth & realism
-    const clothShadeMat = new THREE.MeshStandardMaterial({
-      color: 0xe0ddd8,
-      roughness: 0.9,
+    // Modest elegant female Abaya / Jubah material
+    const abayaMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      map: getAbayaTexture(),
+      bumpMap: getAbayaBumpMap(),
+      bumpScale: 0.048,
+      roughness: 0.85,
       metalness: 0.02
     });
 
-    // Fringed edge / seam trim
+    // Shaded inner drapery folds material for enhanced depth & self-shadowing
+    const clothShadeMat = new THREE.MeshStandardMaterial({
+      color: 0xded8ce,
+      map: getIhramTexture(),
+      bumpMap: getIhramBumpMap(),
+      bumpScale: 0.065,
+      roughness: 0.88,
+      metalness: 0.02
+    });
+
+    // Woven fringed tassel trim material
     const fringeMat = new THREE.MeshStandardMaterial({
-      color: 0xeae6df,
-      roughness: 0.95,
+      color: 0xeae4db,
+      map: getIhramTexture(),
+      bumpMap: getIhramBumpMap(),
+      bumpScale: 0.06,
+      roughness: 0.92,
       metalness: 0.0
     });
 
-    // Natural hair & eyebrows
+    // Natural wavy hair material
     const hairMat = new THREE.MeshStandardMaterial({
-      color: 0x1f1a17,
-      roughness: 0.85,
+      color: 0x1f1915,
+      map: getHairTexture(),
+      roughness: 0.72,
       metalness: 0.08
     });
 
-    // Pilgrim waist belt (Talbiyah / ihram pouch belt for money & essentials)
+    // Pilgrim waist pouch belt (Talbiyah belt)
     const beltMat = new THREE.MeshStandardMaterial({
-      color: 0x2e6930, // Traditional green pouch belt
-      roughness: 0.5,
-      metalness: 0.2
+      color: 0x245e2a, // Traditional green pilgrimage belt
+      roughness: 0.52,
+      metalness: 0.18
     });
     const buckleMat = new THREE.MeshStandardMaterial({
-      color: 0xd4af37, // Brass / gold buckle
-      roughness: 0.3,
-      metalness: 0.8
+      color: 0xd4af37, // Polished brass gold
+      roughness: 0.28,
+      metalness: 0.85
     });
 
-    // Footwear materials
-    const soleMat = new THREE.MeshStandardMaterial({
-      color: this.gender === 'male' ? 0xcc7a70 : 0x3d3d3d,
-      roughness: 0.6,
-      metalness: 0.05
+    // Authentic Chestnut Brown Leather Pilgrimage Sandals
+    const sandalSoleMat = new THREE.MeshStandardMaterial({
+      color: 0x7a3e26, // Warm rich chestnut leather
+      map: getLeatherTexture(),
+      roughness: 0.52,
+      metalness: 0.12
     });
-    const strapMat = new THREE.MeshStandardMaterial({
-      color: this.gender === 'male' ? 0x3f9cb5 : 0x5a5a5a,
-      roughness: 0.4,
-      metalness: 0.1
+    const sandalStrapMat = new THREE.MeshStandardMaterial({
+      color: 0x5a2d1a, // Darker leather strap
+      roughness: 0.48,
+      metalness: 0.15
+    });
+    const treadMat = new THREE.MeshStandardMaterial({
+      color: 0x332219, // Durable bottom rubber grip
+      roughness: 0.8,
+      metalness: 0.02
     });
 
     // Facial feature materials
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
-    const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xf5f5f5 });
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1a1512 });
+    const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xf6f6f6 });
     const lipMat = new THREE.MeshStandardMaterial({
-      color: this.gender === 'male' ? 0xa86b5b : 0xb57065,
-      roughness: 0.7
+      color: this.gender === 'male' ? 0xa86758 : 0xb86e64,
+      roughness: 0.68
     });
 
     // =========================================================================
-    // 1. TORSO & CLOTHING GROUP
+    // 1. TORSO & IHRAM CLOTHING (Sculpted Cowl, Mantle, Folds & Drapery)
     // =========================================================================
     this.torso = new THREE.Group();
     this.torso.position.y = this.gender === 'male' ? 1.05 : 0.95;
 
     if (this.gender === 'male') {
-      // Anatomical upper torso (chest + waist taper)
-      const chestGeo = new THREE.CylinderGeometry(0.23, 0.18, 0.44, 16);
+      // Anatomical upper torso foundation
+      const chestGeo = new THREE.CylinderGeometry(0.24, 0.19, 0.45, 18);
       const chestMesh = new THREE.Mesh(chestGeo, skinMat);
       chestMesh.castShadow = true;
+      chestMesh.receiveShadow = true;
       this.torso.add(chestMesh);
 
-      // Collarbones / sternum accent
-      const clavicleGeo = new THREE.BoxGeometry(0.32, 0.02, 0.03);
+      // Clavicle & sternum contours
+      const clavicleGeo = new THREE.BoxGeometry(0.34, 0.02, 0.035);
       const clavicle = new THREE.Mesh(clavicleGeo, skinMat);
-      clavicle.position.set(0, 0.19, 0.09);
+      clavicle.position.set(0, 0.20, 0.095);
       this.torso.add(clavicle);
 
-      // --- Upper Shawl / Cape (Rida') ---
-      // Flowing upper mantle draping over shoulders & upper body
-      const mantleGeo = new THREE.CylinderGeometry(0.31, 0.39, 0.62, 20, 1, true);
-      const mantle = new THREE.Mesh(mantleGeo, whiteClothMat);
+      // --- UPPER SHAWL / CAPE (RIDA') MATCHING FRONT/BACK REFERENCE ---
+      // Main flowing mantle draped over both shoulders
+      const mantleGeo = new THREE.CylinderGeometry(0.33, 0.43, 0.66, 24, 1, true);
+      const mantle = new THREE.Mesh(mantleGeo, ihramClothMat);
       mantle.position.set(0, 0.06, 0);
       mantle.castShadow = true;
       mantle.receiveShadow = true;
       this.torso.add(mantle);
 
-      // Cowl / loose neck drapery around the collar
-      const cowlGeo = new THREE.TorusGeometry(0.18, 0.05, 10, 24, Math.PI * 1.5);
-      const cowl = new THREE.Mesh(cowlGeo, clothShadeMat);
-      cowl.position.set(0, 0.23, -0.04);
-      cowl.rotation.x = Math.PI / 2.6;
-      cowl.rotation.z = Math.PI;
-      cowl.castShadow = true;
-      this.torso.add(cowl);
+      // --- ICONIC NECK COWL / HOOD-LIKE DRAPERY AT UPPER BACK ---
+      // Distinct loose cowled fabric roll around back of neck & shoulders
+      const cowlRollGeo = new THREE.TorusGeometry(0.20, 0.062, 14, 28, Math.PI * 1.55);
+      const cowlRoll = new THREE.Mesh(cowlRollGeo, clothShadeMat);
+      cowlRoll.position.set(0, 0.22, -0.06);
+      cowlRoll.rotation.x = Math.PI / 2.5;
+      cowlRoll.rotation.z = Math.PI;
+      cowlRoll.castShadow = true;
+      this.torso.add(cowlRoll);
 
-      // Back fold drape
-      const backDrape = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.28, 0.38, 0.52, 14, 1, true, -Math.PI * 0.45, Math.PI * 0.9),
+      // Cowl cascading flap down the spine
+      const cowlFlapGeo = new THREE.CylinderGeometry(
+        0.28,
+        0.39,
+        0.36,
+        18,
+        1,
+        true,
+        -Math.PI * 0.45,
+        Math.PI * 0.9
+      );
+      const cowlFlap = new THREE.Mesh(cowlFlapGeo, clothShadeMat);
+      cowlFlap.position.set(0, 0.08, -0.05);
+      cowlFlap.castShadow = true;
+      this.torso.add(cowlFlap);
+
+      // --- REALISTIC 3D SCULPTED FABRIC FOLD RIDGES ---
+      // Diagonal fold sweeping across back & shoulder
+      const fold1 = new THREE.Mesh(
+        new THREE.TorusGeometry(0.34, 0.024, 10, 20, Math.PI * 0.7),
         clothShadeMat
       );
-      backDrape.position.set(0, 0.03, -0.03);
-      backDrape.castShadow = true;
-      this.torso.add(backDrape);
+      fold1.position.set(0.04, 0.02, -0.05);
+      fold1.rotation.set(0.4, 0.3, 0.7);
+      fold1.castShadow = true;
+      this.torso.add(fold1);
 
-      // Front overlap drape with elegant diagonal wrap
-      const frontOverlap = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.31, 0.40, 0.56, 16, 1, false, -Math.PI * 0.22, Math.PI * 0.78),
-        whiteClothMat
+      const fold2 = new THREE.Mesh(
+        new THREE.TorusGeometry(0.36, 0.022, 10, 20, Math.PI * 0.65),
+        clothShadeMat
       );
-      frontOverlap.position.set(-0.02, 0.04, 0.02);
-      frontOverlap.rotation.z = -0.06;
+      fold2.position.set(-0.04, -0.12, -0.05);
+      fold2.rotation.set(0.35, -0.3, 0.6);
+      fold2.castShadow = true;
+      this.torso.add(fold2);
+
+      // Front diagonal wrap panel overlapping across chest
+      const frontOverlap = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.34, 0.44, 0.60, 20, 1, false, -Math.PI * 0.25, Math.PI * 0.85),
+        ihramClothMat
+      );
+      frontOverlap.position.set(-0.02, 0.04, 0.025);
+      frontOverlap.rotation.z = -0.07;
       frontOverlap.castShadow = true;
+      frontOverlap.receiveShadow = true;
       this.torso.add(frontOverlap);
 
+      // Front tension crease ridge
+      const frontCrease = new THREE.Mesh(
+        new THREE.BoxGeometry(0.05, 0.42, 0.04),
+        clothShadeMat
+      );
+      frontCrease.position.set(0.05, 0.02, 0.22);
+      frontCrease.rotation.z = 0.35;
+      frontCrease.castShadow = true;
+      this.torso.add(frontCrease);
+
       // Shawl hem fringe border
-      const fringeUpper = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.315, 0.405, 0.035, 16, 1, true, -Math.PI * 0.22, Math.PI * 0.78),
+      const shawlFringe = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.342, 0.442, 0.045, 24, 1, true),
         fringeMat
       );
-      fringeUpper.position.set(-0.02, -0.23, 0.02);
-      this.torso.add(fringeUpper);
+      shawlFringe.position.set(0, -0.24, 0);
+      shawlFringe.castShadow = true;
+      this.torso.add(shawlFringe);
 
-      // Ihram Belt / Pouch around waist
-      const beltGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.055, 18);
+      // --- PILGRIM WAIST BELT & TALBIYAH POUCH ---
+      const beltGeo = new THREE.CylinderGeometry(0.23, 0.23, 0.055, 20);
       const belt = new THREE.Mesh(beltGeo, beltMat);
       belt.position.set(0, -0.19, 0);
+      belt.castShadow = true;
       this.torso.add(belt);
 
-      // Belt pouch
-      const pouchGeo = new THREE.BoxGeometry(0.10, 0.08, 0.05);
+      // Zippered essentials pouch
+      const pouchGeo = new THREE.BoxGeometry(0.11, 0.085, 0.055);
       const pouch = new THREE.Mesh(pouchGeo, beltMat);
-      pouch.position.set(0.12, -0.19, 0.20);
+      pouch.position.set(0.13, -0.19, 0.21);
       pouch.rotation.y = 0.4;
+      pouch.castShadow = true;
       this.torso.add(pouch);
 
-      // Belt buckle
-      const buckleGeo = new THREE.BoxGeometry(0.04, 0.055, 0.015);
+      // Brass buckle
+      const buckleGeo = new THREE.BoxGeometry(0.045, 0.06, 0.018);
       const buckle = new THREE.Mesh(buckleGeo, buckleMat);
-      buckle.position.set(0, -0.19, 0.225);
+      buckle.position.set(0, -0.19, 0.235);
       this.torso.add(buckle);
 
-      // Lower wrap / Izar upper section (hips & pelvic area)
-      const izarTop = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.22, 0.26, 0.35, 18),
-        whiteClothMat
+      // --- LOWER GARMENT (IZAR / SARONG WRAP) ---
+      // Upper waistband / tuck roll
+      const izarRoll = new THREE.Mesh(
+        new THREE.TorusGeometry(0.235, 0.028, 12, 24),
+        ihramClothMat
       );
-      izarTop.position.set(0, -0.26, 0);
+      izarRoll.position.set(0, -0.22, 0);
+      izarRoll.rotation.x = Math.PI / 2;
+      this.torso.add(izarRoll);
+
+      // Izar upper wrap section (pelvic & hip area)
+      const izarTop = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.23, 0.28, 0.38, 20),
+        ihramClothMat
+      );
+      izarTop.position.set(0, -0.28, 0);
       izarTop.castShadow = true;
+      izarTop.receiveShadow = true;
       this.torso.add(izarTop);
 
       // Vertical wrapped overlap fold down the front
       const frontWrapFold = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, 0.36, 0.05),
+        new THREE.BoxGeometry(0.09, 0.40, 0.055),
         clothShadeMat
       );
-      frontWrapFold.position.set(-0.07, -0.26, 0.22);
-      frontWrapFold.rotation.y = -0.2;
+      frontWrapFold.position.set(-0.07, -0.28, 0.235);
+      frontWrapFold.rotation.y = -0.22;
+      frontWrapFold.castShadow = true;
       this.torso.add(frontWrapFold);
 
     } else {
       // Female Pilgrim: Refined human silhouette with flowing Abaya/Jubah
-      // Slender shoulders & chest
       const upperTorso = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.19, 0.23, 0.42, 16),
-        whiteClothMat
+        new THREE.CylinderGeometry(0.19, 0.23, 0.42, 18),
+        abayaMat
       );
       upperTorso.position.set(0, 0.20, 0);
       upperTorso.castShadow = true;
+      upperTorso.receiveShadow = true;
       this.torso.add(upperTorso);
 
-      // Waist and natural flare of Jubah down to hips/lower body
       const lowerTorso = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.23, 0.36, 0.70, 18),
-        whiteClothMat
+        new THREE.CylinderGeometry(0.23, 0.38, 0.72, 20),
+        abayaMat
       );
-      lowerTorso.position.set(0, -0.25, 0);
+      lowerTorso.position.set(0, -0.26, 0);
       lowerTorso.castShadow = true;
+      lowerTorso.receiveShadow = true;
       this.torso.add(lowerTorso);
 
-      // Gentle vertical fabric pleats for dynamic dress folds
-      for (let i = 0; i < 4; i++) {
-        const pleatAngle = (i - 1.5) * 0.45;
+      // Graceful vertical pleats for authentic fabric drape
+      for (let i = 0; i < 5; i++) {
+        const pleatAngle = (i - 2) * 0.42;
         const pleat = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.018, 0.024, 0.68, 8),
+          new THREE.CylinderGeometry(0.016, 0.024, 0.70, 8),
           clothShadeMat
         );
-        pleat.position.set(Math.sin(pleatAngle) * 0.27, -0.25, Math.cos(pleatAngle) * 0.28);
+        pleat.position.set(Math.sin(pleatAngle) * 0.28, -0.26, Math.cos(pleatAngle) * 0.29);
         this.torso.add(pleat);
       }
     }
     this.group.add(this.torso);
 
     // =========================================================================
-    // 2. HEAD & FACIAL FEATURES (Anatomical cranium, facial features, ears, hair/hijab)
+    // 2. HEAD & FACIAL FEATURES (Anatomical Cranium, Layered Wavy Hair, Beard)
     // =========================================================================
     this.head = new THREE.Group();
     this.head.position.y = this.gender === 'male' ? 1.54 : 1.48;
 
-    // Graceful anatomical neck
+    // Muscular neck
     const neck = new THREE.Mesh(
       new THREE.CylinderGeometry(
-        this.gender === 'male' ? 0.07 : 0.06,
-        this.gender === 'male' ? 0.085 : 0.075,
-        0.14,
-        14
+        this.gender === 'male' ? 0.072 : 0.062,
+        this.gender === 'male' ? 0.088 : 0.076,
+        0.15,
+        16
       ),
       skinMat
     );
@@ -270,187 +664,177 @@ export class AvatarModel {
 
     // Adam's apple for male
     if (this.gender === 'male') {
-      const adamsApple = new THREE.Mesh(
-        new THREE.ConeGeometry(0.018, 0.03, 6),
-        skinMat
-      );
-      adamsApple.position.set(0, -0.10, 0.075);
+      const adamsApple = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.032, 8), skinMat);
+      adamsApple.position.set(0, -0.10, 0.082);
       adamsApple.rotation.x = Math.PI / 2;
       this.head.add(adamsApple);
     }
 
     // Cranium / Upper Head
     const headCranium = new THREE.Mesh(
-      new THREE.SphereGeometry(this.gender === 'male' ? 0.145 : 0.138, 18, 16),
+      new THREE.SphereGeometry(this.gender === 'male' ? 0.142 : 0.136, 24, 20),
       skinMat
     );
-    headCranium.scale.set(1.0, 1.12, 1.05);
+    headCranium.scale.set(1.0, 1.13, 1.06);
     headCranium.castShadow = true;
     this.head.add(headCranium);
 
     // Jaw & Chin
     const jaw = new THREE.Mesh(
       new THREE.CylinderGeometry(
-        this.gender === 'male' ? 0.11 : 0.095,
-        this.gender === 'male' ? 0.075 : 0.055,
-        0.12,
-        14
+        this.gender === 'male' ? 0.112 : 0.096,
+        this.gender === 'male' ? 0.078 : 0.056,
+        0.13,
+        16
       ),
       skinMat
     );
-    jaw.position.set(0, -0.075, 0.03);
+    jaw.position.set(0, -0.078, 0.032);
     this.head.add(jaw);
 
     // Cheeks
-    const leftCheek = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), skinMat);
-    leftCheek.position.set(-0.08, -0.03, 0.09);
+    const leftCheek = new THREE.Mesh(new THREE.SphereGeometry(0.046, 10, 10), skinMat);
+    leftCheek.position.set(-0.082, -0.03, 0.092);
     this.head.add(leftCheek);
-    const rightCheek = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), skinMat);
-    rightCheek.position.set(0.08, -0.03, 0.09);
+    const rightCheek = new THREE.Mesh(new THREE.SphereGeometry(0.046, 10, 10), skinMat);
+    rightCheek.position.set(0.082, -0.03, 0.092);
     this.head.add(rightCheek);
 
     // Sculpted Nose
-    const noseBridge = new THREE.Mesh(
-      new THREE.BoxGeometry(0.024, 0.065, 0.03),
-      skinMat
-    );
-    noseBridge.position.set(0, 0.005, 0.155);
+    const noseBridge = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.07, 0.034), skinMat);
+    noseBridge.position.set(0, 0.005, 0.158);
     this.head.add(noseBridge);
 
-    const noseTip = new THREE.Mesh(
-      new THREE.SphereGeometry(0.02, 8, 8),
-      skinMat
-    );
-    noseTip.position.set(0, -0.025, 0.165);
+    const noseTip = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 10), skinMat);
+    noseTip.position.set(0, -0.026, 0.168);
     this.head.add(noseTip);
 
-    // Realistic Eyes with Sclera (White) + Dark Iris
-    const eyeSocketLeft = new THREE.Group();
-    eyeSocketLeft.position.set(-0.052, 0.02, 0.132);
-    const eyeScleraL = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), eyeWhiteMat);
-    eyeScleraL.scale.set(1, 0.75, 0.6);
-    eyeSocketLeft.add(eyeScleraL);
-    const eyePupilL = new THREE.Mesh(new THREE.SphereGeometry(0.013, 8, 8), eyeMat);
-    eyePupilL.position.set(0, 0, 0.013);
-    eyeSocketLeft.add(eyePupilL);
-    this.head.add(eyeSocketLeft);
+    // Realistic Eyes with Sclera & Iris
+    const buildEye = (isLeft: boolean) => {
+      const socket = new THREE.Group();
+      socket.position.set(isLeft ? -0.052 : 0.052, 0.02, 0.134);
 
-    const eyeSocketRight = new THREE.Group();
-    eyeSocketRight.position.set(0.052, 0.02, 0.132);
-    const eyeScleraR = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), eyeWhiteMat);
-    eyeScleraR.scale.set(1, 0.75, 0.6);
-    eyeSocketRight.add(eyeScleraR);
-    const eyePupilR = new THREE.Mesh(new THREE.SphereGeometry(0.013, 8, 8), eyeMat);
-    eyePupilR.position.set(0, 0, 0.013);
-    eyeSocketRight.add(eyePupilR);
-    this.head.add(eyeSocketRight);
+      const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), eyeWhiteMat);
+      sclera.scale.set(1, 0.75, 0.6);
+      socket.add(sclera);
+
+      const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.013, 8, 8), eyeMat);
+      pupil.position.set(0, 0, 0.013);
+      socket.add(pupil);
+
+      return socket;
+    };
+    this.head.add(buildEye(true));
+    this.head.add(buildEye(false));
 
     // Eyebrows
-    const browGeo = new THREE.BoxGeometry(0.048, 0.012, 0.018);
+    const browGeo = new THREE.BoxGeometry(0.05, 0.014, 0.02);
     const browLeft = new THREE.Mesh(browGeo, hairMat);
-    browLeft.position.set(-0.052, 0.048, 0.142);
+    browLeft.position.set(-0.052, 0.05, 0.144);
     browLeft.rotation.z = 0.08;
     this.head.add(browLeft);
 
     const browRight = new THREE.Mesh(browGeo, hairMat);
-    browRight.position.set(0.052, 0.048, 0.142);
+    browRight.position.set(0.052, 0.05, 0.144);
     browRight.rotation.z = -0.08;
     this.head.add(browRight);
 
     // Lips / Mouth
-    const lips = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.035, 0.035, 0.012, 8),
-      lipMat
-    );
+    const lips = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.014, 10), lipMat);
     lips.rotation.x = Math.PI / 2;
     lips.scale.set(1, 0.5, 1);
-    lips.position.set(0, -0.065, 0.135);
+    lips.position.set(0, -0.066, 0.138);
     this.head.add(lips);
 
-    // Anatomical Ears with inner concha
-    const earGeo = new THREE.CylinderGeometry(0.03, 0.022, 0.015, 10);
+    // Anatomical Ears
+    const earGeo = new THREE.CylinderGeometry(0.032, 0.024, 0.016, 12);
     const leftEar = new THREE.Mesh(earGeo, skinMat);
-    leftEar.position.set(-0.145, 0, 0);
-    leftEar.rotation.z = Math.PI / 2 + 0.15;
-    leftEar.rotation.y = 0.2;
+    leftEar.position.set(-0.146, 0, 0);
+    leftEar.rotation.set(0, 0.2, Math.PI / 2 + 0.15);
     leftEar.scale.set(1.4, 0.6, 1.0);
     this.head.add(leftEar);
 
     const rightEar = new THREE.Mesh(earGeo, skinMat);
-    rightEar.position.set(0.145, 0, 0);
-    rightEar.rotation.z = -Math.PI / 2 - 0.15;
-    rightEar.rotation.y = -0.2;
+    rightEar.position.set(0.146, 0, 0);
+    rightEar.rotation.set(0, -0.2, -Math.PI / 2 - 0.15);
     rightEar.scale.set(1.4, 0.6, 1.0);
     this.head.add(rightEar);
 
     if (this.gender === 'male') {
-      // Natural male hair: textured short cropped hair
+      // --- LAYERED WAVY STYLIZED HAIR (MATCHES REFERENCE) ---
+      // Base hair crown covering skull
       const hairCrown = new THREE.Mesh(
-        new THREE.SphereGeometry(0.155, 18, 16, 0, Math.PI * 2, 0, Math.PI * 0.55),
+        new THREE.SphereGeometry(0.156, 24, 20, 0, Math.PI * 2, 0, Math.PI * 0.58),
         hairMat
       );
-      hairCrown.position.set(0, 0.02, -0.01);
+      hairCrown.position.set(0, 0.022, -0.01);
       this.head.add(hairCrown);
 
-      const hairBack = new THREE.Mesh(
-        new THREE.BoxGeometry(0.24, 0.15, 0.12),
-        hairMat
-      );
-      hairBack.position.set(0, 0.01, -0.09);
+      const hairBack = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.16, 0.13), hairMat);
+      hairBack.position.set(0, 0.01, -0.095);
       this.head.add(hairBack);
 
+      // Sculpted wavy hair tufts & locks on top & sides for natural volume
+      const lock1 = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), hairMat);
+      lock1.position.set(0.04, 0.13, 0.04);
+      lock1.scale.set(1.3, 0.6, 1.0);
+      lock1.rotation.y = 0.3;
+      this.head.add(lock1);
+
+      const lock2 = new THREE.Mesh(new THREE.SphereGeometry(0.062, 10, 8), hairMat);
+      lock2.position.set(-0.05, 0.125, 0.035);
+      lock2.scale.set(1.2, 0.6, 1.0);
+      lock2.rotation.y = -0.3;
+      this.head.add(lock2);
+
+      const lock3 = new THREE.Mesh(new THREE.SphereGeometry(0.058, 10, 8), hairMat);
+      lock3.position.set(0, 0.14, -0.04);
+      lock3.scale.set(1.4, 0.7, 1.1);
+      this.head.add(lock3);
+
       // Neat sideburns
-      const sideburnL = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.07, 0.03), hairMat);
-      sideburnL.position.set(-0.138, -0.01, 0.03);
+      const sideburnL = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.075, 0.032), hairMat);
+      sideburnL.position.set(-0.140, -0.01, 0.032);
       this.head.add(sideburnL);
-      const sideburnR = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.07, 0.03), hairMat);
-      sideburnR.position.set(0.138, -0.01, 0.03);
+      const sideburnR = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.075, 0.032), hairMat);
+      sideburnR.position.set(0.140, -0.01, 0.032);
       this.head.add(sideburnR);
 
       // Sunnah trimmed beard along jawline
       const beardJaw = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.115, 0.082, 0.09, 14, 1, true, -Math.PI * 0.75, Math.PI * 1.5),
+        new THREE.CylinderGeometry(0.118, 0.085, 0.095, 16, 1, true, -Math.PI * 0.75, Math.PI * 1.5),
         hairMat
       );
-      beardJaw.position.set(0, -0.08, 0.035);
+      beardJaw.position.set(0, -0.082, 0.036);
       this.head.add(beardJaw);
 
       // Chin beard tuft
-      const chinBeard = new THREE.Mesh(
-        new THREE.SphereGeometry(0.045, 10, 10),
-        hairMat
-      );
-      chinBeard.position.set(0, -0.125, 0.075);
-      chinBeard.scale.set(1.1, 0.8, 1.0);
+      const chinBeard = new THREE.Mesh(new THREE.SphereGeometry(0.046, 12, 10), hairMat);
+      chinBeard.position.set(0, -0.128, 0.078);
+      chinBeard.scale.set(1.1, 0.85, 1.0);
       this.head.add(chinBeard);
 
     } else {
       // Female Pilgrim: Elegant Modest Telekung / Hijab / Khimar
-      // Inner head cap / serkup framing the forehead
-      const hijabInner = new THREE.Mesh(
-        new THREE.SphereGeometry(0.144, 18, 16),
-        clothShadeMat
-      );
+      const hijabInner = new THREE.Mesh(new THREE.SphereGeometry(0.146, 20, 18), clothShadeMat);
       hijabInner.position.set(0, 0.01, -0.01);
       this.head.add(hijabInner);
 
-      // Outer draped Hijab covering hair, ears, neck, and shoulders
       const hijabCrown = new THREE.Mesh(
-        new THREE.SphereGeometry(0.165, 18, 16, 0, Math.PI * 2, 0, Math.PI * 0.65),
-        whiteClothMat
+        new THREE.SphereGeometry(0.168, 24, 20, 0, Math.PI * 2, 0, Math.PI * 0.65),
+        abayaMat
       );
       hijabCrown.position.set(0, 0.02, -0.015);
       hijabCrown.castShadow = true;
       this.head.add(hijabCrown);
 
-      // Flowing Khimar drape falling gently around chest and upper back
-      const khimarGeo = new THREE.CylinderGeometry(0.17, 0.38, 0.46, 20);
-      const khimar = new THREE.Mesh(khimarGeo, whiteClothMat);
+      const khimarGeo = new THREE.CylinderGeometry(0.17, 0.39, 0.48, 24);
+      const khimar = new THREE.Mesh(khimarGeo, abayaMat);
       khimar.position.set(0, -0.22, 0.01);
       khimar.castShadow = true;
+      khimar.receiveShadow = true;
       this.head.add(khimar);
 
-      // Khimar front fold opening framing the oval face
       const faceFrameTrim = new THREE.Mesh(
         new THREE.TorusGeometry(0.13, 0.018, 10, 24, Math.PI * 1.4),
         clothShadeMat
@@ -464,24 +848,18 @@ export class AvatarModel {
     // 2B. MUTAWWIF OVERHEAD GROUP FLAG (Bendera Penanda Mutawwif)
     // =========================================================================
     this.mutawwifFlagGroup = new THREE.Group();
-    // Position pole on top-right of head so it flutters clearly above
     this.mutawwifFlagGroup.position.set(0.04, 0.18, -0.02);
 
-    // Slim lightweight flagpole / tiang bendera
     const poleMat = new THREE.MeshStandardMaterial({
       color: 0xdcdcdc,
       metalness: 0.85,
       roughness: 0.25
     });
-    const pole = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.009, 0.009, 0.72, 8),
-      poleMat
-    );
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.72, 8), poleMat);
     pole.position.set(0, 0.36, 0);
     pole.castShadow = true;
     this.mutawwifFlagGroup.add(pole);
 
-    // Golden dome finial on top of flagpole
     const finialMat = new THREE.MeshStandardMaterial({
       color: 0xd4af37,
       metalness: 0.9,
@@ -491,11 +869,10 @@ export class AvatarModel {
     finial.position.set(0, 0.72, 0);
     this.mutawwifFlagGroup.add(finial);
 
-    // Triangular Pennant Flag (matches user sketch on mutawwif's head)
     const flagShape = new THREE.Shape();
     flagShape.moveTo(0, 0);
-    flagShape.lineTo(0.36, 0.12); // Tip pointing right/back
-    flagShape.lineTo(0, 0.24); // Upper attachment
+    flagShape.lineTo(0.36, 0.12);
+    flagShape.lineTo(0, 0.24);
     flagShape.closePath();
 
     const flagGeo = new THREE.ShapeGeometry(flagShape);
@@ -510,20 +887,19 @@ export class AvatarModel {
     this.mutawwifFlagMesh.castShadow = true;
     this.mutawwifFlagGroup.add(this.mutawwifFlagMesh);
 
-    // Initial visibility according to role
     this.mutawwifFlagGroup.visible = this.role === 'mutawwif';
     this.head.add(this.mutawwifFlagGroup);
 
     this.group.add(this.head);
 
     // =========================================================================
-    // 3. ARMS & HANDS (Anatomical shoulders, bicep, elbow, forearm, palm & fingers)
+    // 3. ARMS & HANDS (Anatomical Deltoids, Biceps, Forearms, Palm & Fingers)
     // =========================================================================
     this.leftArm = new THREE.Group();
     this.rightArm = new THREE.Group();
 
     const shoulderY = this.gender === 'male' ? 1.28 : 1.22;
-    const shoulderWidth = this.gender === 'male' ? 0.30 : 0.25;
+    const shoulderWidth = this.gender === 'male' ? 0.31 : 0.25;
 
     this.leftArm.position.set(-shoulderWidth, shoulderY, 0);
     this.rightArm.position.set(shoulderWidth, shoulderY, 0);
@@ -533,19 +909,17 @@ export class AvatarModel {
       const side = isLeft ? -1 : 1;
 
       // Deltoid / Shoulder cap
-      const shoulderGeo = new THREE.SphereGeometry(this.gender === 'male' ? 0.075 : 0.065, 12, 10);
-      const shoulderMesh = new THREE.Mesh(
-        shoulderGeo,
-        this.gender === 'male' ? whiteClothMat : whiteClothMat
-      );
+      const shoulderGeo = new THREE.SphereGeometry(this.gender === 'male' ? 0.078 : 0.065, 14, 12);
+      const shoulderMesh = new THREE.Mesh(shoulderGeo, ihramClothMat);
       shoulderMesh.position.set(0, 0, 0);
+      shoulderMesh.castShadow = true;
       armGroup.add(shoulderMesh);
 
-      // Upper arm (Male has cloth drape at top, Female has full abaya sleeve)
       if (this.gender === 'male') {
+        // Upper arm draped cloth sleeve
         const upperArmCloth = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.068, 0.062, 0.16, 12),
-          whiteClothMat
+          new THREE.CylinderGeometry(0.072, 0.064, 0.16, 14),
+          ihramClothMat
         );
         upperArmCloth.position.y = -0.08;
         upperArmCloth.castShadow = true;
@@ -553,7 +927,7 @@ export class AvatarModel {
 
         // Bare lower bicep / elbow
         const bicep = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.060, 0.054, 0.14, 12),
+          new THREE.CylinderGeometry(0.062, 0.055, 0.15, 14),
           skinMat
         );
         bicep.position.y = -0.21;
@@ -562,7 +936,7 @@ export class AvatarModel {
 
         // Forearm with anatomical taper towards wrist
         const forearm = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.053, 0.042, 0.26, 12),
+          new THREE.CylinderGeometry(0.055, 0.043, 0.26, 14),
           skinMat
         );
         forearm.position.y = -0.38;
@@ -571,24 +945,22 @@ export class AvatarModel {
       } else {
         // Female modest long sleeve
         const sleeve = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.062, 0.072, 0.44, 14),
-          whiteClothMat
+          new THREE.CylinderGeometry(0.064, 0.074, 0.44, 16),
+          abayaMat
         );
         sleeve.position.y = -0.22;
         sleeve.castShadow = true;
         armGroup.add(sleeve);
 
-        // Sleeve cuff trim
         const cuff = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.073, 0.073, 0.03, 14),
+          new THREE.CylinderGeometry(0.075, 0.075, 0.03, 16),
           clothShadeMat
         );
         cuff.position.y = -0.43;
         armGroup.add(cuff);
 
-        // Visible wrist
         const wrist = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.040, 0.036, 0.06, 10),
+          new THREE.CylinderGeometry(0.042, 0.038, 0.06, 12),
           skinMat
         );
         wrist.position.y = -0.46;
@@ -601,7 +973,7 @@ export class AvatarModel {
 
       // Palm
       const palm = new THREE.Mesh(
-        new THREE.BoxGeometry(0.042, 0.075, 0.065),
+        new THREE.BoxGeometry(0.044, 0.076, 0.066),
         skinMat
       );
       palm.castShadow = true;
@@ -609,20 +981,20 @@ export class AvatarModel {
 
       // Thumb
       const thumb = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.012, 0.010, 0.042, 8),
+        new THREE.CylinderGeometry(0.013, 0.010, 0.044, 10),
         skinMat
       );
-      thumb.position.set(side * 0.024, 0.015, 0.024);
+      thumb.position.set(side * 0.025, 0.016, 0.025);
       thumb.rotation.x = 0.4;
       thumb.rotation.z = side * -0.6;
       handGroup.add(thumb);
 
-      // Four fingers grouped naturally
+      // Four fingers
       const fingers = new THREE.Mesh(
-        new THREE.BoxGeometry(0.036, 0.045, 0.058),
+        new THREE.BoxGeometry(0.038, 0.048, 0.058),
         skinMat
       );
-      fingers.position.set(0, -0.052, 0);
+      fingers.position.set(0, -0.054, 0);
       handGroup.add(fingers);
 
       armGroup.add(handGroup);
@@ -636,7 +1008,7 @@ export class AvatarModel {
     this.group.add(this.rightArm);
 
     // =========================================================================
-    // 4. LEGS, FEET & FOOTWEAR (Izar for male, skirt/trouser for female)
+    // 4. LEGS, FEET & AUTHENTIC PILGRIMAGE SANDALS (Matched to Reference)
     // =========================================================================
     this.leftLeg = new THREE.Group();
     this.rightLeg = new THREE.Group();
@@ -651,26 +1023,27 @@ export class AvatarModel {
       const side = isLeft ? -1 : 1;
 
       if (this.gender === 'male') {
-        // Ihram Izar (Lower cloth wrap) draping around the leg
+        // Ihram Izar (Lower cloth wrap column)
         const izarLeg = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.145, 0.165, 0.52, 14),
-          whiteClothMat
+          new THREE.CylinderGeometry(0.155, 0.175, 0.54, 18),
+          ihramClothMat
         );
         izarLeg.position.y = -0.22;
         izarLeg.castShadow = true;
+        izarLeg.receiveShadow = true;
         legGroup.add(izarLeg);
 
         // Izar bottom hem fringe
         const izarFringe = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.166, 0.170, 0.035, 14),
+          new THREE.CylinderGeometry(0.176, 0.180, 0.038, 18, 1, true),
           fringeMat
         );
-        izarFringe.position.y = -0.46;
+        izarFringe.position.y = -0.47;
         legGroup.add(izarFringe);
 
         // Lower calf & Achilles tendon
         const calf = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.058, 0.046, 0.24, 12),
+          new THREE.CylinderGeometry(0.060, 0.046, 0.25, 14),
           skinMat
         );
         calf.position.y = -0.54;
@@ -678,64 +1051,70 @@ export class AvatarModel {
         legGroup.add(calf);
 
         // Ankle joint malleolus
-        const ankleBone = new THREE.Mesh(
-          new THREE.SphereGeometry(0.048, 8, 8),
-          skinMat
-        );
-        ankleBone.position.set(side * 0.02, -0.62, 0);
+        const ankleBone = new THREE.Mesh(new THREE.SphereGeometry(0.048, 10, 10), skinMat);
+        ankleBone.position.set(side * 0.022, -0.62, 0);
         ankleBone.scale.set(0.6, 0.6, 0.8);
         legGroup.add(ankleBone);
 
-        // Human Foot with instep arch and toes
-        const foot = new THREE.Mesh(
-          new THREE.BoxGeometry(0.082, 0.05, 0.16),
-          skinMat
-        );
+        // Foot with instep arch and toes
+        const foot = new THREE.Mesh(new THREE.BoxGeometry(0.084, 0.052, 0.165), skinMat);
         foot.position.set(0, -0.66, 0.04);
         foot.castShadow = true;
         legGroup.add(foot);
 
-        // Toes
-        const toes = new THREE.Mesh(
-          new THREE.BoxGeometry(0.078, 0.032, 0.05),
-          skinMat
-        );
-        toes.position.set(0, -0.67, 0.13);
+        const toes = new THREE.Mesh(new THREE.BoxGeometry(0.080, 0.034, 0.052), skinMat);
+        toes.position.set(0, -0.67, 0.135);
         legGroup.add(toes);
 
-        // Realistic Flip-flop sandal (coral pink sole + sky blue straps)
-        const sandalSole = new THREE.Mesh(
-          new THREE.BoxGeometry(0.105, 0.024, 0.22),
-          soleMat
+        // --- AUTHENTIC PILGRIMAGE SANDALS (CHESTNUT LEATHER & ERGONOMIC SOLE) ---
+        // 1. Bottom Rubber Grip Tread
+        const sandalTread = new THREE.Mesh(
+          new THREE.BoxGeometry(0.108, 0.016, 0.23),
+          treadMat
         );
-        sandalSole.position.set(0, -0.69, 0.04);
+        sandalTread.position.set(0, -0.70, 0.04);
+        sandalTread.castShadow = true;
+        legGroup.add(sandalTread);
+
+        // 2. Contoured Leather Footbed Sole
+        const sandalSole = new THREE.Mesh(
+          new THREE.BoxGeometry(0.104, 0.018, 0.225),
+          sandalSoleMat
+        );
+        sandalSole.position.set(0, -0.685, 0.04);
         sandalSole.castShadow = true;
         legGroup.add(sandalSole);
 
-        // V-strap thong
+        // 3. V-Thong Leather Straps
         const strap1 = new THREE.Mesh(
-          new THREE.BoxGeometry(0.08, 0.015, 0.022),
-          strapMat
+          new THREE.BoxGeometry(0.085, 0.016, 0.024),
+          sandalStrapMat
         );
-        strap1.position.set(0.02, -0.655, 0.06);
-        strap1.rotation.y = 0.5;
-        strap1.rotation.z = -0.3;
+        strap1.position.set(0.022, -0.655, 0.065);
+        strap1.rotation.set(0, 0.52, -0.32);
         legGroup.add(strap1);
 
         const strap2 = new THREE.Mesh(
-          new THREE.BoxGeometry(0.08, 0.015, 0.022),
-          strapMat
+          new THREE.BoxGeometry(0.085, 0.016, 0.024),
+          sandalStrapMat
         );
-        strap2.position.set(-0.02, -0.655, 0.06);
-        strap2.rotation.y = -0.5;
-        strap2.rotation.z = 0.3;
+        strap2.position.set(-0.022, -0.655, 0.065);
+        strap2.rotation.set(0, -0.52, 0.32);
         legGroup.add(strap2);
+
+        // 4. Central Toe Post
+        const toePost = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.007, 0.007, 0.038, 8),
+          sandalStrapMat
+        );
+        toePost.position.set(0, -0.665, 0.115);
+        legGroup.add(toePost);
 
       } else {
         // Female: Jubah skirt covering down to shoes
         const skirtColumn = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.16, 0.19, 0.56, 14),
-          whiteClothMat
+          new THREE.CylinderGeometry(0.165, 0.195, 0.56, 16),
+          abayaMat
         );
         skirtColumn.position.y = -0.24;
         skirtColumn.castShadow = true;
@@ -743,17 +1122,16 @@ export class AvatarModel {
 
         // Modest walking shoe / comfortable pilgrimage flats
         const shoe = new THREE.Mesh(
-          new THREE.BoxGeometry(0.082, 0.055, 0.17),
-          soleMat
+          new THREE.BoxGeometry(0.086, 0.055, 0.175),
+          sandalSoleMat
         );
         shoe.position.set(0, -0.66, 0.03);
         shoe.castShadow = true;
         legGroup.add(shoe);
 
-        // Shoe sole
         const shoeSole = new THREE.Mesh(
-          new THREE.BoxGeometry(0.086, 0.02, 0.18),
-          strapMat
+          new THREE.BoxGeometry(0.090, 0.02, 0.185),
+          treadMat
         );
         shoeSole.position.set(0, -0.69, 0.03);
         legGroup.add(shoeSole);
@@ -878,7 +1256,7 @@ export class AvatarModel {
   }
 
   /**
-   * Procedural animation loop (walking, swinging limbs, breathing)
+   * Procedural animation loop (realistic walking gait, swinging limbs, breathing)
    */
   public update(delta: number, isMoving: boolean, speedMultiplier: number = 1.0) {
     this.animTimer += delta * (isMoving ? 8 * speedMultiplier : 1.8);

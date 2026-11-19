@@ -67,9 +67,53 @@ export class MasjidilHaram {
     // Subtle atmospheric distance fog
     this.scene.fog = new THREE.FogExp2(0xbfe3f7, 0.0038);
 
+    // Procedural warm sandstone paving tile texture matching screenshot
+    const tileCanvas = document.createElement('canvas');
+    tileCanvas.width = 512;
+    tileCanvas.height = 512;
+    const tCtx = tileCanvas.getContext('2d')!;
+
+    // Warm limestone stone base
+    tCtx.fillStyle = '#eae4d8';
+    tCtx.fillRect(0, 0, 512, 512);
+
+    // Subtle stone flecks & grain
+    for (let i = 0; i < 4000; i++) {
+      const rx = Math.random() * 512;
+      const ry = Math.random() * 512;
+      const gray = Math.floor(215 + Math.random() * 35);
+      tCtx.fillStyle = `rgb(${gray},${gray - 4},${gray - 12})`;
+      tCtx.fillRect(rx, ry, 1.5, 1.5);
+    }
+
+    // 4x4 square tile grid with crisp grout seams (like Madinah & Makkah plazas)
+    const tileSize = 128;
+    for (let x = 0; x <= 512; x += tileSize) {
+      for (let y = 0; y <= 512; y += tileSize) {
+        // Grout joint shadow
+        tCtx.strokeStyle = 'rgba(150, 140, 128, 0.7)';
+        tCtx.lineWidth = 3.5;
+        tCtx.strokeRect(x + 1.5, y + 1.5, tileSize - 3, tileSize - 3);
+
+        // Subtle tile bevel highlight
+        tCtx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        tCtx.lineWidth = 1.2;
+        tCtx.strokeRect(x + 3, y + 3, tileSize - 6, tileSize - 6);
+      }
+    }
+
+    const plazaTexture = new THREE.CanvasTexture(tileCanvas);
+    plazaTexture.wrapS = THREE.RepeatWrapping;
+    plazaTexture.wrapT = THREE.RepeatWrapping;
+    plazaTexture.repeat.set(120, 120);
+
     // Grand Mosque outer plaza floor
     const plazaGeo = new THREE.PlaneGeometry(350, 350);
-    const plazaMat = new THREE.MeshLambertMaterial({ color: 0xedebe6 });
+    const plazaMat = new THREE.MeshStandardMaterial({
+      map: plazaTexture,
+      roughness: 0.82,
+      metalness: 0.04
+    });
     const plaza = new THREE.Mesh(plazaGeo, plazaMat);
     plaza.rotation.x = -Math.PI / 2;
     plaza.position.y = -0.05;

@@ -824,3 +824,55 @@ Pelan ini telah dilaksanakan pada 2026-11-16 18:43:16
    - Butang pintas `🚌 Naik Bas` / `🚪 Turun Bas` pada bar atas.
    - Papan pemuka pemanduan bas dengan meter kelajuan (*Speedometer*), destinasi semasa, dan butang pandu automatik.
    - Notifikasi ketibaan bas di setiap lokasi ziarah.
+
+
+---
+
+## 🗓️ Sesi Pelaksanaan: 2026-11-19 14:15:00 (Penaiktarafan Model 3D Watak Jemaah Berperincian Tinggi & Jelas Seperti Rujukan - Ultra-High Definition 3D Avatar)
+
+### 💬 Keperluan / Input Terkini Pengguna:
+* **Arahan Pengguna**: *"Upgrade model 3D jelas seperti ini"*
+* **Fail Rujukan Gambar**: `.miqa/uploads/screenshot_20261119_135826.jpg` (menampilkan watak jemaah berihram 3D realistik dengan lipatan kain drape, tekstur kain tenunan kapas, rumbai hujung kain, rambut beralun kemas, anatomi manusia seimbang, dan selipar kulit coklat asli) berbanding watak-watak primitif silinder rendah kualiti sebelumnya.
+
+### 🚀 Perubahan Kod & Seni Bina Baharu:
+
+1. **Penjana Tekstur Prosedural Resolusi Tinggi (`src/characters/AvatarModel.ts`)**:
+   - `getIhramTexture()` (1024x1024 CanvasTexture):
+     * Warna asas kain ihram kapas/linen hangat semula jadi (`#faf8f4`).
+     * Mikro-tenunan kain tuala ihram (*terrycloth / waffle weave micro-pattern*) bersaiz 4px bagi memberikan rasa fabrik sebenar.
+     * Kecerunan bayang lipatan fabrik pepenjuru (*diagonal drape tension folds & crease gradients*) merentasi dada, bahu, dan belakang.
+     * Jalur rumbai benang kain ihram (*woven tassel fringe border*) di hujung bawah kain dengan perincian benang berjarak dan berbayang.
+   - `getIhramBumpMap()` (1024x1024 CanvasTexture):
+     * Peta lekuk (*bump/normal map*) yang menghasilkan interaksi dinamik cahaya matahari terik padang pasir, menampakkan lurah lipatan kain yang tenggelam dan permatang lipatan yang cerah bersinar (*crease ridges & valleys*).
+   - `getHairTexture()` (512x512 CanvasTexture):
+     * Tekstur helaian rambut hitam/coklat gelap beralun organik, mengelakkan rupa plastik rata.
+   - `getLeatherTexture()` (512x512 CanvasTexture):
+     * Tekstur liang kulit coklat berangan (*chestnut leather*) dengan garisan jahitan dan kehangatan tona selipar jemaah.
+   - `getAbayaTexture()` & `getAbayaBumpMap()` (1024x1024 CanvasTexture):
+     * Tekstur tenunan fabrik krep lembut sopan bagi jemaah wanita dengan bayang lipatan jubah menegak yang anggun.
+
+2. **Pembinaan Semula Geometri & Anatomi 3D Jemaah Lelaki (`src/characters/AvatarModel.ts`)**:
+   - **Kepala & Wajah**:
+     * Kranium dan leher berotot berserta halkum (*Adam's apple*).
+     * Tulang rahang maskulin, dagu, soket mata dengan sklera putih dan iris gelap, hidung mancung berserta bibir semula jadi.
+     * **Gaya Rambut Bertekstur Beralun Berlapis**: Gugusan rambut beralun 3D di bahagian atas dan sisi (*layered wavy hair tufts*) dengan jambang kemas (*sideburns*) mengikut visual rujukan.
+     * Janggut sunnah kemas dipotong rapi di sepanjang garisan rahang dan dagu.
+   - **Kain Atas Ihram (Rida')**:
+     * **Lipatan Kolar Labuh Belakang (*Neck Cowl / Hood-like Drape*)**: Lipatan kain melengkung lembut di keliling leher dan belakang atas bahu yang jatuh ke tulang belakang, menyerupai cape/mantle bertingkat seperti dalam gambar rujukan.
+     * **Lapisan Balutan Pepenjuru (*Diagonal Wrap Panel*)**: Panel kain ihram bertindih yang membalut dada dan torso.
+     * **Permatang Lipatan 3D Nyata (*Sculpted 3D Crease Ridges*)**: Tulang rusuk lipatan 3D melengkung yang menghasilkan bayang sendiri (*self-shadowing*) di bawah cahaya matahari Three.js.
+     * **Rumbai Hujung Kain (*Fringe Tassels*)**: Garisan rumbai benang di hujung kain rida'.
+     * **Tali Pinggang Ihram Tradisional (Talbiyah Pouch Belt)**: Tali pinggang hijau berkepala tembaga emas dan kantung berzip.
+   - **Kain Bawah Ihram (Izar)**:
+     * Lipatan gulungan pinggang atas dan kain skirt jatuh labuh melepasi lutut ke paras betis.
+     * Tindihan panel hadapan berumbai dan lurah lipatan menegak yang beralun semasa watak berjalan/berlari.
+   - **Lengan & Tangan Beranatomi**:
+     * Bahu deltoid, lengan atas bersalut kain, siku, lengan bawah bertirus, dan pergelangan tangan.
+     * Tapak tangan berseni, ibu jari dengan sendi sudut, dan 4 jari berasingan.
+   - **Selipar Ihram Kulit Berangan (*Authentic Chestnut Leather Pilgrimage Sandals*)**:
+     * Tapak dwi-lapisan ergonomik: Tapak cengkaman getah gelap di bawah dan lapik tapak kulit coklat berangan hangat di atas.
+     * Tali kulit bentuk V (*V-thong straps*) berserta tiang celah jari (*toe post*) dan sokongan tumit, menepati 100% selipar jemaah umrah dalam gambar rujukan.
+
+3. **Penaiktarafan Turapan Lantai Dataran (*Stone Plaza Paving Tiles*) (`src/world/MasjidilHaram.ts`)**:
+   - Menggantikan warna rata `0xedebe6` dataran dengan tekstur jubin batu pasir bergrid (*square paving tiles*) bersaiz 4x4 unit dengan alur simen (*grout lines*) dan bintik batu semula jadi.
+   - Memastikan lantai tempat berdiri avatar sepadan sepenuhnya dengan jubin bergrid dalam tangkap layar pengguna.
