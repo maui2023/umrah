@@ -31,6 +31,8 @@ export class UmrahWorkflow {
   private hasPassedYamani: boolean = false;
   private lastTawafAngle: number | null = null;
   private tawafAngularAccumulation: number = 0;
+  private clockwiseWrongAccumulation: number = 0;
+  private lastWrongDirectionWarningTime: number = 0;
 
   // Sa'i progress tracking
   private saiNextTarget: 'safa' | 'marwah' = 'safa';
@@ -252,7 +254,7 @@ export class UmrahWorkflow {
 
     this.onDuaTriggeredCallback?.(
       ISTILAM_DUA,
-      'Alhamdulillah! Rombongan tiba di Masjidil Haram, Makkah. Menuju ke garisan Hajarul Aswad untuk memulakan Tawaf pusingan pertama!'
+      'Alhamdulillah! Rombongan tiba di Masjidil Haram, Makkah. Mulakan Tawaf di garisan Hajarul Aswad secara LAWAN ARAH JAM (Kaabah sentiasa di sebelah kiri anda)!'
     );
   }
 
@@ -330,8 +332,21 @@ export class UmrahWorkflow {
       if (deltaAngle > Math.PI) deltaAngle -= Math.PI * 2;
       if (deltaAngle < -Math.PI) deltaAngle += Math.PI * 2;
 
+      // In Three.js X-Z plane, counter-clockwise circling Kaabah has deltaAngle < 0
       if (deltaAngle < 0 && Math.abs(deltaAngle) < 0.6) {
         this.tawafAngularAccumulation += Math.abs(deltaAngle);
+        this.clockwiseWrongAccumulation = 0;
+      } else if (deltaAngle > 0.02 && deltaAngle < 0.6) {
+        // Player is walking clockwise (wrong direction!)
+        this.clockwiseWrongAccumulation += deltaAngle;
+        const now = Date.now();
+        if (this.clockwiseWrongAccumulation > 0.5 && now - this.lastWrongDirectionWarningTime > 12000) {
+          this.lastWrongDirectionWarningTime = now;
+          this.onDuaTriggeredCallback?.(
+            ISTILAM_DUA,
+            '⚠️ Peringatan Arah Tawaf: Sila pusing mengikut LAWAN ARAH JAM (Kaabah sentiasa di sebelah kiri anda)!'
+          );
+        }
       }
     }
     this.lastTawafAngle = currentAngle;

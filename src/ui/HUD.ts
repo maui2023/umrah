@@ -46,6 +46,7 @@ export class HUD {
   private onResetProgressCallback: (() => void) | null = null;
   private onManualSaveCallback: (() => void) | null = null;
   public isBusBoarded: boolean = false;
+  public isAutoWalking: boolean = false;
 
   constructor() {
     this.container = document.createElement('div');
@@ -462,12 +463,21 @@ export class HUD {
       <!-- BOTTOM LAYER: JOYSTICK (Left) & ROSTER + RUN BUTTON (Right) -->
       <div class="w-full flex items-end justify-between pointer-events-none pb-2 sm:pb-3">
         
-        <!-- JOYSTICK (Matches screenshot: outer cream ring with dashed inner ring and navy thumb) -->
-        <div id="touch-joystick-zone" class="interactive-ui pointer-events-auto relative w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-[#FAF7F2]/90 backdrop-blur-md border border-stone-200/80 shadow-[0_12px_32px_rgba(0,0,0,0.08)] flex items-center justify-center touch-none select-none cursor-grab active:cursor-grabbing">
-          <!-- Inner Dashed Outline Ring (exact style from screenshot) -->
-          <div class="w-[82%] h-[82%] rounded-full border border-dashed border-stone-400/50 absolute pointer-events-none"></div>
-          <!-- Center Navy Blue Control Knob -->
-          <div id="touch-joystick-thumb" class="w-12 h-12 rounded-full bg-[#1E293B] shadow-lg pointer-events-none transform transition-transform"></div>
+        <!-- JOYSTICK CONTAINER (Left, with Auto-Walk / Kunci Gerak Pill) -->
+        <div class="pointer-events-auto flex flex-col items-center gap-1.5 select-none">
+          <!-- Auto-Walk / Kunci Jalan Pill Button -->
+          <button id="btn-auto-walk" title="Kunci Jalan / Auto-Walk (Terus berjalan ke hadapan mengikut arah pandangan)" class="interactive-ui px-3 py-1 rounded-full bg-[#FAF7F2]/95 backdrop-blur-md border border-stone-200/80 shadow-[0_4px_12px_rgba(0,0,0,0.06)] flex items-center gap-1.5 text-[10px] font-bold text-stone-700 active:scale-95 transition cursor-pointer select-none touch-none">
+            <span id="auto-walk-icon">🚶‍♂️</span>
+            <span id="auto-walk-label">Auto-Jalan</span>
+          </button>
+
+          <!-- JOYSTICK -->
+          <div id="touch-joystick-zone" class="interactive-ui relative w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-[#FAF7F2]/90 backdrop-blur-md border border-stone-200/80 shadow-[0_12px_32px_rgba(0,0,0,0.08)] flex items-center justify-center touch-none select-none cursor-grab active:cursor-grabbing">
+            <!-- Inner Dashed Outline Ring -->
+            <div class="w-[82%] h-[82%] rounded-full border border-dashed border-stone-400/50 absolute pointer-events-none"></div>
+            <!-- Center Navy Blue Control Knob -->
+            <div id="touch-joystick-thumb" class="w-12 h-12 rounded-full bg-[#1E293B] shadow-lg pointer-events-none transform transition-transform"></div>
+          </div>
         </div>
 
         <!-- RIGHT BOTTOM: ROSTER BADGE (YELLOW - MOVED DOWN) + RUN BUTTON -->
@@ -756,17 +766,63 @@ export class HUD {
   private setupJoystick() {
     const zone = this.container.querySelector('#touch-joystick-zone') as HTMLElement;
     const thumb = this.container.querySelector('#touch-joystick-thumb') as HTMLElement;
+    const autoWalkBtn = this.container.querySelector('#btn-auto-walk') as HTMLButtonElement;
+    const autoWalkIcon = this.container.querySelector('#auto-walk-icon') as HTMLElement;
+    const autoWalkLabel = this.container.querySelector('#auto-walk-label') as HTMLElement;
     if (!zone || !thumb) return;
 
     let touchId: number | null = null;
     let isMouseDown = false;
     let center = { x: 0, y: 0 };
     const maxRadius = 42;
+    let lastTapTime = 0;
+
+    const setAutoWalkState = (state: boolean) => {
+      this.isAutoWalking = state;
+      if (autoWalkBtn) {
+        if (state) {
+          autoWalkBtn.classList.add('bg-emerald-100', 'border-emerald-500', 'text-emerald-800');
+          autoWalkBtn.classList.remove('bg-[#FAF7F2]/95', 'border-stone-200/80', 'text-stone-700');
+          if (autoWalkIcon) autoWalkIcon.textContent = '🟢';
+          if (autoWalkLabel) autoWalkLabel.textContent = 'Auto: Bergerak';
+          thumb.style.transform = 'translate(0px, -28px)';
+          this.onJoystickMoveCallback?.(0, -1);
+        } else {
+          autoWalkBtn.classList.remove('bg-emerald-100', 'border-emerald-500', 'text-emerald-800');
+          autoWalkBtn.classList.add('bg-[#FAF7F2]/95', 'border-stone-200/80', 'text-stone-700');
+          if (autoWalkIcon) autoWalkIcon.textContent = '🚶‍♂️';
+          if (autoWalkLabel) autoWalkLabel.textContent = 'Auto-Jalan';
+          thumb.style.transform = 'translate(0px, 0px)';
+          this.onJoystickMoveCallback?.(0, 0);
+        }
+      }
+    };
+
+    autoWalkBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setAutoWalkState(!this.isAutoWalking);
+    });
 
     // Mobile Touch
     zone.addEventListener('touchstart', (e) => {
       e.preventDefault();
       e.stopPropagation();
+
+      // Double tap zone to toggle Auto-Walk
+      const now = Date.now();
+      if (now - lastTapTime < 320) {
+        setAutoWalkState(!this.isAutoWalking);
+        lastTapTime = 0;
+        return;
+      }
+      lastTapTime = now;
+
+      // Cancel auto-walk if manual touch starts
+      if (this.isAutoWalking) {
+        setAutoWalkState(false);
+      }
+
+      if (touchId !== null) return;
       const touch = e.changedTouches[0];
       touchId = touch.identifier;
       const rect = zone.getBoundingClientRect();
@@ -794,20 +850,48 @@ export class HUD {
       }
     }, { passive: true });
 
-    const resetJoystick = () => {
-      touchId = null;
-      isMouseDown = false;
-      thumb.style.transform = 'translate(0px, 0px)';
-      this.onJoystickMoveCallback?.(0, 0);
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (touchId === null) return;
+      let matchingEnded = false;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === touchId) {
+          matchingEnded = true;
+          break;
+        }
+      }
+
+      // CRITICAL FIX: Only reset the joystick if the finger touching the joystick was lifted,
+      // or if all touches on screen are gone. Releasing another finger (e.g. from camera look-around / ubah pandang)
+      // will NOT reset or interrupt joystick movement!
+      if (matchingEnded || e.touches.length === 0) {
+        touchId = null;
+        if (!this.isAutoWalking) {
+          thumb.style.transform = 'translate(0px, 0px)';
+          this.onJoystickMoveCallback?.(0, 0);
+        }
+      }
     };
 
-    window.addEventListener('touchend', resetJoystick, { passive: true });
-    window.addEventListener('touchcancel', resetJoystick, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', handleTouchEnd, { passive: true });
 
     // Desktop Mouse Drag Support
     zone.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
+
+      const now = Date.now();
+      if (now - lastTapTime < 320) {
+        setAutoWalkState(!this.isAutoWalking);
+        lastTapTime = 0;
+        return;
+      }
+      lastTapTime = now;
+
+      if (this.isAutoWalking) {
+        setAutoWalkState(false);
+      }
+
       isMouseDown = true;
       const rect = zone.getBoundingClientRect();
       center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
@@ -830,7 +914,11 @@ export class HUD {
 
     window.addEventListener('mouseup', () => {
       if (isMouseDown) {
-        resetJoystick();
+        isMouseDown = false;
+        if (!this.isAutoWalking) {
+          thumb.style.transform = 'translate(0px, 0px)';
+          this.onJoystickMoveCallback?.(0, 0);
+        }
       }
     });
   }
@@ -923,7 +1011,7 @@ export class HUD {
     if (stage === 'tawaf') {
       if (categoryLabelEl) categoryLabelEl.innerText = 'RUKUN UMRAH 1/3';
       if (titleEl) titleEl.innerText = 'Tawaf Kaabah (7 Pusingan)';
-      if (descText) descText.innerText = 'Mulakan pusingan di garisan Hajarul Aswad. Kaabah sentiasa berada di sebelah kiri anda.';
+      if (descText) descText.innerText = 'Mulakan pusingan di garisan Hajarul Aswad. Pusingan LAWAN ARAH JAM (Kaabah sentiasa berada di sebelah kiri anda).';
       if (actionText) actionText.innerText = 'Pusingan Tawaf';
       if (actionIcon) actionIcon.innerText = '🕋';
       this.updateSegmentPills(1, 7);
@@ -1013,7 +1101,7 @@ export class HUD {
 
     if (stage === 'tawaf') {
       if (titleEl) titleEl.innerText = `Tawaf Pusingan ke-${lap} / 7`;
-      if (descText) descText.innerText = `Sedang mengelilingi Kaabah pusingan ke-${lap}. Kaabah di sebelah kiri. Lafazkan doa dan lakukan istilam di penjuru Rukun Yamani dan Hajarul Aswad.`;
+      if (descText) descText.innerText = `Sedang mengelilingi Kaabah pusingan ke-${lap}. Pusingan LAWAN ARAH JAM (Kaabah sentiasa di sebelah kiri). Lafazkan doa dan lakukan istilam di penjuru Rukun Yamani dan Hajarul Aswad.`;
     } else {
       const fromHill = lap % 2 === 1 ? 'Safa ke Marwah' : 'Marwah ke Safa';
       if (titleEl) titleEl.innerText = `Sa'i Pusingan ke-${lap} (${fromHill})`;

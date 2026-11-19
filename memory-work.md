@@ -876,3 +876,35 @@ Pelan ini telah dilaksanakan pada 2026-11-16 18:43:16
 3. **Penaiktarafan Turapan Lantai Dataran (*Stone Plaza Paving Tiles*) (`src/world/MasjidilHaram.ts`)**:
    - Menggantikan warna rata `0xedebe6` dataran dengan tekstur jubin batu pasir bergrid (*square paving tiles*) bersaiz 4x4 unit dengan alur simen (*grout lines*) dan bintik batu semula jadi.
    - Memastikan lantai tempat berdiri avatar sepadan sepenuhnya dengan jubin bergrid dalam tangkap layar pengguna.
+
+
+---
+
+## 🗓️ Sesi Pelaksanaan: 2026-11-19 18:50:00 (Pembetulan Arah Tawaf Lawan Jam & Kawalan Gerak Berterusan Semasa Ubah Pandang)
+
+### 💬 Keperluan / Input Terkini Pengguna:
+* **Arahan Pengguna**: *"Pusingan arah salah, ia sepatutnya lawan jam untuk tawaf. Button move bila guna ubah pandang terus tidak bergerak selepas lepas ubah pandang, sila buat ia terus bergerak walau lepas ubah pandangan"*
+
+### 🚀 Perubahan Kod & Seni Bina Baharu:
+
+1. **Pembetulan Arah Pusingan Tawaf: Lawan Arah Jam (*Counter-Clockwise Tawaf Orbit*) (`src/multiplayer/SupabaseService.ts` & `src/world/MasjidilHaram.ts`)**:
+   - **Enjin Jemaah Simulasi (NPC Tawaf Bots)**:
+     * Menukar formula pergerakan sudut orbit jemaah daripada ikut jam (`cfg.angle += cfg.speed`) kepada **Lawan Arah Jam** (`cfg.angle -= cfg.speed`).
+     * Memperbetul sudut putaran badan jemaah (`rotation`) kepada tangen lawan jam: `Math.atan2(Math.sin(cfg.angle), -Math.cos(cfg.angle))`.
+     * Kesemua jemaah rombongan (Ustaz Hilmi, Haji Fauzi, Hajjah Aminah, Kumpulan Andalusia, Kumpulan Rayhar, dan solo) kini berarak mengelilingi Kaabah mengikut syariat Islam: Kaabah sentiasa berada tepat di sebelah kiri jemaah.
+   - **Penanda Arah Lantai Marmar Dataran Mataf (`src/world/MasjidilHaram.ts`)**:
+     * Menambah anak panah chevron marmar gangsa (*inlaid floor chevron markers*) di atas gelung Dataran Mataf pada jejari 17m, 27m, dan 37m yang menghala ke arah lawan jam (dari garisan Hajarul Aswad menghala ke Maqam Ibrahim, Hijr Ismail, Rukun Yamani, dan kembali ke Hajarul Aswad).
+   - **Pengesahan & Amaran Pintar Alur Tawaf (`src/simulation/UmrahWorkflow.ts` & `src/ui/HUD.ts`)**:
+     * Menambah pengesan arah pusingan songsang: Sekiranya pemain berjalan mengikut arah jam, peringatan mesra automatik dipaparkan: *"⚠️ Peringatan Arah Tawaf: Sila pusing mengikut LAWAN ARAH JAM (Kaabah sentiasa di sebelah kiri anda)!"*.
+     * Mengemas kini teks panduan HUD untuk menegaskan rukun pusingan Lawan Arah Jam.
+
+2. **Pembetulan Butang Gerak & Sokongan Dwi-Sentuhan Multi-Touch Kamera (`src/ui/HUD.ts` & `src/controllers/PlayerController.ts`)**:
+   - **Punca Ralat Sebelum Ini**:
+     * Pada kod terdahulu, `window.addEventListener('touchend', resetJoystick)` dipanggil tanpa menapis pengecam sentuhan (`touch.identifier`). Apabila pemain memegang joystick dengan satu jari dan meleret skrin dengan jari kedua untuk mengubah pandangan kamera (*ubah pandang*), tindakan mengangkat jari kedua (*lepas ubah pandang*) secara tidak sengaja mencetuskan `resetJoystick()` lalu menghentikan pergerakan avatar serta-merta.
+   - **Penyelesaian Multi-Touch**:
+     * Acara `touchend` dan `touchcancel` kini menapis `e.changedTouches` dan hanya mereset joystick sekiranya sentuhan jari joystick itu sendiri yang dilepaskan atau tiada sebarang sentuhan berbaki di skrin (`e.touches.length === 0`).
+     * Mengangkat jari ubah pandangan tidak lagi mengganggu atau menghentikan butang pergerakan pemain.
+   - **Ciri Baharu: Butang & Pintasan Auto-Jalan (`#btn-auto-walk`)**:
+     * Menambah butang `[ 🚶‍♂️ Auto-Jalan ]` di atas zon joystick.
+     * Pemain boleh menekan butang ini atau mengetuk dua kali (*double tap*) pada joystick untuk mengunci pergerakan ke hadapan secara automatik.
+     * Semasa Auto-Jalan aktif, pemain boleh bebas mengubah sudut kamera 360 darjah pada bila-bila masa, dan avatar akan terus melangkah ke hadapan mengikut arah pandangan baharu secara lancar dan bebas tangan (*hands-free*).

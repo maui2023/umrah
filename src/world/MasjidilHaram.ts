@@ -148,6 +148,38 @@ export class MasjidilHaram {
       this.scene.add(ring);
     }
 
+    // Counter-clockwise floor guide arrows (Inlaid subtle bronze/sandstone marble chevron in Mataf)
+    // Points counter-clockwise (Lawan Arah Jam: Kaabah sentiasa di sebelah kiri jemaah)
+    const arrowShape = new THREE.Shape();
+    arrowShape.moveTo(0, 0.7);
+    arrowShape.lineTo(0.3, -0.3);
+    arrowShape.lineTo(0, -0.1);
+    arrowShape.lineTo(-0.3, -0.3);
+    arrowShape.closePath();
+    const arrowGeo = new THREE.ShapeGeometry(arrowShape);
+    const arrowMat = new THREE.MeshBasicMaterial({
+      color: 0xc2af91,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.85
+    });
+
+    const guideRadii = [17, 27, 37];
+    guideRadii.forEach((r) => {
+      const count = r === 17 ? 6 : (r === 27 ? 8 : 10);
+      for (let i = 0; i < count; i++) {
+        const theta = (i / count) * Math.PI * 2;
+        const x = Math.cos(theta) * r;
+        const z = Math.sin(theta) * r;
+
+        const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+        arrow.rotation.x = -Math.PI / 2;
+        arrow.rotation.z = -theta;
+        arrow.position.set(x, 0.015, z);
+        this.scene.add(arrow);
+      }
+    });
+
     // Starting Line (Aligned with Hajarul Aswad, extending to outer Mataf edge)
     // Hajarul Aswad is at the South-East corner (approx x: 5.5, z: 6)
     const lineGeo = new THREE.PlaneGeometry(0.5, matafRadius - 8);

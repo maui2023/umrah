@@ -395,11 +395,12 @@ export class SupabaseService {
       }
     ];
 
-    // Initialize Tawaf pilgrims
+    // Initialize Tawaf pilgrims (Circling Kaabah counter-clockwise / Lawan Arah Jam)
     tawafConfigs.forEach((cfg) => {
       const x = Math.cos(cfg.angle) * cfg.radius;
       const z = Math.sin(cfg.angle) * cfg.radius;
-      const rotation = cfg.angle + Math.PI / 2;
+      // Facing tangent of counter-clockwise circular path (Kaabah on left shoulder)
+      const rotation = Math.atan2(Math.sin(cfg.angle), -Math.cos(cfg.angle));
 
       this.mockPilgrims.set(cfg.id, {
         id: cfg.id,
@@ -444,18 +445,19 @@ export class SupabaseService {
 
     // Update mock pilgrims on a smooth animation loop (80ms ~ 12.5Hz)
     this.mockIntervalTimer = window.setInterval(() => {
-      // 1. Move Tawaf pilgrims along counter-clockwise orbit
+      // 1. Move Tawaf pilgrims along counter-clockwise orbit (Lawan Arah Jam, Kaabah di kiri)
       tawafConfigs.forEach((cfg) => {
-        cfg.angle += cfg.speed;
-        if (cfg.angle > Math.PI * 2) {
-          cfg.angle -= Math.PI * 2;
+        cfg.angle -= cfg.speed;
+        if (cfg.angle < 0) {
+          cfg.angle += Math.PI * 2;
         }
 
         const p = this.mockPilgrims.get(cfg.id);
         if (p) {
           p.x = Math.cos(cfg.angle) * cfg.radius;
           p.z = Math.sin(cfg.angle) * cfg.radius;
-          p.rotation = cfg.angle + Math.PI / 2;
+          // Smoothly face along tangent of counter-clockwise path
+          p.rotation = Math.atan2(Math.sin(cfg.angle), -Math.cos(cfg.angle));
           p.isMoving = true;
           p.lastUpdated = Date.now();
         }
