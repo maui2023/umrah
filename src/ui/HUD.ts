@@ -295,16 +295,14 @@ export class HUD {
         <span class="text-stone-400 text-[10px]">▶</span>
       </button>
 
-      <!-- TOP LAYER: HEADER CARD (Left) & ACTION BUTTON STACK (Right) -->
-      <div class="w-full flex items-start justify-between pointer-events-none gap-2 sm:gap-4">
-        
-        <!-- TOP-LEFT: MINIMALIST MODERN LOCATION & PROGRESS CARD (Exactly matches screenshot) -->
-        <div class="pointer-events-auto flex flex-col gap-2 min-w-0 flex-1 max-w-[calc(100vw-180px)] sm:max-w-[370px]">
+      <!-- TOP LAYER: FULL WIDTH HEADER & INFO CARDS (Purple & Blue Cards - Full Size) -->
+      <div class="w-full flex flex-col pointer-events-none gap-2 z-30">
+        <div class="pointer-events-auto flex flex-col gap-2 w-full max-w-full">
           
           <!-- Mini Pill for Title Card (Shown when Card 1 is auto-hidden upwards) -->
           <button id="hud-title-mini-pill" style="display: none;" title="Papar Info Umrah Simulator" class="hud-mini-pill-anim interactive-ui self-start flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 text-xs font-medium hover:bg-stone-50 active:scale-95 transition cursor-pointer max-w-full">
             <span class="inline-block w-2.5 h-[2px] bg-[#C5A880] rounded-full shrink-0"></span>
-            <span id="hud-mini-location-title" class="font-serif font-medium text-stone-900 truncate max-w-[95px] sm:max-w-[160px]">Saqifah Bani Saedah</span>
+            <span id="hud-mini-location-title" class="font-serif font-medium text-stone-900 truncate max-w-[120px] sm:max-w-[220px]">Saqifah Bani Saedah</span>
             <span class="text-stone-300 shrink-0">•</span>
             <span id="hud-mini-lap-pill" class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md shrink-0">Pusingan 1</span>
             <span class="text-stone-300 shrink-0">•</span>
@@ -312,8 +310,8 @@ export class HUD {
             <span class="text-stone-400 text-[10px] ml-0.5 shrink-0">▼</span>
           </button>
 
-          <!-- Card 1: Main Simulator & Location Title & Progress Indicator -->
-          <div id="hud-title-card" class="hud-title-card-anim bg-white/95 backdrop-blur-md rounded-2xl p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-stone-200/60 text-stone-900 transition-all relative overflow-hidden">
+          <!-- Card 1: Main Simulator & Location Title & Progress Indicator (PURPLE - FULL SIZE) -->
+          <div id="hud-title-card" class="hud-title-card-anim bg-white/95 backdrop-blur-md rounded-2xl p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-stone-200/60 text-stone-900 transition-all relative overflow-hidden w-full">
             <!-- 3s Auto-hide Countdown Line -->
             <div class="absolute top-0 left-0 right-0 h-[2px] bg-stone-100 overflow-hidden">
               <div id="hud-title-countdown-bar" class="h-full bg-gradient-to-r from-[#C5A880] to-amber-500 w-full origin-left transition-all duration-[3000ms] ease-linear"></div>
@@ -362,8 +360,8 @@ export class HUD {
             </div>
           </div>
 
-          <!-- Card 2: Clean Description Subcard (Matches screenshot with 3-second auto-hide) -->
-          <div id="hud-desc-card" class="hud-desc-card-anim bg-white/95 backdrop-blur-md rounded-2xl p-3.5 sm:p-4 shadow-[0_6px_20px_rgba(0,0,0,0.04)] border border-stone-200/60 text-[13px] sm:text-[14px] leading-relaxed text-stone-700 transition-all relative overflow-hidden">
+          <!-- Card 2: Clean Description Subcard (BLUE - FULL SIZE) -->
+          <div id="hud-desc-card" class="hud-desc-card-anim bg-white/95 backdrop-blur-md rounded-2xl p-3.5 sm:p-4 shadow-[0_6px_20px_rgba(0,0,0,0.04)] border border-stone-200/60 text-[13px] sm:text-[14px] leading-relaxed text-stone-700 transition-all relative overflow-hidden w-full">
             <!-- 3s Auto-hide Countdown Line -->
             <div class="absolute top-0 left-0 right-0 h-[2.5px] bg-stone-100 overflow-hidden">
               <div id="hud-desc-countdown-bar" class="h-full bg-gradient-to-r from-[#C5A880] to-amber-500 w-full origin-left transition-all duration-[3000ms] ease-linear"></div>
@@ -420,45 +418,48 @@ export class HUD {
           </div>
 
         </div>
+      </div>
 
-        <!-- TOP-RIGHT: ACTION BUTTON STACK (Matches screenshot + Rombongan) -->
-        <div class="pointer-events-auto flex flex-col gap-2 sm:gap-2.5 z-40 items-end shrink-0 mt-2 sm:mt-0">
-          
-          <!-- 1. Info Rombongan & Mutawwif Button (Asal di bucu atas kanan seperti ditunjukkan anak panah lakaran) -->
-          <button id="btn-top-roster" title="Info Jemaah & Jarak Mutawwif" class="interactive-ui min-h-[44px] px-3.5 sm:px-4 py-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center gap-2 text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer w-auto max-w-[210px] sm:max-w-[250px] shrink-0">
-            <span class="text-base sm:text-lg shrink-0">👥</span>
-            <div class="flex flex-col text-left leading-tight pr-0.5 min-w-0">
-              <span id="top-roster-group-label" class="text-[9px] font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">ROMBONGAN</span>
-              <span id="top-roster-status-text" class="text-[11px] font-bold text-stone-800 whitespace-nowrap">1 Ahli</span>
-            </div>
-            <span id="top-roster-badge" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-1"></span>
-          </button>
+      <!-- FLOATING ACTION MENU / DROPDOWN (TURQUOISE - COLLAPSED TO SINGLE ICON) -->
+      <div id="hud-action-dropdown-container" class="pointer-events-auto fixed right-3 sm:right-4 top-[290px] z-40 flex flex-col items-end gap-2">
+        <!-- Single Toggle Icon Button (TURQUOISE - Closed by default) -->
+        <button id="btn-action-dropdown-toggle" title="Menu Tindakan & Pilihan" class="interactive-ui w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.1)] border border-stone-200/80 flex items-center justify-center text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer">
+          <svg id="action-dropdown-toggle-icon" class="w-5 h-5 text-stone-700 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
 
-          <!-- 2. Jadual Ziarah & Peta (Book Icon) -->
-          <button id="btn-top-itinerary" title="Jadual & Laluan Ziarah Lengkap" class="interactive-ui w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center justify-center text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer">
-            <svg class="w-5 h-5 text-stone-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- Dropdown Menu List (Initially hidden - closed to single icon) -->
+        <div id="hud-action-dropdown-menu" style="display: none;" class="hud-dropdown-anim flex flex-col gap-1.5 items-end pt-1 origin-top-right transition-all duration-200">
+          <!-- 1. Jadual Ziarah & Peta (Book Icon) -->
+          <button id="btn-top-itinerary" title="Jadual & Laluan Ziarah Lengkap" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 hover:bg-stone-50 active:scale-95 transition cursor-pointer text-xs font-semibold whitespace-nowrap">
+            <svg class="w-4 h-4 text-stone-700 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
+            <span>Jadual Ziarah</span>
           </button>
 
           <!-- 2. Bantuan & Panduan (?) -->
-          <button id="btn-top-help" title="Panduan Ibadah & Kawalan" class="interactive-ui w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center justify-center text-stone-800 hover:bg-stone-50 active:scale-95 transition cursor-pointer text-lg font-bold font-serif">
-            ?
+          <button id="btn-top-help" title="Panduan Ibadah & Kawalan" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 hover:bg-stone-50 active:scale-95 transition cursor-pointer text-xs font-semibold whitespace-nowrap">
+            <span class="w-4 h-4 flex items-center justify-center font-serif font-bold text-sm text-stone-700">?</span>
+            <span>Panduan</span>
           </button>
 
           <!-- 3. Audio & Mute (Speaker Icon) -->
-          <button id="btn-top-audio" title="Kawal Bunyi & Suara" class="interactive-ui w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center justify-center text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer">
-            <span id="top-audio-icon" class="text-sm font-semibold">🔈x</span>
+          <button id="btn-top-audio" title="Kawal Bunyi & Suara" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 hover:bg-stone-50 active:scale-95 transition cursor-pointer text-xs font-semibold whitespace-nowrap">
+            <span id="top-audio-icon" class="w-4 h-4 flex items-center justify-center text-xs font-semibold">🔈x</span>
+            <span>Audio</span>
           </button>
 
           <!-- 4. Exit / Sesi & Simpanan -->
-          <button id="btn-top-exit" title="Keluar / Simpan Sesi / Mula Semula" class="interactive-ui w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center justify-center text-stone-800 hover:bg-stone-50 active:scale-95 transition cursor-pointer text-xs font-bold">
-            Exit
+          <button id="btn-top-exit" title="Keluar / Simpan Sesi / Mula Semula" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 hover:bg-stone-50 active:scale-95 transition cursor-pointer text-xs font-bold whitespace-nowrap">
+            <span class="w-4 h-4 flex items-center justify-center text-xs">🚪</span>
+            <span>Exit / Simpan</span>
           </button>
         </div>
       </div>
 
-      <!-- BOTTOM LAYER: JOYSTICK (Left) & RUN BUTTON (Right) -->
+      <!-- BOTTOM LAYER: JOYSTICK (Left) & ROSTER + RUN BUTTON (Right) -->
       <div class="w-full flex items-end justify-between pointer-events-none pb-2 sm:pb-3">
         
         <!-- JOYSTICK (Matches screenshot: outer cream ring with dashed inner ring and navy thumb) -->
@@ -469,8 +470,19 @@ export class HUD {
           <div id="touch-joystick-thumb" class="w-12 h-12 rounded-full bg-[#1E293B] shadow-lg pointer-events-none transform transition-transform"></div>
         </div>
 
-        <!-- RUN BUTTON (Matches screenshot: round cream button with >> and RUN text) -->
-        <div class="pointer-events-auto">
+        <!-- RIGHT BOTTOM: ROSTER BADGE (YELLOW - MOVED DOWN) + RUN BUTTON -->
+        <div class="pointer-events-auto flex flex-col items-end gap-2.5">
+          <!-- Info Rombongan & Mutawwif Button (KUNING - Diturunkan ke bawah mengikut lakaran) -->
+          <button id="btn-top-roster" title="Info Jemaah & Jarak Mutawwif" class="interactive-ui min-h-[42px] px-3.5 sm:px-4 py-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 flex items-center gap-2 text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer w-auto max-w-[210px] sm:max-w-[250px] shrink-0">
+            <span class="text-base sm:text-lg shrink-0">👥</span>
+            <div class="flex flex-col text-left leading-tight pr-0.5 min-w-0">
+              <span id="top-roster-group-label" class="text-[9px] font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">ROMBONGAN</span>
+              <span id="top-roster-status-text" class="text-[11px] font-bold text-stone-800 whitespace-nowrap">1 Ahli</span>
+            </div>
+            <span id="top-roster-badge" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-1"></span>
+          </button>
+
+          <!-- RUN BUTTON (Matches screenshot: round cream button with >> and RUN text) -->
           <button id="btn-mobile-sprint" title="Lari / Pecut (Shift / Run)" class="interactive-ui w-[72px] h-[72px] sm:w-[78px] sm:h-[78px] rounded-full bg-[#FAF7F2]/95 backdrop-blur-md border border-stone-200/80 shadow-[0_12px_32px_rgba(0,0,0,0.08)] flex flex-col items-center justify-center active:scale-95 transition cursor-pointer select-none touch-none">
             <span class="text-stone-900 font-black text-sm tracking-tighter leading-none mb-1">»</span>
             <span class="text-stone-900 font-bold text-[10px] tracking-widest leading-none">RUN</span>
@@ -579,6 +591,39 @@ export class HUD {
 
     // === END AUTO-HIDE LISTENERS ===
 
+    // Turquoise Action Dropdown Toggle (Collapse to Single Icon)
+    const dropdownToggleBtn = this.container.querySelector('#btn-action-dropdown-toggle') as HTMLButtonElement;
+    const dropdownMenu = this.container.querySelector('#hud-action-dropdown-menu') as HTMLElement;
+    const dropdownIconSvg = this.container.querySelector('#action-dropdown-toggle-icon') as SVGElement;
+
+    let isDropdownOpen = false;
+    const setDropdownState = (open: boolean) => {
+      isDropdownOpen = open;
+      if (dropdownMenu) {
+        dropdownMenu.style.display = open ? 'flex' : 'none';
+      }
+      if (dropdownIconSvg) {
+        dropdownIconSvg.innerHTML = open
+          ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />'
+          : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />';
+      }
+    };
+
+    dropdownToggleBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setDropdownState(!isDropdownOpen);
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (isDropdownOpen) {
+        const target = e.target as HTMLElement;
+        if (!target.closest('#hud-action-dropdown-container')) {
+          setDropdownState(false);
+        }
+      }
+    });
+
     // 0. Top Roster Button (Rombongan & Mutawwif Info Modal)
     const rosterBtn = this.container.querySelector('#btn-top-roster') as HTMLButtonElement;
     rosterBtn?.addEventListener('click', () => {
@@ -588,12 +633,14 @@ export class HUD {
     // 1. Top Itinerary Button (Book Icon)
     const itineraryBtn = this.container.querySelector('#btn-top-itinerary') as HTMLButtonElement;
     itineraryBtn?.addEventListener('click', () => {
+      setDropdownState(false);
       this.showItineraryModal();
     });
 
     // 2. Top Help Button (?)
     const helpBtn = this.container.querySelector('#btn-top-help') as HTMLButtonElement;
     helpBtn?.addEventListener('click', () => {
+      setDropdownState(false);
       this.showGuideModal();
     });
 
@@ -615,6 +662,7 @@ export class HUD {
     // 4. Top Exit Button (Exit)
     const exitBtn = this.container.querySelector('#btn-top-exit') as HTMLButtonElement;
     exitBtn?.addEventListener('click', () => {
+      setDropdownState(false);
       this.showSessionModal();
     });
 
