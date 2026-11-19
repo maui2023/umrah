@@ -50,7 +50,7 @@ export class HUD {
   constructor() {
     this.container = document.createElement('div');
     this.container.id = 'umrah-hud-overlay';
-    this.container.className = 'pointer-events-none fixed inset-0 z-40 flex flex-col justify-between p-3 sm:p-6 select-none font-sans overflow-hidden';
+    this.container.className = 'pointer-events-none fixed inset-0 z-40 flex flex-col justify-between select-none font-sans overflow-hidden';
     document.body.appendChild(this.container);
     this.render();
     this.setupJoystick();
@@ -296,20 +296,20 @@ export class HUD {
       </button>
 
       <!-- TOP LAYER: HEADER CARD (Left) & ACTION BUTTON STACK (Right) -->
-      <div class="w-full flex items-start justify-between pointer-events-none">
+      <div class="w-full flex items-start justify-between pointer-events-none gap-2 sm:gap-4">
         
         <!-- TOP-LEFT: MINIMALIST MODERN LOCATION & PROGRESS CARD (Exactly matches screenshot) -->
-        <div class="pointer-events-auto flex flex-col gap-2 max-w-[320px] sm:max-w-[370px] w-[90vw]">
+        <div class="pointer-events-auto flex flex-col gap-2 min-w-0 flex-1 max-w-[calc(100vw-180px)] sm:max-w-[370px]">
           
           <!-- Mini Pill for Title Card (Shown when Card 1 is auto-hidden upwards) -->
-          <button id="hud-title-mini-pill" style="display: none;" title="Papar Info Umrah Simulator" class="hud-mini-pill-anim interactive-ui self-start flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 text-xs font-medium hover:bg-stone-50 active:scale-95 transition cursor-pointer">
-            <span class="inline-block w-2.5 h-[2px] bg-[#C5A880] rounded-full"></span>
-            <span id="hud-mini-location-title" class="font-serif font-medium text-stone-900 truncate max-w-[120px] sm:max-w-[160px]">Saqifah Bani Saedah</span>
-            <span class="text-stone-300">•</span>
-            <span id="hud-mini-lap-pill" class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md">Pusingan 1</span>
-            <span class="text-stone-300">•</span>
-            <span id="hud-mini-mutawwif-pill" class="text-[10px] font-semibold text-emerald-700">🧭 0m</span>
-            <span class="text-stone-400 text-[10px] ml-0.5">▼</span>
+          <button id="hud-title-mini-pill" style="display: none;" title="Papar Info Umrah Simulator" class="hud-mini-pill-anim interactive-ui self-start flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 text-xs font-medium hover:bg-stone-50 active:scale-95 transition cursor-pointer max-w-full">
+            <span class="inline-block w-2.5 h-[2px] bg-[#C5A880] rounded-full shrink-0"></span>
+            <span id="hud-mini-location-title" class="font-serif font-medium text-stone-900 truncate max-w-[95px] sm:max-w-[160px]">Saqifah Bani Saedah</span>
+            <span class="text-stone-300 shrink-0">•</span>
+            <span id="hud-mini-lap-pill" class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md shrink-0">Pusingan 1</span>
+            <span class="text-stone-300 shrink-0">•</span>
+            <span id="hud-mini-mutawwif-pill" class="text-[10px] font-semibold text-emerald-700 shrink-0">🧭 0m</span>
+            <span class="text-stone-400 text-[10px] ml-0.5 shrink-0">▼</span>
           </button>
 
           <!-- Card 1: Main Simulator & Location Title & Progress Indicator -->
@@ -422,16 +422,16 @@ export class HUD {
         </div>
 
         <!-- TOP-RIGHT: ACTION BUTTON STACK (Matches screenshot + Rombongan) -->
-        <div class="pointer-events-auto flex flex-col gap-2.5 z-40 items-end">
+        <div class="pointer-events-auto flex flex-col gap-2 sm:gap-2.5 z-40 items-end shrink-0 mt-2 sm:mt-0">
           
           <!-- 1. Info Rombongan & Mutawwif Button (Asal di bucu atas kanan seperti ditunjukkan anak panah lakaran) -->
-          <button id="btn-top-roster" title="Info Jemaah & Jarak Mutawwif" class="interactive-ui min-h-[44px] px-3 sm:px-3.5 py-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center gap-2 text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer max-w-[155px] sm:max-w-[200px]">
+          <button id="btn-top-roster" title="Info Jemaah & Jarak Mutawwif" class="interactive-ui min-h-[44px] px-3.5 sm:px-4 py-1.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.06)] border border-stone-200/80 flex items-center gap-2 text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer w-auto max-w-[210px] sm:max-w-[250px] shrink-0">
             <span class="text-base sm:text-lg shrink-0">👥</span>
-            <div class="flex flex-col text-left leading-tight pr-0.5 overflow-hidden">
-              <span id="top-roster-group-label" class="text-[9px] font-bold text-stone-400 uppercase tracking-wider truncate">ROMBONGAN</span>
-              <span id="top-roster-status-text" class="text-[11px] font-bold text-stone-800 truncate whitespace-nowrap">1 Ahli</span>
+            <div class="flex flex-col text-left leading-tight pr-0.5 min-w-0">
+              <span id="top-roster-group-label" class="text-[9px] font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">ROMBONGAN</span>
+              <span id="top-roster-status-text" class="text-[11px] font-bold text-stone-800 whitespace-nowrap">1 Ahli</span>
             </div>
-            <span id="top-roster-badge" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-auto"></span>
+            <span id="top-roster-badge" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-1"></span>
           </button>
 
           <!-- 2. Jadual Ziarah & Peta (Book Icon) -->
@@ -479,7 +479,7 @@ export class HUD {
       </div>
 
       <!-- FLOATING BUS DOOR PROMPT (Appears when near bus entrance) -->
-      <div id="bus-door-prompt" style="display: none;" class="interactive-ui pointer-events-auto fixed bottom-32 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-white/95 backdrop-blur-md border-2 border-[#C5A880] shadow-2xl text-stone-900 cursor-pointer animate-bounce">
+      <div id="bus-door-prompt" style="display: none;" class="interactive-ui pointer-events-auto fixed bottom-36 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-white/95 backdrop-blur-md border-2 border-[#C5A880] shadow-2xl text-stone-900 cursor-pointer animate-bounce">
         <span class="text-2xl">🚌</span>
         <div>
           <div class="font-bold text-sm text-stone-900">Tekan [E] atau Klik untuk Naik Bas</div>
@@ -490,21 +490,21 @@ export class HUD {
         </button>
       </div>
 
-      <!-- BUS DRIVING DASHBOARD (When riding or driving inside the bus) -->
-      <div id="bus-dashboard-card" style="display: none;" class="interactive-ui pointer-events-auto fixed top-20 left-1/2 -translate-x-1/2 z-40 w-[92%] sm:w-auto sm:min-w-[420px] bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-2xl p-4 shadow-2xl text-stone-900">
+      <!-- BUS DRIVING DASHBOARD (When riding or driving inside the bus - Positioned at bottom to avoid covering top guide/location info) -->
+      <div id="bus-dashboard-card" style="display: none;" class="interactive-ui pointer-events-auto fixed bottom-[136px] sm:bottom-6 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-[460px] sm:w-auto sm:min-w-[420px] bg-white/95 backdrop-blur-md border border-stone-200/80 rounded-2xl p-3.5 sm:p-4 shadow-2xl text-stone-900 transition-all">
         <div class="flex items-center justify-between gap-3 pb-2.5 mb-2.5 border-b border-stone-200/70">
-          <div class="flex items-center gap-2.5">
-            <span class="text-2xl animate-pulse">🚌</span>
-            <div>
-              <div class="font-bold text-sm text-stone-900">Bas Ziarah Sedang Beroperasi</div>
-              <div id="bus-dashboard-dest" class="text-xs text-stone-600 font-medium">Destinasi: Masjid Quba</div>
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="text-2xl animate-pulse shrink-0">🚌</span>
+            <div class="min-w-0">
+              <div class="font-bold text-sm text-stone-900 truncate">Bas Ziarah Sedang Beroperasi</div>
+              <div id="bus-dashboard-dest" class="text-xs text-stone-600 font-medium truncate">Destinasi: Masjid Quba</div>
             </div>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 shrink-0">
             <div class="px-3 py-1 rounded-xl bg-stone-100 border border-stone-200 text-stone-900 font-mono font-bold text-xs sm:text-sm">
-              <span id="bus-speedometer">0</span> km/j
+              <span id="bus-speedometer">0</span> <span class="text-[10px] sm:text-xs font-normal text-stone-600">km/j</span>
             </div>
-            <button id="btn-exit-bus" title="Turun Dari Bas" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition flex items-center gap-1 shadow cursor-pointer">
+            <button id="btn-exit-bus" title="Turun Dari Bas" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold text-xs transition flex items-center gap-1 shadow cursor-pointer">
               <span>🚪</span>
               <span>Turun Bas</span>
             </button>
@@ -515,7 +515,7 @@ export class HUD {
           <div class="text-stone-500 text-[11px] flex items-center gap-1">
             <span>🕹️ Kawalan: <b>WASD / Joystick</b> untuk memandu bas</span>
           </div>
-          <button id="btn-auto-cruise" class="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs shadow transition flex items-center gap-1 cursor-pointer">
+          <button id="btn-auto-cruise" class="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 active:scale-95 text-white font-bold text-xs shadow transition flex items-center gap-1 cursor-pointer">
             <span>▶️</span>
             <span id="btn-auto-cruise-text">Pandu Automatik</span>
           </button>
