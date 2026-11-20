@@ -235,7 +235,7 @@ export class UmrahWorkflow {
     if (hotelSpot && hotelSpot.dua) {
       this.onDuaTriggeredCallback?.(
         hotelSpot.dua,
-        'Alhamdulillah! Pakaian Ihram telah disarungkan. Bersedia menaiki bas menuju ke Miqat Masjid Bir Ali!'
+        'Alhamdulillah! Pakaian Ihram telah disarungkan. PERINGATAN PENTING: Cawat tidak boleh diikat mati (perlu simpul mudah buka/butterfly). Bagi wanita, jika pakaian ada wangian, tidak boleh dibuka selepas niat!'
       );
     }
   }
@@ -257,12 +257,12 @@ export class UmrahWorkflow {
       this.onStageChangedCallback?.(this.stage);
     }
 
-    // Play Talbiyah announcement
-    const miqatSpot = ZIARAH_SPOTS.find(s => s.id === 'miqat_masjid_bir_ali');
-    if (miqatSpot && miqatSpot.dua) {
+    // Play Talbiyah announcement & Dua
+    const talbiyahSpot = ZIARAH_SPOTS.find(s => s.id === 'perjalanan_bas_talbiyah_makkah');
+    if (talbiyahSpot && talbiyahSpot.dua) {
       this.onDuaTriggeredCallback?.(
-        miqatSpot.dua,
-        'Labbaikallahumma Labbaik! Niat Umrah di Miqat Bir Ali telah sah. 13 Pantang larang ihram berkuat kuasa.'
+        talbiyahSpot.dua,
+        'Labbaikallahumma Labbaik! Niat Umrah di Miqat Bir Ali telah sah. Alunkan Talbiyah (Labbaik Allahumma Labbaik) sepanjang perjalanan bas ke Makkah!'
       );
     }
   }
@@ -332,9 +332,12 @@ export class UmrahWorkflow {
       }
     }
 
-    // Jabal Uhud Zone (x: -160, z: -50)
-    const distToUhud = Math.sqrt((x - (-160)) ** 2 + (z - (-50)) ** 2);
-    if (distToUhud < 9.0) {
+    // Jabal Uhud Zone (Bay at x: -148, z: -52, Makam Shuhada & Bukit Pemanah)
+    const distToUhud = Math.min(
+      Math.hypot(x - (-148), z - (-52)),
+      Math.hypot(x - (-160), z - (-50))
+    );
+    if (distToUhud < 12.0) {
       const uhudIndex = ZIARAH_SPOTS.findIndex(s => s.id === 'jabal_uhud_bukit_pemanah');
       if (uhudIndex !== -1 && this.currentZiarahIndex !== uhudIndex) {
         this.goToZiarahSpot(uhudIndex);

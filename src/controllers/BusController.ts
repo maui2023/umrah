@@ -44,6 +44,7 @@ export class BusController {
   public isAutoCruising = false;
   public cruiseTarget: THREE.Vector3 | null = null;
   public cruiseTargetHeading: number | null = null;
+  public waypointsQueue: BusWaypoint[] = [];
   public onCruiseArrived?: () => void;
   public currentDestinationName = 'Masjid Quba';
 
@@ -387,12 +388,13 @@ export class BusController {
       const newX = this.position.x + dx;
       const newZ = this.position.z + dz;
 
-      // Obstacle boundary check for bus (prevent driving off into the void or into mountains)
-      if (newX > -185 && newX < -98 && newZ > -90 && newZ < 90) {
+      // Obstacle boundary check for bus (prevent driving off into the void, mountains, or inside Nabawi sacred pedestrian area)
+      const isInsideNabawiPedestrian = newX > -138 && newZ > -3 && newZ < 25;
+      if (!isInsideNabawiPedestrian && newX > -185 && newX < -98 && newZ > -90 && newZ < 90) {
         this.position.x = newX;
         this.position.z = newZ;
       } else {
-        this.speed = 0; // bump stop at bounds
+        this.speed = 0; // bump stop at bounds or pedestrian zone barrier
       }
 
       // Rotate Wheels around wheel axle as bus travels
@@ -478,7 +480,7 @@ export class BusController {
   }
 
   /**
-   * Handle Smooth Auto-Cruising to Destination Waypoints
+   * Handle Smooth Auto-Cruising to Destination Waypoints along Paved Road Network
    */
   private handleAutoCruise(delta: number) {
     if (!this.cruiseTarget) return;
@@ -487,21 +489,34 @@ export class BusController {
     const dz = this.cruiseTarget.z - this.position.z;
     const distToTarget = Math.hypot(dx, dz);
 
-    if (distToTarget < 2.0) {
-      // Arrived at destination
-      this.speed = Math.max(0, this.speed - this.brakingDecel * delta * 1.5);
-      if (this.speed < 0.2) {
+    // If more waypoints exist in queue, transition to next waypoint smoothly upon approaching
+    if (this.waypointsQueue.length > 0 && distToTarget < 5.0) {
+      const nextWp = this.waypointsQueue.shift()!;
+      this.cruiseTarget = new THREE.Vector3(nextWp.x, 0, nextWp.z);
+      this.cruiseTargetHeading = nextWp.rotation !== undefined ? nextWp.rotation : null;
+      return;
+    }
+
+    // Final destination arrival detection: decelerate when entering destination proximity
+    if (this.waypointsQueue.length === 0 && (distToTarget < 3.2 || (distToTarget < 5.0 && this.speed < 2.0))) {
+      this.speed = Math.max(0, this.speed - this.brakingDecel * delta * 2.0);
+      if (this.speed < 0.6 || distToTarget < 1.8) {
+        // Confirmed arrival at parking bay
         this.speed = 0;
         this.isAutoCruising = false;
+        this.position.set(this.cruiseTarget.x, 0, this.cruiseTarget.z);
         if (this.cruiseTargetHeading !== null) {
           this.rotationY = this.cruiseTargetHeading;
         }
         this.steerAngle = 0;
+        this.updateTransform();
         soundManager.playBusDepartureSound();
-        this.onCruiseArrived?.();
+        const cb = this.onCruiseArrived;
         this.cruiseTarget = null;
+        this.onCruiseArrived = undefined;
+        cb?.();
+        return;
       }
-      return;
     }
 
     // Calculate desired heading angle towards target
@@ -514,8 +529,8 @@ export class BusController {
     const targetSteer = Math.max(-this.maxSteerAngle, Math.min(this.maxSteerAngle, angleDiff * 1.5));
     this.steerAngle += (targetSteer - this.steerAngle) * Math.min(delta * 3.0, 1.0);
 
-    // Accelerate smoothly, decelerate when approaching target
-    const desiredSpeed = distToTarget > 15 ? this.maxForwardSpeed * 0.85 : Math.max(3.0, (distToTarget / 15) * 8.0);
+    // Accelerate smoothly, decelerate when approaching final target
+    const desiredSpeed = distToTarget > 15 ? this.maxForwardSpeed * 0.85 : Math.max(2.5, (distToTarget / 15) * 8.0);
     if (this.speed < desiredSpeed) {
       this.speed += this.acceleration * delta;
     } else {
@@ -528,13 +543,49 @@ export class BusController {
   }
 
   /**
-   * Order the bus to cruise automatically to a given destination coordinate
+   * Order the bus to cruise automatically along road network waypoints to a destination
    */
   public cruiseTo(targetX: number, targetZ: number, targetRot?: number, destinationName?: string, onArrived?: () => void) {
+    let finalX = targetX;
+    let finalZ = targetZ;
+    let finalRot = targetRot;
+
+    // Safety check: Buses NEVER enter the pedestrian sacred zone of Masjid Nabawi / Madinah
+    if (targetX > -138 && targetZ > -3 && targetZ < 25) {
+      finalX = -135;
+      finalZ = -8;
+      finalRot = -Math.PI / 2;
+      destinationName = 'Terminal Bas Ziarah Madinah (Pejalan Kaki Sahaja)';
+    }
+
+    this.waypointsQueue = [];
+
+    // If the bus is currently off the central highway spine (x = -140),
+    // first return to highway corridor at current Z
+    if (Math.abs(this.position.x - (-140)) > 3.5) {
+      this.waypointsQueue.push({ x: -140, z: this.position.z });
+    }
+
+    // Follow highway spine along Z to the destination's latitude
+    if (Math.abs(this.position.z - finalZ) > 4.5) {
+      this.waypointsQueue.push({ x: -140, z: finalZ });
+    }
+
+    // Branch off from highway into the destination parking bay
+    this.waypointsQueue.push({
+      x: finalX,
+      z: finalZ,
+      rotation: finalRot,
+      label: destinationName
+    });
+
+    const firstWp = this.waypointsQueue.shift()!;
     this.isAutoCruising = true;
-    this.cruiseTarget = new THREE.Vector3(targetX, 0, targetZ);
-    this.cruiseTargetHeading = targetRot !== undefined ? targetRot : null;
-    this.currentDestinationName = destinationName || 'Destinasi Ziarah';
+    this.cruiseTarget = new THREE.Vector3(firstWp.x, 0, firstWp.z);
+    this.cruiseTargetHeading = firstWp.rotation !== undefined ? firstWp.rotation : null;
+    if (destinationName) {
+      this.currentDestinationName = destinationName;
+    }
     this.onCruiseArrived = onArrived;
     soundManager.playBusDepartureSound();
   }

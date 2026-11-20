@@ -12,7 +12,7 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     category: 'dalam_madinah',
     categoryLabel: 'Ziarah Dalam Madinah',
     transportType: 'walk',
-    transportBadge: '🚶 Berjalan Kaki',
+    transportBadge: '🚶 Berjalan Kaki (Kawasan Madinah)',
     shortDesc: 'Tempat perjumpaan bersejarah pembai\'ahan Khalifah Pertama Abu Bakar As-Siddiq R.A.',
     historicalStory:
       'Terletak di barat laut Masjid Nabawi. Sejurus selepas kewafatan Rasulullah ﷺ pada tahun 11H, para sahabat Ansar dan Muhajirin berhimpun di Saqifah (tempat berteduh) Bani Saedah bagi menentukan kepimpinan umat Islam. Dengan kebijaksanaan Saidina Umar R.A. dan para sahabat, Saidina Abu Bakar As-Siddiq R.A. telah dibai\'ah secara muafakat sebagai Khalifah Rasulullah yang pertama demi memelihara kesatuan ummah.',
@@ -40,7 +40,7 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     category: 'dalam_madinah',
     categoryLabel: 'Ziarah Dalam Madinah',
     transportType: 'walk',
-    transportBadge: '🚶 Berjalan Kaki',
+    transportBadge: '🚶 Berjalan Kaki (Kawasan Madinah)',
     shortDesc: 'Kawasan masjid-masjid bersejarah berhampiran barat daya Masjid Nabawi.',
     historicalStory:
       'Masjid Alghamamah (Ghamamah bermaksud "awan yang memayungi") adalah tapak di mana Rasulullah ﷺ menunaikan Solat Istisqa\' (memohon hujan) dan solat Hari Raya. Ketika Baginda berdoa, gumpalan awan hitam berarak memayungi Baginda lalu hujan rahmat turun membasahi bumi Madinah. Berhampirannya terletak Masjid Abu Bakar As-Siddiq dan Masjid Ali bin Abi Talib, tempat kedua-dua khalifah ini pernah mengimami solat hari raya semasa zaman khilafah mereka.',
@@ -68,7 +68,7 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     category: 'dalam_madinah',
     categoryLabel: 'Ziarah Dalam Madinah',
     transportType: 'walk',
-    transportBadge: '🚶 Berjalan Kaki',
+    transportBadge: '🚶 Berjalan Kaki (Kawasan Madinah)',
     shortDesc: 'Memberi salam dengan penuh tawaduk dan adab di hadapan Maqam Baginda ﷺ, Abu Bakar & Umar R.A.',
     historicalStory:
       'Rasulullah ﷺ disemadikan di bilik Sayyidatina Aisyah R.Anha, tempat Baginda wafat. Di sisi Baginda disemadikan sahabat karibnya Saidina Abu Bakar As-Siddiq R.A. dan Saidina Umar Al-Khattab R.A. Berdiri di hadapan Al-Muwajahah As-Syarifah merupakan detik paling menyentuh jiwa setiap jemaah untuk menyatakan kerinduan, kecintaan, dan kesyukuran atas risalah Islam yang dibawa Baginda.',
@@ -96,8 +96,8 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     category: 'dalam_madinah',
     categoryLabel: 'Ziarah Dalam Madinah',
     transportType: 'walk',
-    transportBadge: '🚶 Berjalan Kaki (Permohonan Nusuk)',
-    shortDesc: 'Ruang istimewa antara mimbar dan makam Nabi ﷺ dengan permaidani hijau (masa tertakluk pada permit Nusuk).',
+    transportBadge: '🚶 Berjalan Kaki (Kawasan Madinah - Permohonan Nusuk)',
+    shortDesc: 'Ruang istimewa antara mimbar dan makam Nabi ﷺ dengan permaidani hijau (Ziarah berjalan kaki di Madinah).',
     historicalStory:
       'Rasulullah ﷺ bersabda: "Di antara rumahku dan mimbarku adalah sebuah taman daripada taman-taman syurga (Raudhah min Riyadhil Jannah), dan mimbarku berada di atas telagaku." (Hadis Riwayat Bukhari & Muslim). Mengikut peraturan terkini, masuk ke Raudhah memerlukan permit tempahan khas melalui aplikasi Nusuk demi menjamin ketertiban dan keselesaan para jemaah.',
     sunnahOrAdab:
@@ -124,8 +124,8 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     category: 'dalam_madinah',
     categoryLabel: 'Ziarah Dalam Madinah',
     transportType: 'walk',
-    transportBadge: '🚶 Berjalan Kaki (Salam dari Jauh)',
-    shortDesc: 'Persemadian lebih 10,000 sahabat Nabi ﷺ, isteri-isteri dan zuriat Baginda (memberi salam dari jauh/luar pagar).',
+    transportBadge: '🚶 Berjalan Kaki (Kawasan Madinah - Salam dari Jauh)',
+    shortDesc: 'Persemadian lebih 10,000 sahabat Nabi ﷺ di sisi Masjid Nabawi. Ziarah berjalan kaki sebelum bersiap menaiki bas.',
     historicalStory:
       'Terletak di sebelah timur Masjid Nabawi. Dikenali sebagai Baqi\' Al-Gharqad. Di sinilah disemadikan insan-insan mulia seperti Saidina Uthman bin Affan R.A., para isteri Nabi (Ummahatul Mukminin) seperti Aisyah, Hafsah, Ummu Salamah (kecuali Khadijah di Ma\'la Makkah & Maimunah di Sarif), anak-anak Nabi termasuk Fatimah Az-Zahra, Abbas bin Abdul Muttalib, Hasan bin Ali, dan ribuan sahabat syuhada.',
     sunnahOrAdab:
@@ -174,7 +174,7 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     },
     actionText: 'Melintasi & Hayati Sejarah',
     actionIcon: '🚌',
-    coordinates: { x: -142, z: 10 }
+    coordinates: { x: -143, z: 10 }
   },
   {
     id: 'masjid_bilal',
@@ -230,7 +230,7 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     },
     actionText: 'Melintasi & Lihat Melalui Bas',
     actionIcon: '🚌',
-    coordinates: { x: -148, z: -10 }
+    coordinates: { x: -147, z: -10 }
   },
   {
     id: 'masjid_qiblatain',
@@ -258,7 +258,7 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     },
     actionText: 'Bas Meneruskan Perjalanan ke Masjid Quba',
     actionIcon: '🚌',
-    coordinates: { x: -150, z: -20 }
+    coordinates: { x: -152, z: -20 }
   },
 
   // ==========================================
@@ -290,7 +290,7 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     },
     actionText: 'Solat Sunat 2 Rakaat & Bergambar',
     actionIcon: '🕌',
-    coordinates: { x: -125, z: -35 }
+    coordinates: { x: -124, z: -35 }
   },
   {
     id: 'ladang_kurma',
@@ -318,7 +318,7 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     },
     actionText: 'Nikmati Kurma Ajwa & Teruskan',
     actionIcon: '🌴',
-    coordinates: { x: -135, z: -45 }
+    coordinates: { x: -134, z: -45 }
   },
   {
     id: 'masjid_7_khandak',
@@ -346,7 +346,7 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     },
     actionText: 'Lihat Medan Khandak & Teruskan',
     actionIcon: '⚔️',
-    coordinates: { x: -145, z: -55 }
+    coordinates: { x: -144, z: -50 }
   },
   {
     id: 'jabal_uhud_bukit_pemanah',
@@ -374,7 +374,7 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     },
     actionText: 'Beri Salam Shuhada & Teruskan',
     actionIcon: '🏔️',
-    coordinates: { x: -160, z: -60 }
+    coordinates: { x: -152, z: -55 }
   },
   {
     id: 'ziarah_badar',
@@ -402,7 +402,7 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     },
     actionText: 'Selesai Ziarah Luar Madinah',
     actionIcon: '⭐',
-    coordinates: { x: -170, z: -40 }
+    coordinates: { x: -168, z: -40 }
   },
 
   // ==========================================
@@ -466,7 +466,7 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     },
     actionText: 'Menuju ke Hotel untuk Mandi & Pakai Ihram',
     actionIcon: '🧳',
-    coordinates: { x: -140, z: 15 }
+    coordinates: { x: -138, z: 15 }
   },
   {
     id: 'memakai_ihram_hotel',
@@ -477,11 +477,11 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     categoryLabel: 'Persiapan Memakai Ihram',
     transportType: 'hotel',
     transportBadge: '🧕 Persiapan di Hotel Penginapan',
-    shortDesc: 'Mandi sunat ihram, bersiap, memakai kain ihram putih bagi lelaki / menutup aurat bagi wanita sebelum menaiki bas ke Miqat.',
+    shortDesc: 'Mandi sunat ihram, bersiap, memakai kain ihram putih bagi lelaki / menutup aurat bagi wanita sebelum menaiki bas ke Miqat. Perhatikan hukum cawat & wangian ihram wanita!',
     historicalStory:
-      'Di bilik hotel Madinah, jemaah melakukan persiapan sunat Ihram: memotong kuku, mencukur bulu ari-ari, merapikan janggut/misai, mandi sunat ihram, dan memakai wangi-wangian di badan (bukan pada pakaian). Kaum lelaki memakai dua helai kain putih tidak berjahit (Izar di pinggang, Rida\' di bahu) dan memakai selipar yang menampakkan jejari kaki. Kaum wanita memakai pakaian sopan menutup aurat sepenuhnya (kecuali muka dan tapak tangan). Selepas berniat di Miqat nanti, 13 pantang larang ihram akan berkuat kuasa!',
+      'Di bilik hotel Madinah, jemaah melakukan persiapan sunat Ihram: memotong kuku, mencukur bulu ari-ari, merapikan janggut/misai, mandi sunat ihram, dan memakai wangi-wangian di badan. Kaum lelaki memakai dua helai kain putih tidak berjahit (Izar di pinggang, Rida\' di bahu) dan memakai selipar yang menampakkan jejari kaki. Kaum wanita memakai pakaian sopan menutup aurat sepenuhnya (kecuali muka dan tapak tangan).\n\n⚠️ NOTA TAMBAHAN LARANGAN IHRAM (PANDUAN KHAS FIQH & DAM):\n1. HUKUM MEMAKAI CAWAT / PELAPIK SEMASA BERIHRAM:\n• Sekiranya jemaah (terutamanya lelaki yang mempunyai keuzuran seperti kencing tidak lawas, buasir, luka atau sebagainya) perlu memakai kain cawat/pelapik/lampin: TIDAK BOLEH DIIKAT MATI (simpul mati / \'uqdah muhkamah).\n• Wajib/perlu dibuat SIMPUL MUDAH BUKA (seperti ikatan rama-rama / butterfly knot), atau disemat/diselitkan tanpa ikatan mati, agar tidak dihukumkan menyerupai pakaian berjahit/bercantum yang dilarang bagi lelaki dalam ihram.\n\n2. HUKUM WANGI-WANGIAN PADA PAKAIAN IHRAM WANITA:\n• Bagi jemaah wanita yang mengenakan wangi-wangian pada kain/baju ihram sebelum berniat ihram: Bau yang berkekalan dimaafkan selagi pakaian itu terus dipakai pada badan.\n• Namun pakaian tersebut TIDAK BOLEH dibuka atau ditanggalkan selepas berniat ihram jika ingin memakainya semula.\n• Sekiranya pakaian berwangian itu dibuka/ditanggalkan (contohnya mandi atau ke tandas), ia TIDAK BOLEH dipakai semula sama sekali (kerana memakai semula dikira memulakan pemakaian wangi-wangian baharu semasa dalam ihram yang mewajibkan Dam).\n• Justeru, jika dibuka, jemaah wanita PERLU menukar kepada baju/pakaian baharu yang bersih dan tidak berbau wangi!',
     sunnahOrAdab:
-      'Menjaga kekemasan kain ihram dan memastikan tiada pakaian berjahit atau berlipat jahitan bagi lelaki (seperti seluar dalam atau stoking).',
+      'Menjaga kekemasan kain ihram. Bagi yang memakai cawat, pastikan dibuat simpul mudah buka (butterfly knot) dan jangan sesekali diikat mati. Bagi wanita, jika pakaian ihram terkena wangian sebelum niat, jangan sesekali membuka baju itu selepas niat; jika terpaksa dibuka, wajib tukar baju baharu yang tidak berwangian.',
     dua: {
       id: 'dua_mandi_ihram',
       stage: 'ziarah_wida_hotel',
@@ -509,11 +509,11 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     categoryLabel: 'MIQAT & Niat Umrah',
     transportType: 'miqat',
     transportBadge: '🕌 MIQAT Umrah Pertama (Wajib)',
-    shortDesc: 'Stesen Miqat makani bagi jemaah dari Madinah. Solat sunat ihram 2 rakaat dan melafazkan Niat Umrah serta Niat Bersyarat.',
+    shortDesc: 'Stesen Miqat makani bagi jemaah dari Madinah. Solat sunat ihram 2 rakaat dan melafazkan Niat Umrah. 13 Pantang larang ihram berkuat kuasa serta-merta!',
     historicalStory:
-      'Terletak kira-kira 11 km di selatan Madinah. Ini adalah Miqat yang telah ditetapkan sendiri oleh Baginda Rasulullah ﷺ bagi penduduk Madinah dan sesiapa yang melaluinya (seperti jemaah Malaysia yang mendarat di Madinah). Setiap orang yang berniat mengerjakan Umrah WAJIB berniat di sini sebelum melepasi sempadan Miqat ini ke Makkah. Jika terlepas tanpa niat, wajib berpatah balik atau dikenakan Dam (denda).',
+      'Terletak kira-kira 11 km di selatan Madinah. Ini adalah Miqat yang telah ditetapkan sendiri oleh Baginda Rasulullah ﷺ bagi penduduk Madinah dan sesiapa yang melaluinya (seperti jemaah Malaysia yang mendarat di Madinah). Setiap orang yang berniat mengerjakan Umrah WAJIB berniat di sini sebelum melepasi sempadan Miqat ini ke Makkah. Jika terlepas tanpa niat, wajib berpatah balik atau dikenakan Dam (denda).\n\n⚠️ PERINGATAN 13 PANTANG LARANG IHRAM BERKUAT KUASA:\nSebaik sahaja niat dilafazkan, 13 perkara menjadi haram: (1) Pakaian berjahit/bercantum bagi lelaki, (2) Tutup kepala bagi lelaki, (3) Tutup muka bagi wanita, (4) Sarung tangan, (5) Memakai wangi-wangian, (6) Minyak rambut/janggut, (7) Cabut/potong rambut atau bulu, (8) Kerat kuku, (9) Tebang pokok Tanah Haram, (10) Memburu binatang, (11) Akad nikah, (12) Mukadimah jimak, (13) Jimak.\n\n*Peringatan Cawat: Pastikan simpul mudah buka (butterfly), jangan simpul mati!\n*Peringatan Wangian Wanita: Baju berwangian jangan dibuka selepas niat; jika dibuka, wajib tukar baju baharu!',
     sunnahOrAdab:
-      'Mengambil wuduk, masuk ke Masjid Bir Ali, mendirikan Solat Sunat Ihram 2 rakaat (Rakaat 1 baca Surah Al-Kafirun, Rakaat 2 baca Surah Al-Ikhlas), kemudian melafazkan Niat Umrah di dalam hati dan lidah.',
+      'Mengambil wuduk, masuk ke Masjid Bir Ali, mendirikan Solat Sunat Ihram 2 rakaat (Rakaat 1 baca Surah Al-Kafirun, Rakaat 2 baca Surah Al-Ikhlas), kemudian melafazkan Niat Umrah di dalam hati dan lidah. Semak semula pakaian: tiada jahitan/cantuman bagi lelaki, cawat diikat simpul mudah buka, dan wangian wanita dipatuhi.',
     dua: {
       id: 'niat_umrah_bir_ali',
       stage: 'miqat_bir_ali',
@@ -522,7 +522,7 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
       arabic: 'نَوَيْتُ الْعُمْرَةَ وَأَحْرَمْتُ بِهَا لِلَّهِ تَعَالَى، اللَّهُمَّ مَحِلِّي حَيْثُ حَبَسْتَنِي',
       transliteration: 'Nawaytul-\'umrata wa ahramtu bihaa lillahi Ta\'ala. Allahumma mahillii haytsu habastanii.',
       translation: 'Sahaja aku berniat ihram umrah dan berihram aku dengannya kerana Allah Taala. Ya Allah, tempat tahallulku adalah di mana sahaja Engkau menahanku (jika ada halangan syar\'i).',
-      sunnahNote: 'Lafaz niat wajib disertai lintasan hati: "Sahaja aku mengerjakan umrah dan berihram aku dengannya kerana Allah Taala."'
+      sunnahNote: 'Lafaz niat wajib disertai lintasan hati: "Sahaja aku mengerjakan umrah dan berihram aku dengannya kerana Allah Taala." Pantang larang ihram kini berkuat kuasa sepenuhnya.'
     },
     actionText: 'Lafaz Niat Umrah & Naik Semula Bas',
     actionIcon: '🕋',
@@ -541,11 +541,20 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
     categoryLabel: 'Perjalanan Lebuhraya Hijrah',
     transportType: 'bus_travel',
     transportBadge: '🚌 Perjalanan Bas Beramai-ramai',
-    shortDesc: 'Menaiki bas merentasi Lebuhraya Hijrah (Madinah-Makkah) sambil seluruh jemaah bersemangat mengalunkan Talbiyah.',
+    shortDesc: 'Menaiki bas merentasi Lebuhraya Hijrah (Madinah-Makkah) sambil seluruh jemaah bersemangat mengalunkan Talbiyah. Memahami waktu mula & tamat Talbiyah bagi Umrah & Haji.',
     historicalStory:
-      'Perjalanan dari Madinah ke Makkah mengambil masa kira-kira 5 hingga 6 jam melalui lebuh raya padang pasir. Sejak lafaz niat di Masjid Bir Ali, jemaah sudah berada dalam keadaan berihram rasmi dan terikat dengan pantang larang ihram. Suasana di dalam bas dihidupkan dengan alunan Talbiyah yang dipimpin oleh Mutawwif berselang-seli dengan zikir, selawat, dan tazkirah persediaan rohani sebelum melihat Kaabah.',
+      'Perjalanan dari Madinah ke Makkah mengambil masa kira-kira 5 hingga 6 jam melalui lebuh raya padang pasir (450 KM). Sejak berniat ihram di Masjid Bir Ali, jemaah rasmi berada dalam ihram.\n\n' +
+      '📌 WAKTU MEMBACA TALBIYAH UNTUK UMRAH:\n' +
+      '• Mula: Ketika seseorang telah berniat ihram di miqat.\n' +
+      '• Tamat: Ketika mulai memasuki ibadah Tawaf (sebelum menyentuh/mengucap salam pada Hajar Aswad atau memulai putaran pertama tawaf).\n\n' +
+      '📌 WAKTU MEMBACA TALBIYAH UNTUK HAJI:\n' +
+      '• Mula: Ketika seseorang telah berniat ihram haji di miqat.\n' +
+      '• Tamat: Berakhir ketika mulai melempar Jumrah al-Kubra (Jumrah Aqabah) pada tanggal 10 Zulhijah (Hari Raya Aidiladha), atau saat mulai tawaf atau bercukur mengikut mana yang didahulukan.\n\n' +
+      '⚖️ HUKUM & CARA MELAFAZKAN:\n' +
+      '• Hukum: Sunat muakkad (mustahab). Jika terlupa atau tertinggal, ia tidak membatalkan ibadah haji atau umrah.\n' +
+      '• Bagi jemaah lelaki, disunatkan mengerjakannya dengan suara yang nyaring, manakala bagi jemaah wanita, dibaca dengan suara perlahan yang hanya didengari oleh diri sendiri.',
     sunnahOrAdab:
-      'Menyaringkan suara bertalbiyah bagi lelaki dan merendahkan suara bagi wanita. Menjaga lisan, emosi dan kesabaran sepanjang perjalanan.',
+      'Disunatkan membaca talbiyah (sunat muakkad). Menyaringkan suara bertalbiyah bagi lelaki dan merendahkan suara bagi wanita. Menjaga lisan, emosi dan kesabaran sepanjang perjalanan.',
     dua: {
       id: 'talbiyah_perjalanan',
       stage: 'perjalanan_makkah',
@@ -554,11 +563,24 @@ export const ZIARAH_SPOTS: ZiarahSpot[] = [
       arabic: 'لَبَّيْكَ اللَّهُمَّ لَبَّيْكَ، لَبَّيْكَ لاَ شَرِيكَ لَكَ لَبَّيْكَ، إِنَّ الْحَمْدَ وَالنِّعْمَةَ لَكَ وَالْمُلْكَ، لاَ شَرِيكَ لَكَ',
       transliteration: 'Labbaik Allahumma labbaik, labbaika laa syariika laka labbaik. Innal-hamda wan-ni\'mata laka wal-mulk, laa syariika lak.',
       translation: 'Hamba-Mu datang menyahut panggilan-Mu ya Allah, hamba-Mu datang. Tiada sekutu bagi-Mu, hamba-Mu datang. Sesungguhnya segala puji, nikmat dan kerajaan adalah milik-Mu semata-mata, tiada sekutu bagi-Mu.',
-      sunnahNote: 'Dilaungkan berulang kali sehingga tiba di Dataran Masjidil Haram.'
+      sunnahNote: 'Membaca talbiyah adalah sunat muakkad (mustahab). Dilaungkan dengan suara nyaring bagi lelaki dan perlahan bagi wanita bermula dari niat ihram sehingga mula melangkah ke tawaf.',
+      waktuUmrah: {
+        mula: 'Ketika seseorang telah berniat ihram di miqat.',
+        tamat: 'Ketika mulai memasuki ibadah Tawaf (sebelum menyentuh/mengucap salam pada Hajar Aswad atau memulai putaran pertama tawaf).'
+      },
+      waktuHaji: {
+        mula: 'Ketika seseorang telah berniat ihram haji di miqat.',
+        tamat: 'Berakhir ketika mulai melempar Jumrah al-Kubra (Jumrah Aqabah) pada tanggal 10 Zulhijah (Hari Raya Aidiladha), atau saat mulai tawaf atau bercukur mengikut mana yang didahulukan.'
+      },
+      hukumDanKetentuan: {
+        hukum: 'Membaca talbiyah adalah sunat muakkad (mustahab). Jika terlupa atau tertinggal, ia tidak membatalkan ibadah haji atau umrah.',
+        caraMelafazkan: 'Bagi jemaah lelaki, disunatkan mengerjakannya dengan suara yang nyaring, manakala bagi jemaah wanita, dibaca dengan suara perlahan yang hanya didengari oleh diri sendiri.'
+      },
+      audioUrl: './audio/talbiyah.mp3'
     },
     actionText: 'Tiba di Makkah & Menuju Masjidil Haram',
     actionIcon: '🕋',
-    coordinates: { x: -130, z: 60 }
+    coordinates: { x: -140, z: 65 }
   },
 
   // ==========================================

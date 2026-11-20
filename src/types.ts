@@ -53,6 +53,19 @@ export interface DuaItem {
   transliteration: string;
   translation: string;
   sunnahNote?: string;
+  waktuUmrah?: {
+    mula: string;
+    tamat: string;
+  };
+  waktuHaji?: {
+    mula: string;
+    tamat: string;
+  };
+  hukumDanKetentuan?: {
+    hukum: string;
+    caraMelafazkan: string;
+  };
+  audioUrl?: string;
 }
 
 export type ZiarahCategory = 

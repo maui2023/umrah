@@ -1,3 +1,5 @@
+import { TALBIYAH_AUDIO_BASE64, TALBIYAH_AUDIO_PATH } from './talbiyahAudio';
+
 /**
  * Audio Manager using Web Audio API and Speech Synthesis
  * Fully offline-capable, zero external asset dependencies
@@ -9,6 +11,10 @@ export class SoundManager {
   private ambientGain: GainNode | null = null;
   private ambientSource: AudioBufferSourceNode | null = null;
   private isAmbiencePlaying: boolean = false;
+
+  // Dedicated HTML5 Audio / Base64 fallback for authentic Arabic Talbiyah
+  private talbiyahAudio: HTMLAudioElement | null = null;
+  private isTalbiyahAudioActive: boolean = false;
 
   constructor() {
     // Initialized on first user interaction
@@ -29,8 +35,11 @@ export class SoundManager {
     if (this.ambientGain && this.ctx) {
       this.ambientGain.gain.setValueAtTime(muted ? 0 : 0.15, this.ctx.currentTime);
     }
-    if (muted && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+    if (muted) {
+      this.stopTalbiyahAudio();
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
     }
   }
 
@@ -273,7 +282,7 @@ export class SoundManager {
   }
 
   /**
-   * Speak dua text in Malay or transliteration
+   * Speak dua text in Malay or Arabic with language detection
    */
   public speakDua(text: string) {
     if (this.isMuted) return;
@@ -281,17 +290,139 @@ export class SoundManager {
 
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.92;
+    utterance.rate = 0.90;
     utterance.pitch = 1.0;
 
-    // Pick Malay or Indonesian or Arabic voice if available
     const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(v => v.lang.startsWith('ms') || v.lang.startsWith('id') || v.lang.startsWith('ar'));
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
+    const isArabic = /[\u0600-\u06FF]/.test(text);
+
+    if (isArabic) {
+      utterance.lang = 'ar-SA';
+      const arVoice = voices.find(v => v.lang.startsWith('ar') || v.name.toLowerCase().includes('arabic'));
+      if (arVoice) utterance.voice = arVoice;
+    } else {
+      utterance.lang = 'ms-MY';
+      const preferredVoice = voices.find(v => v.lang.startsWith('ms') || v.lang.startsWith('id'));
+      if (preferredVoice) utterance.voice = preferredVoice;
     }
 
     window.speechSynthesis.speak(utterance);
+  }
+
+  /**
+   * Specifically speak Arabic text with Arabic pronunciation voice
+   */
+  public speakArabic(text: string, onEnd?: () => void) {
+    if (this.isMuted) return;
+    if (!('speechSynthesis' in window)) return;
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'ar-SA';
+    utterance.rate = 0.85;
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const arVoice = voices.find(v => v.lang.startsWith('ar') || v.name.toLowerCase().includes('arabic'));
+    if (arVoice) {
+      utterance.voice = arVoice;
+    }
+
+    if (onEnd) {
+      utterance.onend = () => onEnd();
+      utterance.onerror = () => onEnd();
+    }
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  /**
+   * Play Authentic Arabic Talbiyah Audio ("Bunyi Arab")
+   * Uses HTML5 audio asset with Base64 fallback and Arabic TTS failover
+   */
+  public playTalbiyahAudio(onEnded?: () => void, onError?: () => void): HTMLAudioElement | null {
+    if (this.isMuted) return null;
+
+    // Stop existing playback if any
+    this.stopTalbiyahAudio();
+
+    try {
+      const audio = new Audio();
+      audio.src = TALBIYAH_AUDIO_PATH;
+      audio.volume = 0.95;
+
+      audio.onended = () => {
+        this.isTalbiyahAudioActive = false;
+        this.talbiyahAudio = null;
+        onEnded?.();
+      };
+
+      const arabicText = 'لَبَّيْكَ اللَّهُمَّ لَبَّيْكَ، لَبَّيْكَ لاَ شَرِيكَ لَكَ لَبَّيْكَ، إِنَّ الْحَمْدَ وَالنِّعْمَةَ لَكَ وَالْمُلْكَ، لاَ شَرِيكَ لَكَ';
+
+      audio.onerror = () => {
+        // Fallback to Base64 embedded audio data
+        try {
+          const fallbackAudio = new Audio(TALBIYAH_AUDIO_BASE64);
+          fallbackAudio.volume = 0.95;
+          fallbackAudio.onended = () => {
+            this.isTalbiyahAudioActive = false;
+            this.talbiyahAudio = null;
+            onEnded?.();
+          };
+          fallbackAudio.onerror = () => {
+            // Final fallback to Web Speech API Arabic
+            this.isTalbiyahAudioActive = false;
+            this.talbiyahAudio = null;
+            this.speakArabic(arabicText, onEnded);
+            onError?.();
+          };
+          this.talbiyahAudio = fallbackAudio;
+          this.isTalbiyahAudioActive = true;
+          fallbackAudio.play().catch(() => {
+            this.speakArabic(arabicText, onEnded);
+            onError?.();
+          });
+        } catch {
+          this.speakArabic(arabicText, onEnded);
+          onError?.();
+        }
+      };
+
+      this.talbiyahAudio = audio;
+      this.isTalbiyahAudioActive = true;
+      audio.play().catch(() => {
+        // Autoplay policy or format error - fallback to base64 or speech
+        audio.onerror?.(new Event('error'));
+      });
+
+      return audio;
+    } catch {
+      this.speakArabic('لَبَّيْكَ اللَّهُمَّ لَبَّيْكَ، لَبَّيْكَ لاَ شَرِيكَ لَكَ لَبَّيْكَ، إِنَّ الْحَمْدَ وَالنِّعْمَةَ لَكَ وَالْمُلْكَ، لاَ شَرِيكَ لَكَ', onEnded);
+      onError?.();
+      return null;
+    }
+  }
+
+  /**
+   * Stop playing Talbiyah audio and cancel speech
+   */
+  public stopTalbiyahAudio() {
+    if (this.talbiyahAudio) {
+      this.talbiyahAudio.pause();
+      this.talbiyahAudio.currentTime = 0;
+      this.talbiyahAudio = null;
+    }
+    this.isTalbiyahAudioActive = false;
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  }
+
+  /**
+   * Check if Talbiyah audio is currently active
+   */
+  public isTalbiyahAudioPlaying(): boolean {
+    return this.isTalbiyahAudioActive && !!this.talbiyahAudio && !this.talbiyahAudio.paused;
   }
 
   /**

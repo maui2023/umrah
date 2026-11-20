@@ -3,12 +3,25 @@ import { DuaItem } from '../types';
 export const TALBIYAH_DUA: DuaItem = {
   id: 'talbiyah',
   stage: 'niat',
-  title: 'Lafaz Talbiyah',
-  location: 'Miqat & Sepanjang Perjalanan',
+  title: 'Lafaz & Panduan Talbiyah',
+  location: 'Miqat & Sepanjang Perjalanan ke Makkah',
   arabic: 'لَبَّيْكَ اللَّهُمَّ لَبَّيْكَ، لَبَّيْكَ لاَ شَرِيكَ لَكَ لَبَّيْكَ، إِنَّ الْحَمْدَ وَالنِّعْمَةَ لَكَ وَالْمُلْكَ، لاَ شَرِيكَ لَكَ',
   transliteration: 'Labbaik Allahumma labbaik, labbaika laa syariika laka labbaik. Innal-hamda wan-ni\'mata laka wal-mulk, laa syariika lak.',
   translation: 'Hamba-Mu datang menyahut panggilan-Mu ya Allah, hamba-Mu datang. Tiada sekutu bagi-Mu, hamba-Mu datang. Sesungguhnya segala puji, nikmat dan kerajaan adalah milik-Mu semata-mata, tiada sekutu bagi-Mu.',
-  sunnahNote: 'Dilaungkan oleh jemaah sejak berniat ihram sehingga mula melangkah ke dataran Tawaf.'
+  sunnahNote: 'Membaca talbiyah adalah sunat muakkad (mustahab). Disunatkan bertalbiyah dengan suara nyaring bagi jemaah lelaki, dan suara perlahan bagi jemaah wanita.',
+  waktuUmrah: {
+    mula: 'Ketika seseorang telah berniat ihram di miqat.',
+    tamat: 'Ketika mulai memasuki ibadah Tawaf (sebelum menyentuh/mengucap salam pada Hajar Aswad atau memulai putaran pertama tawaf).'
+  },
+  waktuHaji: {
+    mula: 'Ketika seseorang telah berniat ihram haji di miqat.',
+    tamat: 'Berakhir ketika mulai melempar Jumrah al-Kubra (Jumrah Aqabah) pada tanggal 10 Zulhijah (Hari Raya Aidiladha), atau saat mulai tawaf atau bercukur mengikut mana yang didahulukan.'
+  },
+  hukumDanKetentuan: {
+    hukum: 'Membaca talbiyah adalah sunat muakkad (mustahab). Jika terlupa atau tertinggal, ia tidak membatalkan ibadah haji atau umrah.',
+    caraMelafazkan: 'Bagi jemaah lelaki, disunatkan mengerjakannya dengan suara yang nyaring, manakala bagi jemaah wanita, dibaca dengan suara perlahan yang hanya didengari oleh diri sendiri.'
+  },
+  audioUrl: './audio/talbiyah.mp3'
 };
 
 export const NIAT_UMRAH: DuaItem = {

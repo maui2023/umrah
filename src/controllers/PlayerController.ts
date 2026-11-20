@@ -212,6 +212,8 @@ export class PlayerController {
     this.cameraDistance = 4.8;
     this.cameraHeight = 2.2;
     this.cameraPitch = 0.22;
+    this.cameraYaw = this.avatar.group.rotation.y;
+    this.snapCamera();
     this.onBusBoardStateChange?.(false);
   }
 

@@ -967,3 +967,103 @@ Pelan ini telah dilaksanakan pada 2026-11-16 18:43:16
      * Letusan konfeti keraian (*confetti particles*) dan audio ganjaran istimewa.
      * Modal Buku Amalan Pahala (`#btn-top-pahala`) membolehkan jemaah menyemak jumlah pahala terkumpul, pecahan solat solo vs berjemaah, dan senarai masjid yang telah dikunjungi.
      * Semua rekod pahala disimpan secara automatik dalam `localStorage`.
+
+
+---
+
+## 🗓️ Sesi Pelaksanaan: 2026-11-20 16:00:00 (Pembetulan Menyeluruh Turun Bas Semasa Tiba di Destinasi Ziarah)
+
+### 💬 Keperluan / Input Terkini Pengguna:
+* **Arahan Pengguna**: *"Tidak boleh turun dari bas bila dah smpai, baiki"*
+
+### 🔍 Punca Ralat Dikenal Pasti:
+1. **Pengesanan Ketibaan Autopilot Terlalu Sempit & Terlepas (*Overshoot Loop*)**:
+   - `handleAutoCruise` hanya menganggap bas tiba jika jarak `< 2.0m` dan kelajuan `< 0.2 m/s`. Kerana saiz bas 13.5m dan kelajuan minimum `3.0 m/s`, bas sering terlajak (*overshoot*) titik sasaran lalu berpusing tanpa henti tanpa mematikan mod autopilot.
+2. **Panggilan Berganda Memadamkan *Callback* Ketibaan (*Overwritten Arrival Callback*)**:
+   - Fungsi `goToZiarahSpot` mencetuskan `onZiarahChanged` (yang menghantar callback ketibaan) dan sejurus selepas itu mencetuskan `onTeleportRequested` yang memanggil `cruiseTo(x, z, rot)` tanpa callback, menyebabkan `this.onCruiseArrived` dipadamkan semula menjadi `undefined`.
+3. **Tiada Mekanisme Turun Bas Automatik di Destinasi 'bus_stop'**:
+   - Apabila bas tiba di destinasi ziarah seperti Masjid Quba, Ladang Kurma, Medan Khandak, Jabal Uhud, dan Miqat Bir Ali, avatar kekal terperangkap di tempat duduk bas.
+   - Menekan butang tindakan utama (`#btn-main-action`) melangkau lokasi semasa dan terus memandu ke lokasi seterusnya tanpa memberi peluang pemain turun berjalan kaki.
+4. **Pintasan [E] Dipintas Oleh Pengesan Pintu Masjid**:
+   - Semasa berada dalam bas yang berhenti berhampiran pintu masjid, pintasan kekunci [E] mencetuskan cubaan masuk pintu masjid bukannya keluar bas.
+5. **Halangan Fizik (*Collision Barrier*) Gunung Jabal Uhud**:
+   - Koordinat lama Jabal Uhud (`-160, -60`) berada di dalam dinding penghalang batu gunung (`z < -56 && x < -148`), menyebabkan pemain yang turun tersekat sepenuhnya (*frozen/stuck*) dalam collider.
+
+### 🚀 Perubahan Kod & Seni Bina Baharu:
+1. **Penaiktarafan Logik Ketibaan Bas (`src/controllers/BusController.ts`)**:
+   - Mengubah jarak pengesanan ketibaan kepada zon lebih tepat (`distToTarget < 3.2m` atau `< 5.0m` jika kelajuan rendah).
+   - Memastikan bas membrek kemas, mengunci kedudukan ke petak parkir (`this.position.set`), menghentikan kelajuan (`speed = 0`), mematikan autopilot (`isAutoCruising = false`), dan mencetuskan `onCruiseArrived`.
+   - Mengelakkan pemadaman `currentDestinationName` dan `onCruiseArrived` sekiranya argumen yang dihantar tidak ditakrifkan.
+
+2. **Turun Bas Automatik & Pemberitahuan Ketibaan (`src/main.ts`)**:
+   - Apabila bas selamat tiba di destinasi `bus_stop`, `miqat`, atau `luar_madinah_turun` (Masjid Quba, Ladang Kurma, Khandak, Uhud, Telaga Nabi, Bir Ali):
+     * Pemain diturunkan secara automatik ke atas karpet sambutan pintu bas (`this.playerController.exitBus()`).
+     * Notifikasi pop-up dipaparkan: *"📍 Bas telah selamat tiba di [Nama Lokasi]. Pintu bas dibuka, selamat menziarahi!"*.
+     * Kamera diorientasikan selari dengan arah pandangan avatar menghadap lokasi ziarah.
+
+3. **Papan UI & Pop-up Terapung Baharu Turun Bas (`src/ui/HUD.ts`)**:
+   - Menambah pop-up terapung tengah bawah `#bus-exit-prompt`:
+     * *"🚪 Bas Telah Tiba di [Nama Lokasi]! • Tekan [E] atau Klik untuk Turun Bas [ Turun Bas ➔ ]"*.
+     * Boleh ditekan terus oleh pengguna di telefon bimbit mahupun desktop.
+   - Mempertingkat papan pemandu bas `#bus-dashboard-card`:
+     * Apabila bas berhenti (`0 km/j`), status berubah kepada `✅ Bas Telah Sampai di Destinasi` dengan butang `[ 🚪 Turun Bas ]` yang aktif.
+   - Menyediakan fungsi `showNotification` untuk mesej mesra pengguna.
+
+4. **Kekunci Interaktif Pintar [E] & Butang Tindakan (`src/main.ts`)**:
+   - Semasa berada di dalam bas, menekan kekunci [E] kini DIUTAMAKAN untuk keluar dari bas serta-merta tanpa sebarang sekatan.
+   - Sekiranya pemain masih berada di dalam bas dan menekan butang tindakan utama (contohnya *"Solat Sunat 2 Rakaat & Bergambar"* di Quba), sistem akan menurunkan pemain ke tanah terlebih dahulu supaya pemain dapat merasai pengalaman berjalan kaki dan bersolat di masjid.
+
+5. **Pelarasan Koordinat Parkir Bebas Halangan (`src/data/ziarahData.ts`, `src/simulation/UmrahWorkflow.ts`, `src/main.ts`)**:
+   - Memindahkan koordinat Jabal Uhud ke `(-148, -52)` (di hadapan teluk parkir dan Makam Shuhada, selamat daripada zon tebing batu).
+   - Memindahkan koordinat Khandak ke `(-142, -50)` bagi memastikan laluan keluar bas yang lapang dan selamat.
+
+---
+
+## 🗓️ Sesi Kemaskini: 2026-11-20 (Laluan Lengkap Bas Ziarah & Larangan Ihram Fiqh)
+
+### 💬 Keperluan Baharu Pengguna:
+1. **Route Bas Ziarah Luar Madinah Realistik & Tidak Masuk ke Kawasan Pejalan Kaki Madinah**:
+   - Bas ziarah tidak masuk ke dalam perkarangan Masjid Nabawi (Ziarah Dalam Madinah berjalan kaki sepenuhnya).
+   - Membina rangkaian jalan raya tar/asphalt berturap yang bersambung ke SEMUA tempat ziarah luar (Masjid Quba, Ladang Kurma, Qiblatain, Khandak/Masjid 7, Jabal Uhud, Ziarah Badar, Jejak Rasul/Bir Ghars & Bir Rumah, layby Masjid Ijabah, Bilal, Jumaah, Hotel, dan Lebuhraya Miqat Bir Ali hingga Makkah).
+   - Menambah teluk parkir berturap (dengan *kerb stones* konkrit 3D dan garisan petak putih), lintasan pejalan kaki (zebra crossing), papan tanda arah hijau dwibahasa (Arab & Rumi), serta tiang lampu jalan di setiap lokasi.
+   - Bas bergerak mengikut laluan jalan raya sebenar (*waypoint navigation*) dan tidak memotong padang pasir secara serong.
+
+2. **Nota Tambahan Larangan Ihram (Hukum Cawat & Wangian Wanita)**:
+   - **Pemakaian Cawat / Pelapik Ihram**: Jemaah (khususnya lelaki yang ada keuzuran) **tidak boleh diikat mati (simpul mati)**; wajib/perlu disimpul dengan **simpul mudah buka (butterfly knot / simpul rama-rama)** atau disemat dengan pin tanpa ikatan kekal.
+   - **Wangian Pakaian Ihram Wanita**: Sekiranya wangi-wangian dipakai pada pakaian ihram wanita sebelum berniat, **tidak boleh dibuka selepas berniat ihram**. Jika dibuka (mandi/ke tandas), tidak boleh dipakai semula dan **perlu ditukar kepada baju/pakaian baharu yang tidak berwangian**.
+   - Menyediakan butang dan modal khusus `[⚠️ Larangan Ihram]` pada HUD, menyepadukannya dalam Panduan, data ziarah hotel ihram & Miqat Bir Ali.
+
+---
+
+## 🗓️ Sesi Kemaskini: 2026-11-20 (Waktu Membaca Talbiyah & Audio Sebutan Arab)
+
+### 💬 Keperluan Baharu Pengguna:
+1. **Waktu Membaca Bacaan Talbiyah (Labbaik Allahumma Labbaik)**:
+   - **Waktu Membaca Talbiyah untuk Umrah**:
+     * Mula: Ketika seseorang telah berniat ihram di miqat.
+     * Tamat: Ketika mulai memasuki ibadah Tawaf (sebelum menyentuh/mengucap salam pada Hajar Aswad atau memulai putaran pertama tawaf).
+   - **Waktu Membaca Talbiyah untuk Haji**:
+     * Mula: Ketika seseorang telah berniat ihram haji di miqat.
+     * Tamat: Berakhir ketika mulai melempar Jumrah al-Kubra (Jumrah Aqabah) pada tanggal 10 Zulhijah (Hari Raya Aidiladha), atau saat mulai tawaf atau bercukur mengikut mana yang didahulukan.
+2. **Hukum dan Ketentuan Penting**:
+   - **Hukum**: Membaca talbiyah adalah **sunat muakkad (mustahab)**. Jika terlupa atau tertinggal, ia tidak membatalkan ibadah haji atau umrah.
+   - **Cara melafazkan**: Bagi jemaah lelaki, disunatkan mengerjakannya dengan suara yang nyaring, manakala bagi jemaah wanita, dibaca dengan suara perlahan yang hanya didengari oleh diri sendiri.
+3. **Bunyi Arab (Arabic Audio & Recitation)**:
+   - Menghasilkan dan menyepadukan fail audio sebutan bahasa Arab asli bagi lafaz Talbiyah (`public/audio/talbiyah.mp3`).
+   - Menyediakan sandaran Base64 (`src/audio/talbiyahAudio.ts`) untuk memastikan 100% offline dan kalis sekatan rangkaian/CORS.
+   - Menambah enjin suara `speakArabic` dan pengesanan teks Arab dalam `SoundManager.ts` menggunakan Web Speech API dengan kod bahasa `ar-SA`.
+
+### 🚀 Perubahan Kod & Seni Bina Baharu:
+1. **Model Data & Jenis (`src/types.ts`, `src/data/duas.ts`, `src/data/ziarahData.ts`)**:
+   - Menambah medan `waktuUmrah`, `waktuHaji`, `hukumDanKetentuan`, dan `audioUrl` pada antaramuka `DuaItem`.
+   - Mengemaskini `TALBIYAH_DUA` serta spot `perjalanan_bas_talbiyah_makkah` dengan penerangan lengkap mengikut ketetapan fiqh.
+2. **Enjin Audio Talbiyah (`src/audio/SoundManager.ts` & `src/audio/talbiyahAudio.ts`)**:
+   - Kaedah `playTalbiyahAudio`, `stopTalbiyahAudio`, `isTalbiyahAudioPlaying`, dan `speakArabic`.
+3. **Antaramuka Pengguna & Modal Interaktif HUD (`src/ui/HUD.ts`)**:
+   - **Modal Khas Talbiyah (`showTalbiyahModal`)**: Paparan kaligrafi Arab, teks Rumi, terjemahan, pemain audio dengan status animasi bermain ("Sedang Mengalunkan Talbiyah 🎵"), kad waktu Umrah vs Haji, dan hukum/adab suara lelaki vs wanita.
+   - **Menu Tindakan Atas**: Butang pintas `[📿 Panduan Talbiyah]`.
+   - **Kad Subcard Bawah**: Butang pantas `[🔊 Bunyi Arab]` apabila berada di lokasi Talbiyah atau melihat doa Talbiyah.
+   - **Modal Doa Penuh (`showDuaDetailModal`)**: Memaparkan kad waktu Umrah vs Haji dan butang dengar sebutan Arab apabila doa Talbiyah dibuka.
+   - **Panduan Ibadah (`showGuideModal`)**: Seksyen ringkasan Talbiyah dan butang pautan terus ke modal Talbiyah.
+4. **Alur Perjalanan Umrah (`src/simulation/UmrahWorkflow.ts`)**:
+   - Memastikan pengesahan niat di Miqat Bir Ali mengaktifkan doa dan kad Talbiyah semasa menaiki bas ke Makkah.

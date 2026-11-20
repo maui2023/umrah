@@ -195,7 +195,9 @@ class UmrahSimulationApp {
 
     // Wire Interactive Key (KeyE) for entering mosque doors and boarding/exiting bus
     this.playerController.onInteractiveKeyPress = () => {
-      if (this.hud.currentNearMosque) {
+      if (this.playerController.isInBus) {
+        this.playerController.exitBus();
+      } else if (this.hud.currentNearMosque) {
         this.hud.onEnterMosqueDoorCallback?.(this.hud.currentNearMosque);
       } else {
         this.playerController.toggleBusBoarding();
@@ -255,14 +257,41 @@ class UmrahSimulationApp {
           return;
         }
 
+        if (spot.category === 'dalam_madinah' || spot.transportType === 'walk') {
+          if (this.playerController.isInBus) {
+            this.playerController.exitBus();
+            this.playerController.teleport(-131, -5, 0);
+            this.hud.showNotification(
+              '📍 Bas Ziarah tidak masuk ke dalam Madinah (kawasan pejalan kaki Masjid Nabawi). Ziarah Dalam Madinah dilakukan sepenuhnya dengan berjalan kaki bagi menghayati sirah Rasulullah ﷺ dan para sahabat.'
+            );
+          }
+          return;
+        }
+
         const isBusTransport = spot.transportType === 'bus_pass' || spot.transportType === 'bus_stop' || spot.transportType === 'bus_travel';
         if (isBusTransport && !this.playerController.isInBus) {
           this.playerController.boardBus();
         }
 
+        if (spot.id === 'memakai_ihram_hotel') {
+          this.hud.showNotification(
+            '⚠️ Peringatan Ihram: Cawat tidak boleh diikat mati (simpul mudah buka/butterfly). Bagi wanita, jika pakaian ihram berwangian, jangan buka baju selepas niat!'
+          );
+        }
+
         if (this.playerController.isInBus && spot.coordinates && busController) {
           busController.cruiseTo(spot.coordinates.x, spot.coordinates.z, undefined, spot.title, () => {
             soundManager.playCheckpointSound();
+            // Automatically disembark player when arriving at bus stop or outdoor visit location
+            if (
+              spot.transportType === 'bus_stop' ||
+              spot.transportType === 'miqat' ||
+              spot.category === 'luar_madinah_turun' ||
+              spot.category === 'miqat_bir_ali'
+            ) {
+              this.playerController.exitBus();
+              this.hud.showNotification(`📍 Bas telah selamat tiba di ${spot.title}. Pintu bas dibuka, selamat menziarahi!`);
+            }
           });
         }
       },
@@ -277,7 +306,9 @@ class UmrahSimulationApp {
       },
       onTeleportRequested: (x, z, rot) => {
         if (this.playerController.isInBus && busController) {
-          busController.cruiseTo(x, z, rot);
+          if (!busController.isAutoCruising) {
+            busController.cruiseTo(x, z, rot);
+          }
         } else {
           this.playerController.teleport(x, z, rot ?? 0);
         }
@@ -361,7 +392,7 @@ class UmrahSimulationApp {
         } else if (loc === 'masjid_quba') {
           this.playerController.teleport(-115, -25, Math.PI);
         } else if (loc === 'jabal_uhud') {
-          this.playerController.teleport(-160, -45, Math.PI);
+          this.playerController.teleport(-148, -45, Math.PI);
         } else if (loc === 'ladang_kurma') {
           this.playerController.teleport(-130, -42, 0);
         } else if (loc === 'miqat_bir_ali') {
@@ -415,13 +446,43 @@ class UmrahSimulationApp {
       onActionButton: (stage) => {
         if (stage === 'ziarah_dalam' || stage === 'ziarah_luar_bus' || stage === 'ziarah_wida_hotel') {
           const spot = this.workflow.getCurrentZiarahSpot();
+
+          // If the player is still inside the bus at an activity/solat stop,
+          // first disembark them so they can experience the location on foot!
+          if (this.playerController.isInBus && (spot.transportType === 'bus_stop' || spot.category === 'luar_madinah_turun')) {
+            if (busController) {
+              busController.isAutoCruising = false;
+              busController.speed = 0;
+              if (spot.coordinates) {
+                busController.teleportBus(spot.coordinates.x, spot.coordinates.z);
+              }
+            }
+            this.playerController.exitBus();
+            this.hud.showNotification(`📍 Bas telah tiba di ${spot.title}. Pintu bas dibuka, selamat menziarahi!`);
+            return;
+          }
+
           if (spot.id === 'masjid_quba' && !this.workflow.qubaSolatDone) {
             this.workflow.performSolatQuba();
           } else if (spot.id === 'memakai_ihram_hotel' && !this.workflow.ihramWorn) {
             this.workflow.wearIhramAtHotel();
+            this.hud.showLaranganIhramModal();
           }
           this.workflow.nextZiarahSpot();
         } else if (stage === 'miqat_bir_ali') {
+          const spot = this.workflow.getCurrentZiarahSpot();
+          if (this.playerController.isInBus) {
+            if (busController) {
+              busController.isAutoCruising = false;
+              busController.speed = 0;
+              if (spot?.coordinates) {
+                busController.teleportBus(spot.coordinates.x, spot.coordinates.z);
+              }
+            }
+            this.playerController.exitBus();
+            this.hud.showNotification('📍 Bas telah tiba di Masjid Bir Ali. Sila masuk untuk solat sunat dan lafaz niat Ihram.');
+            return;
+          }
           this.workflow.confirmNiatAtMiqat();
         } else if (stage === 'perjalanan_makkah' || stage === 'niat') {
           this.workflow.arriveAtMakkah();

@@ -39,83 +39,427 @@ export class MadinahZone {
   }
 
   /**
-   * Paved asphalt highway representing Lebuhraya Hijrah (Madinah to Makkah)
+   * Paved asphalt highway representing Lebuhraya Hijrah & complete connected tour routes to all ziarah locations
    */
   private createHighwayRoad() {
     this.highwayGroup = new THREE.Group();
 
-    // Road asphalt surface (extended length)
-    const roadWidth = 14;
-    const roadLength = 200;
-    const roadGeo = new THREE.PlaneGeometry(roadWidth, roadLength);
-    const roadMat = new THREE.MeshLambertMaterial({ color: 0x24282f });
-    const road = new THREE.Mesh(roadGeo, roadMat);
-    road.rotation.x = -Math.PI / 2;
-    road.position.set(-140, 0.02, 10);
-    road.receiveShadow = true;
-    this.highwayGroup.add(road);
+    const roadMat = new THREE.MeshLambertMaterial({ color: 0x22262c });
+    const bayMat = new THREE.MeshLambertMaterial({ color: 0x262b32 });
+    const kerbMat = new THREE.MeshLambertMaterial({ color: 0xe2e8f0 });
+    const yellowLineMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
+    const whiteLineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const poleMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
+    const greenSignMat = new THREE.MeshLambertMaterial({ color: 0x065f46 });
 
-    // Yellow center lines (dashed)
-    for (let z = -85; z <= 100; z += 6) {
-      const lineGeo = new THREE.PlaneGeometry(0.3, 3.5);
-      const lineMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
-      const line = new THREE.Mesh(lineGeo, lineMat);
-      line.rotation.x = -Math.PI / 2;
-      line.position.set(-140, 0.03, z);
-      this.highwayGroup.add(line);
-    }
+    // Helper: Add 3D concrete kerb stones around parking bays
+    const addBayKerbs = (centerX: number, centerZ: number, width: number, length: number) => {
+      const kerbH = 0.14;
+      const kerbW = 0.22;
+      [-length / 2, length / 2].forEach((zOff) => {
+        const k = new THREE.Mesh(new THREE.BoxGeometry(width, kerbH, kerbW), kerbMat);
+        k.position.set(centerX, kerbH / 2 + 0.02, centerZ + zOff);
+        this.highwayGroup.add(k);
+      });
+      [-width / 2, width / 2].forEach((xOff) => {
+        const k = new THREE.Mesh(new THREE.BoxGeometry(kerbW, kerbH, length), kerbMat);
+        k.position.set(centerX + xOff, kerbH / 2 + 0.02, centerZ);
+        this.highwayGroup.add(k);
+      });
+    };
+    const addRoadStrip = (
+      centerX: number,
+      centerZ: number,
+      width: number,
+      length: number,
+      isEastWest = false
+    ) => {
+      const roadGeo = new THREE.PlaneGeometry(width, length);
+      const road = new THREE.Mesh(roadGeo, roadMat);
+      road.rotation.x = -Math.PI / 2;
+      if (isEastWest) {
+        road.rotation.z = Math.PI / 2;
+      }
+      road.position.set(centerX, 0.02, centerZ);
+      road.receiveShadow = true;
+      this.highwayGroup.add(road);
 
-    // White shoulder lines
-    [-6.5, 6.5].forEach((offset) => {
-      const lineGeo = new THREE.PlaneGeometry(0.35, roadLength);
-      const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const line = new THREE.Mesh(lineGeo, lineMat);
+      // Yellow center dashed lines
+      const step = 6;
+      if (!isEastWest) {
+        for (let z = centerZ - length / 2 + 3; z <= centerZ + length / 2 - 3; z += step) {
+          const line = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 3.5), yellowLineMat);
+          line.rotation.x = -Math.PI / 2;
+          line.position.set(centerX, 0.03, z);
+          this.highwayGroup.add(line);
+        }
+        // White shoulders
+        [-width / 2 + 0.5, width / 2 - 0.5].forEach((offset) => {
+          const shoulder = new THREE.Mesh(new THREE.PlaneGeometry(0.35, length), whiteLineMat);
+          shoulder.rotation.x = -Math.PI / 2;
+          shoulder.position.set(centerX + offset, 0.03, centerZ);
+          this.highwayGroup.add(shoulder);
+        });
+      } else {
+        for (let x = centerX - length / 2 + 3; x <= centerX + length / 2 - 3; x += step) {
+          const line = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 0.3), yellowLineMat);
+          line.rotation.x = -Math.PI / 2;
+          line.position.set(x, 0.03, centerZ);
+          this.highwayGroup.add(line);
+        }
+        // White shoulders
+        [-width / 2 + 0.5, width / 2 - 0.5].forEach((offset) => {
+          const shoulder = new THREE.Mesh(new THREE.PlaneGeometry(length, 0.35), whiteLineMat);
+          shoulder.rotation.x = -Math.PI / 2;
+          shoulder.position.set(centerX, 0.03, centerZ + offset);
+          this.highwayGroup.add(shoulder);
+        });
+      }
+    };
+
+    // Helper: Create a roadside or overhead green signboard
+    const addDirectionSign = (
+      x: number,
+      y: number,
+      z: number,
+      arabicText: string,
+      rwiText: string,
+      subText: string = '',
+      width = 7.5,
+      height = 2.0,
+      rotY = 0
+    ) => {
+      const signGroup = new THREE.Group();
+      signGroup.position.set(x, y, z);
+      signGroup.rotation.y = rotY;
+
+      // Two support poles
+      [-width / 2 + 0.4, width / 2 - 0.4].forEach((pX) => {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, y + 1, 8), poleMat);
+        pole.position.set(pX, -y / 2, 0);
+        signGroup.add(pole);
+      });
+
+      // Board
+      const board = new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.15), greenSignMat);
+      signGroup.add(board);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#065f46';
+      ctx.fillRect(0, 0, 1024, 256);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 10;
+      ctx.strokeRect(8, 8, 1008, 240);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 44px Amiri, serif';
+      ctx.fillText(arabicText, 512, 70);
+
+      ctx.fillStyle = '#fde047';
+      ctx.font = 'bold 32px Inter, sans-serif';
+      ctx.fillText(rwiText, 512, 138);
+
+      if (subText) {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px Inter, sans-serif';
+        ctx.fillText(subText, 512, 198);
+      }
+
+      const tex = new THREE.CanvasTexture(canvas);
+      const face = new THREE.Mesh(
+        new THREE.PlaneGeometry(width - 0.2, height - 0.2),
+        new THREE.MeshBasicMaterial({ map: tex })
+      );
+      face.position.z = 0.09;
+      signGroup.add(face);
+
+      this.highwayGroup.add(signGroup);
+    };
+
+    // Helper: Add Zebra Pedestrian Crosswalk
+    const addZebraCrosswalk = (centerX: number, centerZ: number, width: number, length: number, isEastWest = false) => {
+      const numStripes = 6;
+      const spacing = length / numStripes;
+      for (let i = 0; i < numStripes; i++) {
+        if (!isEastWest) {
+          const stripe = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.75, spacing * 0.45), whiteLineMat);
+          stripe.rotation.x = -Math.PI / 2;
+          stripe.position.set(centerX, 0.035, centerZ - length / 2 + (i + 0.5) * spacing);
+          this.highwayGroup.add(stripe);
+        } else {
+          const stripe = new THREE.Mesh(new THREE.PlaneGeometry(spacing * 0.45, width * 0.75), whiteLineMat);
+          stripe.rotation.x = -Math.PI / 2;
+          stripe.position.set(centerX - length / 2 + (i + 0.5) * spacing, 0.035, centerZ);
+          this.highwayGroup.add(stripe);
+        }
+      }
+    };
+
+    // =========================================================================
+    // 1. CENTRAL MAIN HIGHWAY SPINE (Lebuhraya Hijrah - Madinah Ring Road)
+    // Runs North-South from z = -85 to z = 95 at x = -140
+    // =========================================================================
+    addRoadStrip(-140, 5, 14, 185, false);
+
+    // =========================================================================
+    // 2. EAST BRANCH AVENUE TO MASJID QUBA (Tariq Quba)
+    // Connects Highway (x: -140) to Quba Bus Terminal (x: -124, z: -35)
+    // =========================================================================
+    addRoadStrip(-131, -35, 10, 18, true);
+
+    // Quba Grand Bus Terminal Bay (x: -124, z: -35)
+    const bayQuba = new THREE.Mesh(new THREE.PlaneGeometry(20, 22), bayMat);
+    bayQuba.rotation.x = -Math.PI / 2;
+    bayQuba.position.set(-124, 0.02, -35);
+    bayQuba.receiveShadow = true;
+    this.highwayGroup.add(bayQuba);
+    addBayKerbs(-124, -35, 20, 22);
+
+    // Parking slot markings for Quba
+    [-4, 0, 4].forEach((xOff) => {
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 14), whiteLineMat);
       line.rotation.x = -Math.PI / 2;
-      line.position.set(-140 + offset, 0.03, 10);
+      line.position.set(-124 + xOff, 0.03, -35);
       this.highwayGroup.add(line);
     });
 
-    // Paved Branch Parking Bays & Roadside Turnouts
-    const bayMat = new THREE.MeshLambertMaterial({ color: 0x24282f });
+    // Zebra crossing connecting Quba bay to Masjid Quba south doorway
+    addZebraCrosswalk(-120, -35, 4.0, 6.0, true);
 
-    // 1. Madinah Station / Start Bay (x: -133, z: -8)
-    const bayStation = new THREE.Mesh(new THREE.PlaneGeometry(16, 26), bayMat);
-    bayStation.rotation.x = -Math.PI / 2;
-    bayStation.position.set(-133, 0.02, -8);
-    bayStation.receiveShadow = true;
-    this.highwayGroup.add(bayStation);
+    // Direction sign to Masjid Quba
+    addDirectionSign(-140, 6.5, -31, '➔ مَسْجِد قُبَاء', 'MASJID QUBA (SOLAT = 1 UMRAH)', 'Belok Kiri Menuju Terminal Bas Quba', 7.2, 2.0, 0);
 
-    // 2. Masjid Quba Bay (x: -125, z: -35)
-    const bayQuba = new THREE.Mesh(new THREE.PlaneGeometry(24, 20), bayMat);
-    bayQuba.rotation.x = -Math.PI / 2;
-    bayQuba.position.set(-126, 0.02, -35);
-    bayQuba.receiveShadow = true;
-    this.highwayGroup.add(bayQuba);
+    // =========================================================================
+    // 3. SOUTH PALM AVENUE TO LADANG KURMA (Tariq Bustaan An-Nakhl)
+    // Connects from Quba Junction (z: -35) south to Ladang Kurma Bay (z: -45)
+    // =========================================================================
+    addRoadStrip(-134, -40, 9, 14, false);
 
-    // 3. Ladang Kurma Bay (x: -133, z: -45)
-    const bayKurma = new THREE.Mesh(new THREE.PlaneGeometry(16, 18), bayMat);
+    // Ladang Kurma Parking Bay (x: -134, z: -45)
+    const bayKurma = new THREE.Mesh(new THREE.PlaneGeometry(18, 18), bayMat);
     bayKurma.rotation.x = -Math.PI / 2;
-    bayKurma.position.set(-133, 0.02, -45);
+    bayKurma.position.set(-134, 0.02, -45);
     bayKurma.receiveShadow = true;
     this.highwayGroup.add(bayKurma);
 
-    // 4. Jabal Uhud Bay (x: -151, z: -55)
-    const bayUhud = new THREE.Mesh(new THREE.PlaneGeometry(22, 20), bayMat);
+    addDirectionSign(-134, 4.5, -38, '🌴 مَزَارِع التُّمُور بِالمَدِينَة', 'LADANG KURMA MADINAH', 'Kurma Ajwa Asli Nabi & Buah Tangan', 6.5, 1.8, Math.PI);
+
+    // =========================================================================
+    // 4. WEST BRANCH AVENUE TO MASJID QIBLATAIN (Tariq Al-Qiblatain)
+    // Connects Highway (x: -140) to Qiblatain Bay (x: -152, z: -20)
+    // =========================================================================
+    addRoadStrip(-146, -20, 10, 14, true);
+
+    // Qiblatain Bus Bay (x: -152, z: -20)
+    const bayQiblatain = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), bayMat);
+    bayQiblatain.rotation.x = -Math.PI / 2;
+    bayQiblatain.position.set(-152, 0.02, -20);
+    bayQiblatain.receiveShadow = true;
+    this.highwayGroup.add(bayQiblatain);
+
+    addDirectionSign(-140, 6.5, -16, '➔ مَسْجِد القِبْلَتَيْن', 'MASJID QIBLATAIN (DUA KIBLAT)', 'Peristiwa Bersejarah Pertukaran Arah Kiblat', 7.2, 2.0, 0);
+
+    // =========================================================================
+    // 5. NORTHWEST MOUNTAIN ROAD TO MEDAN KHANDAK & JABAL UHUD
+    // Connects Highway at z: -48 to Khandak Bay (-144, -50) & Uhud Bay (-152, -55)
+    // =========================================================================
+    addRoadStrip(-146, -48, 10, 14, true);
+    addRoadStrip(-150, -52, 9, 12, false);
+
+    // Khandak Bay (x: -144, z: -50)
+    const bayKhandak = new THREE.Mesh(new THREE.PlaneGeometry(18, 14), bayMat);
+    bayKhandak.rotation.x = -Math.PI / 2;
+    bayKhandak.position.set(-144, 0.02, -50);
+    bayKhandak.receiveShadow = true;
+    this.highwayGroup.add(bayKhandak);
+
+    addDirectionSign(-144, 4.5, -45, '⚔️ مَيْدَان غَزْوَة الخَنْدَق', 'MEDAN KHANDAK / MASJID 7', 'Saksi Strategi Parit Salman Al-Farisi R.A.', 6.5, 1.8, 0);
+
+    // Jabal Uhud Bus Terminal Bay (x: -152, z: -55)
+    const bayUhud = new THREE.Mesh(new THREE.PlaneGeometry(24, 20), bayMat);
     bayUhud.rotation.x = -Math.PI / 2;
-    bayUhud.position.set(-150, 0.02, -55);
+    bayUhud.position.set(-152, 0.02, -55);
     bayUhud.receiveShadow = true;
     this.highwayGroup.add(bayUhud);
 
-    // 5. Masjid Bir Ali Bay (x: -148, z: 32)
-    const bayBirAli = new THREE.Mesh(new THREE.PlaneGeometry(18, 26), bayMat);
+    addDirectionSign(-140, 6.5, -45, '➔ جَبَل أُحُد وَالشُّهَدَاء', 'JABAL UHUD & MAKAM SHUHADA', 'Makam Saidina Hamzah & Bukit Pemanah', 7.5, 2.0, 0);
+
+    // =========================================================================
+    // 6. WEST DESERT HIGHWAY SPUR TO ZIARAH BADAR (Tariq Badar Al-Kubra)
+    // Connects Highway (x: -140) out to Badar Scenic Lookout (x: -168, z: -40)
+    // =========================================================================
+    addRoadStrip(-155, -40, 10, 28, true);
+
+    // Badar Scenic Layby & Rest Bay (x: -168, z: -40)
+    const bayBadar = new THREE.Mesh(new THREE.PlaneGeometry(18, 16), bayMat);
+    bayBadar.rotation.x = -Math.PI / 2;
+    bayBadar.position.set(-168, 0.02, -40);
+    bayBadar.receiveShadow = true;
+    this.highwayGroup.add(bayBadar);
+
+    // Shaded desert rest shelter canopy at Badar lookout
+    const canopyRoof = new THREE.Mesh(
+      new THREE.BoxGeometry(8, 0.3, 6),
+      new THREE.MeshLambertMaterial({ color: 0x059669 })
+    );
+    canopyRoof.position.set(-168, 4.0, -45);
+    [-3.5, 3.5].forEach((cX) => {
+      [-2.5, 2.5].forEach((cZ) => {
+        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 4.0, 8), poleMat);
+        pillar.position.set(-168 + cX, 2.0, -45 + cZ);
+        this.highwayGroup.add(pillar);
+      });
+    });
+    this.highwayGroup.add(canopyRoof);
+
+    addDirectionSign(-168, 5.2, -41, '⭐ طَرِيق غَزْوَة بَدْر الكُبْرَى 130 KM', 'LEBUHRAYA BADAR (YAUMUL FURQAN)', 'Kisah Kemenangan 313 Pejuang Islam', 7.2, 2.0, 0);
+
+    // =========================================================================
+    // 7. HERITAGE AVENUE TO JEJAK RASUL & SAHABAT (Bir Ghars & Bir Rumah)
+    // Connects Highway at z: -10 west to Heritage Bay (x: -155, z: -10)
+    // =========================================================================
+    addRoadStrip(-148, -10, 9, 16, true);
+
+    // Heritage Well Bay (x: -155, z: -10)
+    const bayHeritage = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), bayMat);
+    bayHeritage.rotation.x = -Math.PI / 2;
+    bayHeritage.position.set(-155, 0.02, -10);
+    bayHeritage.receiveShadow = true;
+    this.highwayGroup.add(bayHeritage);
+
+    // Stone well replica monument at Jejak Rasul
+    const wellCylinder = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.5, 1.6, 1.2, 12),
+      new THREE.MeshLambertMaterial({ color: 0x64748b })
+    );
+    wellCylinder.position.set(-155, 0.6, -14);
+    this.highwayGroup.add(wellCylinder);
+
+    addDirectionSign(-155, 4.5, -7, '💧 آثَار السِّيرَة وَآبَار المَدِينَة', 'TELAGA BIR GHARS & BIR RUMAH', 'Tapak Wakaf Jariah Saidina Uthman R.A.', 6.8, 1.9, 0);
+
+    // =========================================================================
+    // 8. ROADSIDE TOUR BAYS (Masjid Ijabah, Masjid Bilal, Masjid Jumaah)
+    // Paved pullovers along the main highway with painted bus stop bays
+    // =========================================================================
+    // Masjid Ijabah Bay (-143, 10)
+    const bayIjabah = new THREE.Mesh(new THREE.PlaneGeometry(8, 14), bayMat);
+    bayIjabah.rotation.x = -Math.PI / 2;
+    bayIjabah.position.set(-143, 0.02, 10);
+    this.highwayGroup.add(bayIjabah);
+    addDirectionSign(-146, 3.8, 10, '🕌 مَسْجِد الإِجَابَة', 'MASJID IJABAH (DARI BAS)', 'Doa Perlindungan Perpecahan Ummah', 5.5, 1.6, Math.PI / 2);
+
+    // Masjid Bilal Bay (-145, 0)
+    const bayBilal = new THREE.Mesh(new THREE.PlaneGeometry(8, 14), bayMat);
+    bayBilal.rotation.x = -Math.PI / 2;
+    bayBilal.position.set(-145, 0.02, 0);
+    this.highwayGroup.add(bayBilal);
+    addDirectionSign(-148, 3.8, 0, '📢 مَسْجِد بِلَال بْن رَبَاح', 'MASJID BILAL (DARI BAS)', 'Muazzin Pertama Rasulullah ﷺ', 5.5, 1.6, Math.PI / 2);
+
+    // Masjid Jumaah Bay (-147, -10)
+    const bayJumaah = new THREE.Mesh(new THREE.PlaneGeometry(8, 14), bayMat);
+    bayJumaah.rotation.x = -Math.PI / 2;
+    bayJumaah.position.set(-147, 0.02, -10);
+    this.highwayGroup.add(bayJumaah);
+    addDirectionSign(-150, 3.8, -10, '🕌 مَسْجِد الجُمُعَة', 'MASJID JUMAAH (DARI BAS)', 'Tapak Solat Jumaat Pertama Madinah', 5.5, 1.6, Math.PI / 2);
+
+    // =========================================================================
+    // 9. MADINAH BUS TERMINAL & PEDESTRIAN BARRIER (Madinah Station Bay)
+    // Bus stays here; cannot enter holy walking zone of Masjid Nabawi
+    // =========================================================================
+    const bayStation = new THREE.Mesh(new THREE.PlaneGeometry(18, 28), bayMat);
+    bayStation.rotation.x = -Math.PI / 2;
+    bayStation.position.set(-135, 0.02, -8);
+    bayStation.receiveShadow = true;
+    this.highwayGroup.add(bayStation);
+    addBayKerbs(-135, -8, 18, 28);
+
+    // Yellow bus bay lettering
+    [-3, 2].forEach((xOff) => {
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 20), yellowLineMat);
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(-135 + xOff, 0.03, -8);
+      this.highwayGroup.add(line);
+    });
+
+    // Decorative bronze bollards protecting the pedestrian plaza from buses
+    const bollardMat = new THREE.MeshLambertMaterial({ color: 0xb45309 });
+    for (let z = -5; z <= 24; z += 2.5) {
+      const bollard = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.9, 8), bollardMat);
+      bollard.position.set(-137.2, 0.45, z);
+      this.highwayGroup.add(bollard);
+    }
+
+    addDirectionSign(
+      -135,
+      5.5,
+      -8,
+      '🚌 مَحَطَّة بَاصَات زِيَارَة المَدِينَة المُنَوَّرَة',
+      'TERMINAL BAS ZIARAH MADINAH',
+      'Laluan Pejalan Kaki Sahaja ke Masjid Nabawi ➔ Bas Dilarang Masuk',
+      8.0,
+      2.1,
+      -Math.PI / 2
+    );
+
+    // Hotel Departure & Memakai Ihram Bay (x: -140, z: 22)
+    const bayHotel = new THREE.Mesh(new THREE.PlaneGeometry(14, 18), bayMat);
+    bayHotel.rotation.x = -Math.PI / 2;
+    bayHotel.position.set(-140, 0.02, 22);
+    this.highwayGroup.add(bayHotel);
+
+    addDirectionSign(
+      -140,
+      4.8,
+      18,
+      '🧕 فُنْدُق الإِقَامَة • الإِحْرَام',
+      'HOTEL PENGINAPAN: PAKAI IHRAM',
+      'Mandi Sunat Ihram & Bersedia Menaiki Bas ke Miqat',
+      7.2,
+      1.9,
+      0
+    );
+
+    // =========================================================================
+    // 10. GRAND SOUTHERN BOULEVARD TO MIQAT MASJID BIR ALI
+    // Approach roads and grand bus parking terminal (x: -148, z: 32)
+    // =========================================================================
+    addRoadStrip(-144, 28, 10, 14, false);
+
+    const bayBirAli = new THREE.Mesh(new THREE.PlaneGeometry(22, 26), bayMat);
     bayBirAli.rotation.x = -Math.PI / 2;
     bayBirAli.position.set(-148, 0.02, 32);
     bayBirAli.receiveShadow = true;
     this.highwayGroup.add(bayBirAli);
+    addBayKerbs(-148, 32, 22, 26);
 
-    // Overhead Highway Gantry Signboard (Madinah ➔ Miqat Bir Ali ➔ Makkah)
+    // White parking bay strips for tour coaches at Miqat
+    [-6, -2, 2, 6].forEach((xOff) => {
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 18), whiteLineMat);
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(-148 + xOff, 0.03, 32);
+      this.highwayGroup.add(line);
+    });
+
+    addDirectionSign(
+      -148,
+      6.5,
+      28,
+      '🕌 مِيقَات مَسْجِد ذِي الحُلَيْفَة (آبَار عَلِي)',
+      'MIQAT MASJID BIR ALI (WAJIB NIAT)',
+      'Solat Sunat Ihram 2 Rakaat & Lafaz Niat Umrah',
+      8.5,
+      2.2,
+      0
+    );
+
+    // =========================================================================
+    // 11. OVERHEAD HIGHWAY GANTRY SIGNBOARD (Lebuhraya Hijrah)
+    // =========================================================================
     const gantry = new THREE.Group();
-    const poleMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
     const leftPole = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 9, 12), poleMat);
     leftPole.position.set(-148, 4.5, 10);
     const rightPole = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 9, 12), poleMat);
@@ -124,12 +468,10 @@ export class MadinahZone {
     const beam = new THREE.Mesh(new THREE.BoxGeometry(16.5, 0.5, 0.5), poleMat);
     beam.position.set(-140, 8.5, 10);
 
-    // Signboard panel
-    const signBoardMat = new THREE.MeshLambertMaterial({ color: 0x047857 }); // Emerald Highway Green
+    const signBoardMat = new THREE.MeshLambertMaterial({ color: 0x047857 });
     const signBoard = new THREE.Mesh(new THREE.BoxGeometry(14, 2.4, 0.2), signBoardMat);
     signBoard.position.set(-140, 8.5, 10.1);
 
-    // Signboard Canvas Texture
     const signCanvas = document.createElement('canvas');
     signCanvas.width = 1024;
     signCanvas.height = 256;
@@ -153,15 +495,85 @@ export class MadinahZone {
     ctx.fillText('MIQAT BIR ALI 11 KM   |   MAKKAH AL-MUKARRAMAH 450 KM', 512, 205);
 
     const signTexture = new THREE.CanvasTexture(signCanvas);
-    const signFrontMat = new THREE.MeshBasicMaterial({ map: signTexture });
-    const signFront = new THREE.Mesh(new THREE.PlaneGeometry(13.8, 2.2), signFrontMat);
+    const signFront = new THREE.Mesh(
+      new THREE.PlaneGeometry(13.8, 2.2),
+      new THREE.MeshBasicMaterial({ map: signTexture })
+    );
     signFront.position.set(-140, 8.5, 10.22);
 
     gantry.add(leftPole, rightPole, beam, signBoard, signFront);
     this.highwayGroup.add(gantry);
 
-    // Street light poles along highway
-    [-60, -30, 0, 30, 60].forEach((zPos) => {
+    // Second Gantry towards Makkah at z = 60
+    const gantryMakkah = new THREE.Group();
+    const lPoleM = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 9, 12), poleMat);
+    lPoleM.position.set(-148, 4.5, 60);
+    const rPoleM = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 9, 12), poleMat);
+    rPoleM.position.set(-132, 4.5, 60);
+
+    const beamM = new THREE.Mesh(new THREE.BoxGeometry(16.5, 0.5, 0.5), poleMat);
+    beamM.position.set(-140, 8.5, 60);
+
+    const signBoardM = new THREE.Mesh(new THREE.BoxGeometry(14, 2.4, 0.2), signBoardMat);
+    signBoardM.position.set(-140, 8.5, 60.1);
+
+    const canvasM = document.createElement('canvas');
+    canvasM.width = 1024;
+    canvasM.height = 256;
+    const ctxM = canvasM.getContext('2d')!;
+    ctxM.fillStyle = '#065f46';
+    ctxM.fillRect(0, 0, 1024, 256);
+    ctxM.strokeStyle = '#ffffff';
+    ctxM.lineWidth = 12;
+    ctxM.strokeRect(10, 10, 1004, 236);
+
+    ctxM.fillStyle = '#ffffff';
+    ctxM.textAlign = 'center';
+    ctxM.font = 'bold 44px Amiri, serif';
+    ctxM.fillText('طَرِيق مَكَّة المُكَرَّمَة السَّرِيع • لَبَّيْكَ اللَّهُمَّ لَبَّيْكَ', 512, 75);
+
+    ctxM.font = 'bold 36px Inter, sans-serif';
+    ctxM.fillText('LEBUHRAYA HIJRAH KE MAKKAH: ALUNKAN TALBIYAH', 512, 140);
+
+    ctxM.fillStyle = '#fde047';
+    ctxM.font = 'bold 32px Inter, sans-serif';
+    ctxM.fillText('JARAK KE MAKKAH: 450 KM   |   HAD LAJU BAS: 100 KM/J', 512, 205);
+
+    const texM = new THREE.CanvasTexture(canvasM);
+    const signFrontM = new THREE.Mesh(
+      new THREE.PlaneGeometry(13.8, 2.2),
+      new THREE.MeshBasicMaterial({ map: texM })
+    );
+    signFrontM.position.set(-140, 8.5, 60.22);
+
+    gantryMakkah.add(lPoleM, rPoleM, beamM, signBoardM, signFrontM);
+    this.highwayGroup.add(gantryMakkah);
+
+    // =========================================================================
+    // 12. STREET LIGHTS ALONG THE COMPLETE ROAD NETWORK
+    // =========================================================================
+    const streetLightPositions = [
+      { x: -148, z: -80 },
+      { x: -148, z: -60 },
+      { x: -148, z: -40 },
+      { x: -148, z: -20 },
+      { x: -148, z: 0 },
+      { x: -148, z: 20 },
+      { x: -148, z: 40 },
+      { x: -148, z: 70 },
+      { x: -148, z: 90 },
+      // East Quba avenue lights
+      { x: -128, z: -32 },
+      { x: -122, z: -32 },
+      // South Kurma avenue light
+      { x: -131, z: -48 },
+      // West Qiblatain light
+      { x: -155, z: -17 },
+      // West Badar spur light
+      { x: -165, z: -37 }
+    ];
+
+    streetLightPositions.forEach((pos) => {
       const lamp = new THREE.Group();
       const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 8, 8), poleMat);
       mast.position.set(0, 4, 0);
@@ -173,7 +585,7 @@ export class MadinahZone {
       );
       lampHead.position.set(1.8, 7.7, 0);
       lamp.add(mast, arm, lampHead);
-      lamp.position.set(-148, 0, zPos);
+      lamp.position.set(pos.x, 0, pos.z);
       this.highwayGroup.add(lamp);
     });
 
@@ -913,7 +1325,19 @@ export class MadinahZone {
       { id: 'muwajahah', name: 'Maqam Rasulullah ﷺ', x: -135, z: 12, icon: '💚' },
       { id: 'raudhah', name: 'Raudhah Syarifah (Nusuk)', x: -136, z: 15, icon: '🌿' },
       { id: 'baqi', name: 'Perkuburan Baqi\'', x: -138, z: 18, icon: '🤍' },
-      { id: 'khandak', name: 'Medan Khandak / Masjid 7', x: -145, z: -55, icon: '⚔️' }
+      { id: 'ijabah', name: 'Masjid Ijabah', x: -143, z: 10, icon: '🕌' },
+      { id: 'bilal', name: 'Masjid Bilal bin Rabah', x: -145, z: 0, icon: '📢' },
+      { id: 'jumaah', name: 'Masjid Jumaah', x: -147, z: -10, icon: '🕌' },
+      { id: 'qiblatain', name: 'Masjid Qiblatain', x: -152, z: -20, icon: '🕌' },
+      { id: 'quba', name: 'Masjid Quba', x: -124, z: -35, icon: '🕌' },
+      { id: 'kurma', name: 'Ladang Kurma', x: -134, z: -45, icon: '🌴' },
+      { id: 'khandak', name: 'Medan Khandak / Masjid 7', x: -144, z: -50, icon: '⚔️' },
+      { id: 'uhud', name: 'Jabal Uhud & Shuhada', x: -152, z: -55, icon: '🏔️' },
+      { id: 'badar', name: 'Ziarah Badar Al-Kubra', x: -168, z: -40, icon: '⭐' },
+      { id: 'jejak_rasul', name: 'Bir Ghars & Bir Rumah', x: -155, z: -10, icon: '💧' },
+      { id: 'hotel_ihram', name: 'Hotel Persiapan Ihram', x: -140, z: 22, icon: '🧕' },
+      { id: 'bir_ali', name: 'Miqat Masjid Bir Ali', x: -148, z: 32, icon: '🕋' },
+      { id: 'makkah_highway', name: 'Lebuhraya Hijrah ke Makkah', x: -140, z: 65, icon: '🚌' }
     ];
 
     waypoints.forEach((wp) => {

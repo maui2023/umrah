@@ -417,6 +417,11 @@ export class HUD {
                   <span>🗣️</span>
                   <span class="text-[11px]">Dengar</span>
                 </button>
+                <!-- Talbiyah Arabic Audio Quick Button -->
+                <button id="btn-talbiyah-quick-audio" title="Dengar Bunyi Sebutan Arab Talbiyah" style="display: none;" class="interactive-ui flex items-center gap-1 text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-lg border border-amber-300 text-xs font-bold transition cursor-pointer">
+                  <span id="talbiyah-quick-icon">🔊</span>
+                  <span id="talbiyah-quick-label" class="text-[11px]">Bunyi Arab</span>
+                </button>
                 <!-- Full Dua / History Modal Button -->
                 <button id="btn-open-dua-detail" title="Papar Doa & Kisah Penuh" class="interactive-ui text-[11px] font-semibold text-[#B45309] hover:text-[#92400E] transition cursor-pointer flex items-center gap-1">
                   <span>📖</span>
@@ -460,6 +465,18 @@ export class HUD {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
             <span>Jadual Ziarah</span>
+          </button>
+
+          <!-- 1b. 13 Pantang Larang Ihram & Nota Khas -->
+          <button id="btn-top-larangan" title="13 Pantang Larang Ihram & Nota Fiqh Khas (Cawat & Wangian Wanita)" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-amber-50/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-amber-200/90 text-amber-900 hover:bg-amber-100 active:scale-95 transition cursor-pointer text-xs font-bold whitespace-nowrap">
+            <span class="w-4 h-4 flex items-center justify-center text-xs">⚠️</span>
+            <span>Larangan Ihram</span>
+          </button>
+
+          <!-- 1c. Panduan & Waktu Talbiyah -->
+          <button id="btn-top-talbiyah" title="Waktu Membaca Talbiyah & Bunyi Arab" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-amber-50/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-amber-300/80 text-amber-950 hover:bg-amber-100 active:scale-95 transition cursor-pointer text-xs font-bold whitespace-nowrap">
+            <span class="w-4 h-4 flex items-center justify-center text-xs">📿</span>
+            <span>Panduan Talbiyah</span>
           </button>
 
           <!-- 2. Bantuan & Panduan (?) -->
@@ -540,6 +557,19 @@ export class HUD {
         </button>
       </div>
 
+      <!-- FLOATING BUS EXIT PROMPT (Appears when inside bus and stopped at destination) -->
+      <div id="bus-exit-prompt" style="display: none;" class="interactive-ui pointer-events-auto fixed bottom-36 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-white/95 backdrop-blur-md border-2 border-rose-500 shadow-2xl text-stone-900 cursor-pointer animate-bounce max-w-[94%] sm:max-w-md">
+        <span class="text-2xl shrink-0">🚪</span>
+        <div class="min-w-0">
+          <div id="bus-exit-prompt-title" class="font-bold text-sm text-stone-900 truncate">Bas Telah Tiba di Destinasi!</div>
+          <div id="bus-exit-prompt-subtitle" class="text-[11px] text-stone-600 truncate">Tekan [E] atau Klik untuk Turun Bas</div>
+        </div>
+        <button id="btn-prompt-exit-bus" class="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-1 shrink-0">
+          <span>Turun Bas</span>
+          <span>➔</span>
+        </button>
+      </div>
+
       <!-- FLOATING MOSQUE DOOR PROMPT (Appears when near any mosque entrance) -->
       <div id="mosque-door-prompt" style="display: none;" class="interactive-ui pointer-events-auto fixed bottom-36 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-white/95 backdrop-blur-md border-2 border-emerald-600 shadow-2xl text-stone-900 cursor-pointer animate-bounce max-w-[94%] sm:max-w-md">
         <span class="text-2xl shrink-0">🚪</span>
@@ -580,7 +610,7 @@ export class HUD {
           <div class="flex items-center gap-2.5 min-w-0">
             <span class="text-2xl animate-pulse shrink-0">🚌</span>
             <div class="min-w-0">
-              <div class="font-bold text-sm text-stone-900 truncate">Bas Ziarah Sedang Beroperasi</div>
+              <div id="bus-dashboard-status" class="font-bold text-sm text-stone-900 truncate">Bas Ziarah Sedang Beroperasi</div>
               <div id="bus-dashboard-dest" class="text-xs text-stone-600 font-medium truncate">Destinasi: Masjid Quba</div>
             </div>
           </div>
@@ -709,6 +739,20 @@ export class HUD {
       this.showItineraryModal();
     });
 
+    // 1b. Top Larangan Ihram Button
+    const laranganBtn = this.container.querySelector('#btn-top-larangan') as HTMLButtonElement;
+    laranganBtn?.addEventListener('click', () => {
+      setDropdownState(false);
+      this.showLaranganIhramModal();
+    });
+
+    // 1c. Top Talbiyah Button
+    const talbiyahTopBtn = this.container.querySelector('#btn-top-talbiyah') as HTMLButtonElement;
+    talbiyahTopBtn?.addEventListener('click', () => {
+      setDropdownState(false);
+      this.showTalbiyahModal();
+    });
+
     // 2. Top Help Button (?)
     const helpBtn = this.container.querySelector('#btn-top-help') as HTMLButtonElement;
     helpBtn?.addEventListener('click', () => {
@@ -747,6 +791,30 @@ export class HUD {
         soundManager.speakDua(textToRead);
       } else if (this.currentDua) {
         soundManager.speakDua(this.currentDua.arabic + '. ' + this.currentDua.translation);
+      }
+    });
+
+    const talbiyahQuickBtn = this.container.querySelector('#btn-talbiyah-quick-audio') as HTMLButtonElement;
+    const talbiyahQuickIcon = this.container.querySelector('#talbiyah-quick-icon') as HTMLElement;
+    const talbiyahQuickLabel = this.container.querySelector('#talbiyah-quick-label') as HTMLElement;
+    talbiyahQuickBtn?.addEventListener('click', () => {
+      if (soundManager.isTalbiyahAudioPlaying()) {
+        soundManager.stopTalbiyahAudio();
+        if (talbiyahQuickIcon) talbiyahQuickIcon.innerText = '🔊';
+        if (talbiyahQuickLabel) talbiyahQuickLabel.innerText = 'Bunyi Arab';
+      } else {
+        if (talbiyahQuickIcon) talbiyahQuickIcon.innerText = '⏸️';
+        if (talbiyahQuickLabel) talbiyahQuickLabel.innerText = 'Henti';
+        soundManager.playTalbiyahAudio(
+          () => {
+            if (talbiyahQuickIcon) talbiyahQuickIcon.innerText = '🔊';
+            if (talbiyahQuickLabel) talbiyahQuickLabel.innerText = 'Bunyi Arab';
+          },
+          () => {
+            if (talbiyahQuickIcon) talbiyahQuickIcon.innerText = '🔊';
+            if (talbiyahQuickLabel) talbiyahQuickLabel.innerText = 'Bunyi Arab';
+          }
+        );
       }
     });
 
@@ -812,6 +880,17 @@ export class HUD {
     const busDoorPrompt = this.container.querySelector('#bus-door-prompt') as HTMLElement;
     busDoorPrompt?.addEventListener('click', () => {
       this.onBoardBusCallback?.();
+    });
+
+    const busExitPrompt = this.container.querySelector('#bus-exit-prompt') as HTMLElement;
+    busExitPrompt?.addEventListener('click', () => {
+      this.onExitBusCallback?.();
+    });
+
+    const promptExitBtn = this.container.querySelector('#btn-prompt-exit-bus') as HTMLButtonElement;
+    promptExitBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onExitBusCallback?.();
     });
 
     const exitBusBtn = this.container.querySelector('#btn-exit-bus') as HTMLButtonElement;
@@ -1096,6 +1175,7 @@ export class HUD {
     // Re-show both cards with 3s auto-hide when navigating to a new spot
     this.showTitleCard(3);
     this.showDescCard(3);
+    this.updateTalbiyahQuickButton();
   }
 
   public updateStage(stage: UmrahStage) {
@@ -1146,6 +1226,7 @@ export class HUD {
     // Re-show both cards with 3s auto-hide when stage changes
     this.showTitleCard(3);
     this.showDescCard(3);
+    this.updateTalbiyahQuickButton();
   }
 
   public setNearBusDoor(isNear: boolean) {
@@ -1157,8 +1238,11 @@ export class HUD {
 
   public setBusBoarded(inBus: boolean) {
     this.isBusBoarded = inBus;
-    const prompt = this.container.querySelector('#bus-door-prompt') as HTMLElement;
-    if (prompt) prompt.style.display = 'none';
+    const doorPrompt = this.container.querySelector('#bus-door-prompt') as HTMLElement;
+    if (doorPrompt && inBus) doorPrompt.style.display = 'none';
+
+    const exitPrompt = this.container.querySelector('#bus-exit-prompt') as HTMLElement;
+    if (exitPrompt && !inBus) exitPrompt.style.display = 'none';
 
     const dashboard = this.container.querySelector('#bus-dashboard-card') as HTMLElement;
     if (dashboard) {
@@ -1170,6 +1254,10 @@ export class HUD {
     const speedometer = this.container.querySelector('#bus-speedometer') as HTMLElement;
     const cruiseText = this.container.querySelector('#btn-auto-cruise-text') as HTMLElement;
     const destEl = this.container.querySelector('#bus-dashboard-dest') as HTMLElement;
+    const statusEl = this.container.querySelector('#bus-dashboard-status') as HTMLElement;
+    const exitPrompt = this.container.querySelector('#bus-exit-prompt') as HTMLElement;
+    const exitPromptTitle = this.container.querySelector('#bus-exit-prompt-title') as HTMLElement;
+    const exitPromptSub = this.container.querySelector('#bus-exit-prompt-subtitle') as HTMLElement;
 
     if (speedometer) speedometer.innerText = speedKmh.toString();
     if (cruiseText) {
@@ -1177,6 +1265,28 @@ export class HUD {
     }
     if (destName && destEl) {
       destEl.innerText = `Destinasi: ${destName}`;
+    }
+
+    if (statusEl) {
+      if (speedKmh === 0 && !isCruising) {
+        statusEl.innerText = '✅ Bas Telah Sampai di Destinasi';
+      } else {
+        statusEl.innerText = isCruising ? '🚌 Autopilot Sedang Memandu...' : 'Bas Ziarah Sedang Beroperasi';
+      }
+    }
+
+    if (exitPrompt) {
+      if (this.isBusBoarded && speedKmh === 0 && !isCruising) {
+        if (destName && exitPromptTitle) {
+          exitPromptTitle.innerText = `Bas Telah Sampai di ${destName}!`;
+        }
+        if (exitPromptSub) {
+          exitPromptSub.innerText = 'Tekan [E] atau Klik untuk Turun Bas';
+        }
+        exitPrompt.style.display = 'flex';
+      } else {
+        exitPrompt.style.display = 'none';
+      }
     }
   }
 
@@ -1395,6 +1505,21 @@ export class HUD {
     if (descText) {
       descText.innerText = alertMessage ? `${alertMessage} — ${dua.translation}` : `${dua.title}: ${dua.translation}`;
     }
+    this.updateTalbiyahQuickButton();
+  }
+
+  private updateTalbiyahQuickButton() {
+    const isTalbiyah = 
+      this.currentZiarahSpot?.id === 'perjalanan_bas_talbiyah_makkah' ||
+      this.currentZiarahSpot?.dua?.id === 'talbiyah_perjalanan' ||
+      this.currentDua?.id === 'talbiyah' ||
+      this.currentDua?.id === 'talbiyah_perjalanan' ||
+      this.currentStage === 'perjalanan_makkah';
+
+    const btn = this.container.querySelector('#btn-talbiyah-quick-audio') as HTMLElement;
+    if (btn) {
+      btn.style.display = isTalbiyah ? 'inline-flex' : 'none';
+    }
   }
 
   public updateGroupRoster(
@@ -1487,8 +1612,82 @@ export class HUD {
     const translation = dua?.translation || 'Dengan nama Allah dan Allah Maha Besar.';
     const story = spot?.historicalStory || 'Penerangan sirah dan sejarah tempat mulia ini.';
 
+    const isTalbiyah = 
+      dua?.id === 'talbiyah' || 
+      dua?.id === 'talbiyah_perjalanan' || 
+      spot?.id === 'perjalanan_bas_talbiyah_makkah' ||
+      !!dua?.waktuUmrah;
+
+    const talbiyahDetailsHtml = isTalbiyah ? `
+      <!-- Waktu Membaca Talbiyah Umrah vs Haji -->
+      <div class="space-y-2.5 pt-1">
+        <h4 class="font-bold text-stone-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
+          <span>⏰</span> Waktu Membaca Talbiyah Mengikut Ibadah:
+        </h4>
+
+        <!-- Umrah -->
+        <div class="p-3 bg-emerald-50 rounded-2xl border border-emerald-200/90 space-y-1">
+          <div class="flex items-center gap-1.5 font-bold text-emerald-950 text-xs">
+            <span>🕋</span> <span>1. Waktu Membaca Talbiyah untuk Umrah</span>
+          </div>
+          <ul class="text-[11px] sm:text-xs text-emerald-900 space-y-1 pl-1">
+            <li class="flex items-start gap-1.5">
+              <span class="text-emerald-700 font-bold shrink-0">• Mula:</span>
+              <span>Ketika seseorang telah <b>berniat ihram di miqat</b>.</span>
+            </li>
+            <li class="flex items-start gap-1.5">
+              <span class="text-rose-700 font-bold shrink-0">• Tamat:</span>
+              <span>Ketika <b>mulai memasuki ibadah Tawaf</b> (sebelum menyentuh/mengucap salam pada Hajar Aswad atau memulai putaran pertama tawaf).</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Haji -->
+        <div class="p-3 bg-sky-50 rounded-2xl border border-sky-200/90 space-y-1">
+          <div class="flex items-center gap-1.5 font-bold text-sky-950 text-xs">
+            <span>⛺</span> <span>2. Waktu Membaca Talbiyah untuk Haji</span>
+          </div>
+          <ul class="text-[11px] sm:text-xs text-sky-900 space-y-1 pl-1">
+            <li class="flex items-start gap-1.5">
+              <span class="text-sky-700 font-bold shrink-0">• Mula:</span>
+              <span>Ketika seseorang telah <b>berniat ihram haji di miqat</b>.</span>
+            </li>
+            <li class="flex items-start gap-1.5">
+              <span class="text-rose-700 font-bold shrink-0">• Tamat:</span>
+              <span>Berakhir ketika <b>mulai melempar Jumrah al-Kubra (Jumrah Aqabah)</b> pada tanggal <b>10 Zulhijah (Hari Raya Aidiladha)</b>, atau saat mulai tawaf atau bercukur mengikut mana yang didahulukan.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Hukum & Cara Melafazkan -->
+        <div class="p-3 bg-amber-50 rounded-2xl border border-amber-200/90 space-y-1.5 text-xs text-amber-950 leading-relaxed">
+          <div class="flex items-center gap-1.5 font-bold text-amber-950 text-xs">
+            <span>⚖️</span> <span>Hukum dan Ketentuan Penting</span>
+          </div>
+          <p>
+            • <b>Hukum:</b> Membaca talbiyah adalah <b>sunat muakkad (mustahab)</b>. Jika terlupa atau tertinggal, ia <b>tidak membatalkan</b> ibadah haji atau umrah.
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+            <div class="p-2 bg-white rounded-xl border border-amber-200/60">
+              <span class="font-bold text-stone-900">🧔 Jemaah Lelaki:</span>
+              <p class="text-[11px] text-stone-600 mt-0.5">Disunatkan dengan <b>suara yang nyaring</b>.</p>
+            </div>
+            <div class="p-2 bg-white rounded-xl border border-amber-200/60">
+              <span class="font-bold text-stone-900">🧕 Jemaah Wanita:</span>
+              <p class="text-[11px] text-stone-600 mt-0.5">Dibaca dengan <b>suara perlahan</b> yang hanya didengari sendiri.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    ` : `
+      <!-- Story / Explanation -->
+      <div class="text-xs text-stone-600 leading-relaxed pt-1">
+        <b class="text-stone-800">Kisah & Sejarah:</b> ${story}
+      </div>
+    `;
+
     modal.innerHTML = `
-      <div class="relative w-full max-w-lg bg-white rounded-3xl p-6 sm:p-7 text-stone-900 shadow-2xl space-y-4 border border-stone-200">
+      <div class="relative w-full max-w-lg bg-white rounded-3xl p-6 sm:p-7 text-stone-900 shadow-2xl space-y-4 border border-stone-200 max-h-[90vh] overflow-y-auto">
         
         <div class="flex items-center justify-between pb-3 border-b border-stone-100">
           <div>
@@ -1499,7 +1698,7 @@ export class HUD {
         </div>
 
         <!-- Arabic Text -->
-        <div class="text-right text-xl sm:text-2xl font-serif leading-loose text-stone-900 py-2 tracking-wide bg-stone-50 p-4 rounded-2xl border border-stone-100" dir="rtl">
+        <div class="text-right text-xl sm:text-2xl font-serif leading-loose text-stone-900 py-2 tracking-wide bg-amber-50/50 p-4 rounded-2xl border border-amber-200/60" dir="rtl">
           ${arabic}
         </div>
 
@@ -1513,17 +1712,20 @@ export class HUD {
           <b>Maksud:</b> ${translation}
         </div>
 
-        <!-- Story / Explanation -->
-        <div class="text-xs text-stone-600 leading-relaxed pt-1">
-          <b class="text-stone-800">Kisah & Sejarah:</b> ${story}
-        </div>
+        ${talbiyahDetailsHtml}
 
-        <div class="flex items-center gap-2 pt-2 border-t border-stone-100">
-          <button id="btn-modal-speak" class="flex-1 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer">
+        <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-stone-100">
+          ${isTalbiyah ? `
+            <button id="btn-modal-speak-arabic" class="flex-1 min-w-[140px] py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95">
+              <span id="btn-modal-arabic-icon">🔊</span>
+              <span id="btn-modal-arabic-text">Dengar Bunyi Arab</span>
+            </button>
+          ` : ''}
+          <button id="btn-modal-speak" class="flex-1 min-w-[140px] py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95">
             <span>🗣️</span>
-            <span>Dengar Bacaan</span>
+            <span>${isTalbiyah ? 'Dengar Terjemahan' : 'Dengar Bacaan'}</span>
           </button>
-          <button id="btn-modal-done" class="flex-1 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold transition cursor-pointer">
+          <button id="btn-modal-done" class="flex-1 min-w-[110px] py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold transition cursor-pointer active:scale-95">
             Faham & Tutup
           </button>
         </div>
@@ -1532,12 +1734,43 @@ export class HUD {
 
     document.body.appendChild(modal);
 
-    const close = () => modal.remove();
+    const close = () => {
+      soundManager.stopTalbiyahAudio();
+      modal.remove();
+    };
+
     modal.querySelector('#btn-close-dua-modal')?.addEventListener('click', close);
     modal.querySelector('#btn-modal-done')?.addEventListener('click', close);
     modal.querySelector('#btn-modal-speak')?.addEventListener('click', () => {
+      soundManager.stopTalbiyahAudio();
       soundManager.speakDua(arabic + '. ' + translation);
     });
+
+    if (isTalbiyah) {
+      const arabicBtn = modal.querySelector('#btn-modal-speak-arabic') as HTMLButtonElement;
+      const arabicIcon = modal.querySelector('#btn-modal-arabic-icon') as HTMLElement;
+      const arabicText = modal.querySelector('#btn-modal-arabic-text') as HTMLElement;
+      arabicBtn?.addEventListener('click', () => {
+        if (soundManager.isTalbiyahAudioPlaying()) {
+          soundManager.stopTalbiyahAudio();
+          if (arabicIcon) arabicIcon.innerText = '🔊';
+          if (arabicText) arabicText.innerText = 'Dengar Bunyi Arab';
+        } else {
+          if (arabicIcon) arabicIcon.innerText = '⏸️';
+          if (arabicText) arabicText.innerText = 'Hentikan Bunyi Arab';
+          soundManager.playTalbiyahAudio(
+            () => {
+              if (arabicIcon) arabicIcon.innerText = '🔊';
+              if (arabicText) arabicText.innerText = 'Dengar Bunyi Arab';
+            },
+            () => {
+              if (arabicIcon) arabicIcon.innerText = '🔊';
+              if (arabicText) arabicText.innerText = 'Dengar Bunyi Arab';
+            }
+          );
+        }
+      });
+    }
   }
 
   /**
@@ -1734,12 +1967,38 @@ export class HUD {
             <p>• <b>Menaiki Bas:</b> Dekati pintu bas dan tekan [E] atau klik prompt bas.</p>
           </div>
 
+          <!-- Peringatan Pantang Larang Ihram & Nota Khas -->
+          <div class="p-3 bg-amber-50 rounded-2xl border border-amber-200/80 space-y-1.5">
+            <h4 class="font-bold text-amber-900 text-xs flex items-center gap-1.5">
+              <span>⚠️</span> 13 Pantang Larang Ihram & Nota Fiqh:
+            </h4>
+            <p>• <b>13 Perkara Dilarang:</b> Selepas niat ihram di Bir Ali, berkuat kuasa 13 larangan (pakaian berjahit, tutup kepala lelaki, tutup muka wanita, wangi-wangian, potong kuku/rambut, dll.).</p>
+            <p>• <b>Nota Cawat:</b> Jika pakai cawat/pelapik, <b>TIDAK BOLEH diikat mati</b>; mesti disimpul mudah buka (<b>butterfly knot</b>).</p>
+            <p>• <b>Wangian Wanita:</b> Jika pakaian ihram wanita berwangian sebelum niat, <b>tidak boleh dibuka selepas niat</b>. Jika dibuka, tidak boleh dipakai semula dan <b>perlu tukar baju baharu</b> yang tidak berwangian.</p>
+            <button id="guide-open-larangan-btn" class="mt-1 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] transition cursor-pointer flex items-center gap-1">
+              <span>⚠️</span> Papar 13 Pantang Larang Lengkap ➔
+            </button>
+          </div>
+
+          <!-- Panduan Waktu Membaca Talbiyah & Bunyi Arab -->
+          <div class="p-3 bg-emerald-50 rounded-2xl border border-emerald-200/80 space-y-1.5">
+            <h4 class="font-bold text-emerald-900 text-xs flex items-center gap-1.5">
+              <span>📿</span> Waktu Membaca Talbiyah & Bunyi Arab:
+            </h4>
+            <p>• <b>Umrah:</b> Mula selepas berniat ihram di miqat sehingga mula masuk ibadah Tawaf.</p>
+            <p>• <b>Haji:</b> Mula selepas niat ihram haji di miqat sehingga mula melempar Jumrah Aqabah (10 Zulhijah).</p>
+            <p>• <b>Hukum & Cara Melafazkan:</b> Sunat muakkad. Disunatkan suara nyaring bagi jemaah lelaki dan suara perlahan bagi jemaah wanita.</p>
+            <button id="guide-open-talbiyah-btn" class="mt-1 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-[11px] transition cursor-pointer flex items-center gap-1">
+              <span>📿</span> Buka Panduan & Bunyi Arab Talbiyah ➔
+            </button>
+          </div>
+
           <h4 class="font-bold text-[#B45309] text-sm pt-1">Alur Lengkap Ibadah Dari Madinah ke Makkah:</h4>
           <ol class="list-decimal pl-5 space-y-1">
-            <li><b>Ziarah Dalam Madinah:</b> Berjalan kaki menelusuri sejarah Rasulullah ﷺ & sahabat.</li>
-            <li><b>Ziarah Luar Madinah:</b> Menaiki bas ke Masjid Quba, Uhud, Ladang Kurma.</li>
+            <li><b>Ziarah Dalam Madinah:</b> Berjalan kaki menelusuri sejarah Rasulullah ﷺ & sahabat (Bas tidak masuk kawasan pejalan kaki).</li>
+            <li><b>Ziarah Luar Madinah:</b> Menaiki bas ke Masjid Quba, Uhud, Ladang Kurma, Khandak, Qiblatain.</li>
             <li><b>Miqat di Masjid Bir Ali:</b> Mandi & pakai ihram, solat sunat dan lafazkan Niat Umrah.</li>
-            <li><b>Perjalanan Bas ke Makkah:</b> Bertalbiyah sepanjang perjalanan lebuh raya (450km).</li>
+            <li><b>Perjalanan Bas ke Makkah:</b> Bertalbiyah sepanjang perjalanan lebuh raya (450km) dari miqat hingga mula tawaf.</li>
             <li><b>Tawaf Kaabah 7 Pusingan:</b> Kaabah di sebelah kiri anda.</li>
             <li><b>Sa'i Safa-Marwah 7 Pusingan:</b> Berjalan/berlari anak di zon hijau.</li>
             <li><b>Tahallul:</b> Bergunting rambut tanda selesainya umrah secara sah.</li>
@@ -1757,6 +2016,356 @@ export class HUD {
     const close = () => modal.remove();
     modal.querySelector('#close-guide-btn')?.addEventListener('click', close);
     modal.querySelector('#guide-ok-btn')?.addEventListener('click', close);
+    modal.querySelector('#guide-open-larangan-btn')?.addEventListener('click', () => {
+      close();
+      this.showLaranganIhramModal();
+    });
+    modal.querySelector('#guide-open-talbiyah-btn')?.addEventListener('click', () => {
+      close();
+      this.showTalbiyahModal();
+    });
+  }
+
+  /**
+   * 13 Pantang Larang Ihram & Nota Fiqh Khas (Cawat & Wangian Wanita)
+   */
+  public showLaranganIhramModal() {
+    const modal = document.createElement('div');
+    modal.className = 'interactive-ui fixed inset-0 z-50 flex items-center justify-center bg-stone-900/65 backdrop-blur-md p-4 overflow-y-auto';
+    modal.innerHTML = `
+      <div class="relative w-full max-w-xl max-h-[90vh] bg-white border border-stone-200 rounded-3xl p-5 sm:p-7 text-stone-900 shadow-2xl flex flex-col space-y-4 overflow-hidden">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-stone-100 shrink-0">
+          <div class="flex items-center gap-2.5">
+            <span class="text-2xl p-2 rounded-2xl bg-amber-100 text-amber-800">⚠️</span>
+            <div>
+              <h3 class="font-serif text-lg sm:text-xl font-bold text-stone-900">13 Pantang Larang Ihram</h3>
+              <p class="text-[11px] text-stone-500">Berkuat kuasa sejurus selepas berniat di Miqat sehingga Tahallul</p>
+            </div>
+          </div>
+          <button id="close-larangan-btn" class="p-2 rounded-xl bg-stone-100 text-stone-600 hover:bg-stone-200 transition cursor-pointer">✕</button>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="space-y-4 overflow-y-auto pr-1 text-xs leading-relaxed text-stone-700">
+          
+          <!-- KOTAK NOTA KHAS / PANDUAN UTAMA FIQH (YANG DIWAJIBKAN) -->
+          <div class="p-3.5 sm:p-4 bg-gradient-to-br from-amber-50 to-orange-50/60 rounded-2xl border-2 border-amber-300/80 shadow-sm space-y-3">
+            <div class="flex items-center gap-2 text-[#B45309] font-bold text-xs uppercase tracking-wider">
+              <span>📌</span> NOTA KHAS & PANDUAN PENTING FIQH
+            </div>
+
+            <!-- 1. HUKUM CAWAT -->
+            <div class="p-3 bg-white/95 rounded-xl border border-amber-200/80 shadow-sm space-y-1.5">
+              <div class="font-bold text-xs text-stone-900 flex items-center gap-1.5">
+                <span class="text-base">🩲</span> 1. Hukum Memakai Cawat / Pelapik Ihram (Bagi yang Ada Keuzuran)
+              </div>
+              <p class="text-[11.5px] text-stone-600">
+                Bagi jemaah (khususnya kaum lelaki yang mempunyai keuzuran seperti kerap terkencing, kencing tidak lawas, buasir, luka dsb.) yang perlu memakai kain cawat / lampin / pelapik:
+              </p>
+              <div class="pl-2.5 border-l-3 border-rose-500 py-1 space-y-1 bg-rose-50/50 rounded-r-lg">
+                <p class="text-[12px] font-bold text-rose-700">❌ TIDAK BOLEH DIIKAT MATI (simpul mati / 'uqdah muhkamah).</p>
+                <p class="text-[12px] font-bold text-emerald-800">✅ WAJIB / PERLU dibuat simpul mudah buka (seperti ikatan rama-rama / butterfly knot) atau disematkan pin tanpa ikatan mati.</p>
+              </div>
+              <p class="text-[10.5px] text-stone-500 italic pt-0.5">
+                *Penjelasan Mazhab Syafi'i & Fatwa Haji: Ikatan mati menjadikannya dihukumkan sama seperti pakaian berjahit/bercantum yang dilarang bagi lelaki dalam ihram. Simpul mudah buka (butterfly) dibenarkan dan dimaafkan kerana tiada jahitan mahupun simpulan kekal.
+              </p>
+            </div>
+
+            <!-- 2. HUKUM WANGIAN WANITA -->
+            <div class="p-3 bg-white/95 rounded-xl border border-amber-200/80 shadow-sm space-y-1.5">
+              <div class="font-bold text-xs text-stone-900 flex items-center gap-1.5">
+                <span class="text-base">🌸</span> 2. Hukum Wangi-wangian pada Pakaian Ihram Wanita
+              </div>
+              <p class="text-[11.5px] text-stone-600">
+                Bagi jemaah wanita yang mengenakan wangi-wangian pada baju/kain ihramnya sebelum berniat ihram: Bauan yang berkekalan dimaafkan selagi pakaian tersebut terus dipakai pada badan.
+              </p>
+              <div class="pl-2.5 border-l-3 border-rose-500 py-1 space-y-1 bg-rose-50/50 rounded-r-lg">
+                <p class="text-[12px] font-bold text-rose-700">❌ TIDAK BOLEH dibuka atau ditanggalkan pakaian tersebut selepas berniat ihram jika berhasrat memakainya semula.</p>
+                <p class="text-[12px] font-semibold text-amber-800">⚠️ Sekiranya dibuka/ditanggalkan (contohnya ke tandas atau mandi), pakaian berwangian itu TIDAK BOLEH dipakai semula sama sekali.</p>
+                <p class="text-[12px] font-bold text-emerald-800">✅ Justeru, jika dibuka, jemaah wanita PERLU MENUKAR KEPADA BAJU BAHARU yang bersih dan tidak berbau wangi!</p>
+              </div>
+              <p class="text-[10.5px] text-stone-500 italic pt-0.5">
+                *Penjelasan Fiqh: Memakai semula pakaian yang berbau wangi dikira sebagai memulakan pemakaian wangi-wangian baharu (ibtida' al-isti'mal) semasa dalam keadaan berihram, yang mewajibkan pembayaran Dam (denda).
+              </p>
+            </div>
+          </div>
+
+          <!-- SENARAI LENGKAP 13 PANTANG LARANG IHRAM -->
+          <div class="space-y-3 pt-1">
+            <h4 class="font-bold text-stone-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
+              <span>📋</span> Senarai Lengkap 13 Pantang Larang Ihram
+            </h4>
+
+            <!-- Kategori 1: Pakaian -->
+            <div class="p-3 bg-stone-50 rounded-2xl border border-stone-200/70 space-y-1.5">
+              <span class="text-[11px] font-bold text-[#B45309] uppercase tracking-wider">A. Larangan Pakaian (3 Perkara)</span>
+              <ul class="space-y-1 pl-1">
+                <li><b>1.</b> Memakai pakaian berjahit, bercantum atau bersarung bagi <b>lelaki</b> (seperti kemeja, seluar, seluar dalam, stoking).</li>
+                <li><b>2.</b> Menutup kepala atau sebahagian daripadanya dengan sesuatu yang melekat (seperti kopiah, songkok, topi, kain serban) bagi <b>lelaki</b>. <i>(Memayungi kepala dengan payung dibolehkan)</i>.</li>
+                <li><b>3.</b> Menutup muka (seperti memakai purdah atau niqab) bagi <b>wanita</b>. <i>(Pelitup muka perubatan hanya dimaafkan jika ada keperluan kesihatan mendesak dengan syarat tertentu)</i>.</li>
+              </ul>
+            </div>
+
+            <!-- Kategori 2: Tubuh Badan & Kecantikan -->
+            <div class="p-3 bg-stone-50 rounded-2xl border border-stone-200/70 space-y-1.5">
+              <span class="text-[11px] font-bold text-[#B45309] uppercase tracking-wider">B. Larangan Kecantikan & Tubuh Badan (5 Perkara)</span>
+              <ul class="space-y-1 pl-1">
+                <li><b>4.</b> Memakai sarung tangan pada kedua-dua belah tangan bagi <b>lelaki dan wanita</b>.</li>
+                <li><b>5.</b> Memakai bau-bauan/wangi-wangian sama ada pada badan, pakaian, makanan, minuman, atau sengaja menghidunya.</li>
+                <li><b>6.</b> Memakai minyak pada kepala atau janggut atau mana-mana bulu muka.</li>
+                <li><b>7.</b> Menanggalkan, mencabut, menggunting rambut atau bulu daripada mana-mana anggota badan.</li>
+                <li><b>8.</b> Memotong, mengerat atau membuang kuku pada tangan atau kaki.</li>
+              </ul>
+            </div>
+
+            <!-- Kategori 3: Alam Sekitar & Haiwan -->
+            <div class="p-3 bg-stone-50 rounded-2xl border border-stone-200/70 space-y-1.5">
+              <span class="text-[11px] font-bold text-[#B45309] uppercase tracking-wider">C. Larangan Alam & Haiwan (2 Perkara)</span>
+              <ul class="space-y-1 pl-1">
+                <li><b>9.</b> Menebang, memotong, mencantas, mematah atau mencabut pokok/tumbuhan di Tanah Haram yang tumbuh sendiri.</li>
+                <li><b>10.</b> Memburu, membunuh, mencederakan atau mengganggu binatang buruan darat yang halal dimakan di mana sahaja.</li>
+              </ul>
+            </div>
+
+            <!-- Kategori 4: Perkahwinan & Syahwat -->
+            <div class="p-3 bg-stone-50 rounded-2xl border border-stone-200/70 space-y-1.5">
+              <span class="text-[11px] font-bold text-[#B45309] uppercase tracking-wider">D. Larangan Hubungan Suami Isteri (3 Perkara)</span>
+              <ul class="space-y-1 pl-1">
+                <li><b>11.</b> Berkahwin, mengahwinkan orang lain, atau menerima wakil kahwin (akad nikah tidak sah dan berdosa).</li>
+                <li><b>12.</b> Melakukan mukadimah persetubuhan (seperti bercumbu, berkucupan, sentuhan berahi).</li>
+                <li><b>13.</b> Melakukan persetubuhan (jimak) suami isteri. <i>(Membatalkan Umrah jika dilakukan sebelum Tahallul dan wajib membayar Dam serta mengqada' umrah)</i>.</li>
+              </ul>
+            </div>
+
+            <!-- Ringkasan Dam -->
+            <div class="p-3 bg-emerald-50 rounded-2xl border border-emerald-200/80 text-[11px] text-emerald-900 space-y-1">
+              <span class="font-bold text-emerald-950 uppercase tracking-wide">💡 Jenis-jenis Dam Jika Melanggar Pantang Larang:</span>
+              <p>• <b>Dam Takhyir & Taqdir:</b> (Pilihan: Menyembelih seekor kambing ATAU memberi makan 6 orang fakir miskin 1/2 gantang setiap seorang ATAU berpuasa 3 hari) — bagi kesalahan pakaian, wangian, potong kuku/rambut.</p>
+              <p>• <b>Dam Tertib & Ta'dil:</b> Bagi kesalahan jimak yang merosakkan ibadah umrah.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="pt-3 border-t border-stone-100 flex justify-end shrink-0">
+          <button id="larangan-ok-btn" class="px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs transition cursor-pointer">
+            Faham & Patuhi Pantang Larang
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const close = () => modal.remove();
+    modal.querySelector('#close-larangan-btn')?.addEventListener('click', close);
+    modal.querySelector('#larangan-ok-btn')?.addEventListener('click', close);
+  }
+
+  /**
+   * Dedicated Comprehensive Modal for Talbiyah Recitation, Audio ("Bunyi Arab"), Timing & Fiqh Ruling
+   */
+  public showTalbiyahModal() {
+    const modal = document.createElement('div');
+    modal.className = 'interactive-ui fixed inset-0 z-50 flex items-center justify-center bg-stone-900/65 backdrop-blur-md p-3 sm:p-5 overflow-y-auto';
+
+    modal.innerHTML = `
+      <div class="relative w-full max-w-xl bg-white border border-stone-200 rounded-3xl p-5 sm:p-7 text-stone-900 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+          <div>
+            <span class="text-[10px] font-bold tracking-widest text-[#B45309] uppercase bg-amber-100/70 text-amber-900 px-2 py-0.5 rounded-md">BACAAN AGUNG IHRAM</span>
+            <h3 class="font-serif text-xl sm:text-2xl font-bold text-stone-900 mt-1">Panduan Bacaan & Waktu Talbiyah</h3>
+          </div>
+          <button id="close-talbiyah-btn" class="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 transition cursor-pointer">✕</button>
+        </div>
+
+        <!-- Arabic Text Banner -->
+        <div class="bg-gradient-to-br from-amber-50 to-orange-50/40 p-4 sm:p-5 rounded-2xl border border-amber-200/80 shadow-sm space-y-2">
+          <div class="text-right text-xl sm:text-2xl font-serif leading-loose text-stone-900 tracking-wide" dir="rtl">
+            لَبَّيْكَ اللَّهُمَّ لَبَّيْكَ، لَبَّيْكَ لاَ شَرِيكَ لَكَ لَبَّيْكَ، إِنَّ الْحَمْدَ وَالنِّعْمَةَ لَكَ وَالْمُلْكَ، لاَ شَرِيكَ لَكَ
+          </div>
+          <div class="text-xs sm:text-sm text-amber-950 font-medium italic pt-2 border-t border-amber-200/60">
+            <b>Sebutan Rumi:</b> Labbaik Allahumma labbaik, labbaika laa syariika laka labbaik. Innal-hamda wan-ni'mata laka wal-mulk, laa syariika lak.
+          </div>
+        </div>
+
+        <!-- Translation -->
+        <div class="text-xs sm:text-sm text-stone-700 leading-relaxed bg-[#FAF7F2] p-3.5 rounded-xl border border-stone-200/80">
+          <b class="text-stone-900">Maksud:</b> "Hamba-Mu datang menyahut panggilan-Mu ya Allah, hamba-Mu datang. Tiada sekutu bagi-Mu, hamba-Mu datang. Sesungguhnya segala puji, nikmat dan kerajaan adalah milik-Mu semata-mata, tiada sekutu bagi-Mu."
+        </div>
+
+        <!-- Audio Player Section ("Bunyi Arab") -->
+        <div class="p-3.5 bg-gradient-to-r from-amber-500/10 via-amber-600/10 to-amber-700/10 rounded-2xl border border-amber-300/80 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+              <span>🎧</span> Bunyi Sebutan Bahasa Arab & Terjemahan:
+            </span>
+            <span id="talbiyah-audio-status-badge" class="text-[10px] font-semibold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">Sedia Dimainkan</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="btn-talbiyah-modal-play-arabic" class="flex-1 min-w-[170px] py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 active:scale-95 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition cursor-pointer">
+              <span id="talbiyah-modal-arabic-icon">🔊</span>
+              <span id="talbiyah-modal-arabic-text">Mainkan Bunyi Arab</span>
+            </button>
+            <button id="btn-talbiyah-modal-play-malay" class="flex-1 min-w-[150px] py-2.5 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-800 text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer">
+              <span>🗣️</span>
+              <span>Dengar Terjemahan</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Waktu Membaca Talbiyah: Umrah vs Haji -->
+        <div class="space-y-3 pt-1">
+          <h4 class="font-bold text-stone-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
+            <span>⏰</span> Waktu Membaca Talbiyah Mengikut Ibadah:
+          </h4>
+
+          <!-- 1. Waktu Membaca Talbiyah untuk Umrah -->
+          <div class="p-3.5 bg-emerald-50/80 rounded-2xl border border-emerald-200/90 space-y-1.5">
+            <div class="flex items-center gap-2">
+              <span class="text-base">🕋</span>
+              <h5 class="font-bold text-emerald-950 text-xs sm:text-sm">1. Waktu Membaca Talbiyah untuk Umrah</h5>
+            </div>
+            <ul class="text-xs text-emerald-900 space-y-1 pl-1">
+              <li class="flex items-start gap-1.5">
+                <span class="text-emerald-700 font-bold shrink-0">• Mula:</span>
+                <span>Ketika seseorang telah <b>berniat ihram di miqat</b>.</span>
+              </li>
+              <li class="flex items-start gap-1.5">
+                <span class="text-rose-700 font-bold shrink-0">• Tamat:</span>
+                <span>Ketika <b>mulai memasuki ibadah Tawaf</b> (sebelum menyentuh/mengucap salam pada Hajar Aswad atau memulai putaran pertama tawaf).</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- 2. Waktu Membaca Talbiyah untuk Haji -->
+          <div class="p-3.5 bg-sky-50/80 rounded-2xl border border-sky-200/90 space-y-1.5">
+            <div class="flex items-center gap-2">
+              <span class="text-base">⛺</span>
+              <h5 class="font-bold text-sky-950 text-xs sm:text-sm">2. Waktu Membaca Talbiyah untuk Haji</h5>
+            </div>
+            <ul class="text-xs text-sky-900 space-y-1 pl-1">
+              <li class="flex items-start gap-1.5">
+                <span class="text-sky-700 font-bold shrink-0">• Mula:</span>
+                <span>Ketika seseorang telah <b>berniat ihram haji di miqat</b>.</span>
+              </li>
+              <li class="flex items-start gap-1.5">
+                <span class="text-rose-700 font-bold shrink-0">• Tamat:</span>
+                <span>Berakhir ketika <b>mulai melempar Jumrah al-Kubra (Jumrah Aqabah)</b> pada tanggal <b>10 Zulhijah (Hari Raya Aidiladha)</b>, atau saat mulai tawaf atau bercukur mengikut mana yang didahulukan.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Hukum dan Ketentuan Penting -->
+        <div class="p-4 bg-amber-50/90 rounded-2xl border border-amber-200/90 space-y-2">
+          <div class="flex items-center gap-2">
+            <span class="text-base">⚖️</span>
+            <h5 class="font-bold text-amber-950 text-xs sm:text-sm">Hukum dan Ketentuan Penting</h5>
+          </div>
+          <div class="text-xs text-amber-950 space-y-2 leading-relaxed">
+            <p>
+              • <b>Hukum:</b> Membaca talbiyah adalah <b>sunat muakkad (mustahab)</b>. Jika terlupa atau tertinggal, ia <b>tidak membatalkan</b> ibadah haji atau umrah.
+            </p>
+            <div>
+              • <b>Cara Melafazkan:</b>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1.5">
+                <div class="p-2.5 bg-white rounded-xl border border-amber-200/70 shadow-sm">
+                  <div class="flex items-center gap-1 font-bold text-stone-900">
+                    <span>🧔</span> <span>Jemaah Lelaki:</span>
+                  </div>
+                  <p class="text-[11px] text-stone-600 mt-1">Disunatkan mengerjakannya dengan <b>suara yang nyaring</b>.</p>
+                </div>
+                <div class="p-2.5 bg-white rounded-xl border border-amber-200/70 shadow-sm">
+                  <div class="flex items-center gap-1 font-bold text-stone-900">
+                    <span>🧕</span> <span>Jemaah Wanita:</span>
+                  </div>
+                  <p class="text-[11px] text-stone-600 mt-1">Dibaca dengan <b>suara perlahan</b> yang hanya didengari oleh diri sendiri.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer / Action Buttons -->
+        <div class="pt-2 border-t border-stone-100 flex items-center gap-2">
+          <button id="btn-talbiyah-modal-done" class="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs transition cursor-pointer">
+            Faham & Tutup
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const close = () => {
+      soundManager.stopTalbiyahAudio();
+      modal.remove();
+    };
+
+    modal.querySelector('#close-talbiyah-btn')?.addEventListener('click', close);
+    modal.querySelector('#btn-talbiyah-modal-done')?.addEventListener('click', close);
+
+    const arabicPlayBtn = modal.querySelector('#btn-talbiyah-modal-play-arabic') as HTMLButtonElement;
+    const arabicIcon = modal.querySelector('#talbiyah-modal-arabic-icon') as HTMLElement;
+    const arabicText = modal.querySelector('#talbiyah-modal-arabic-text') as HTMLElement;
+    const statusBadge = modal.querySelector('#talbiyah-audio-status-badge') as HTMLElement;
+
+    arabicPlayBtn?.addEventListener('click', () => {
+      if (soundManager.isTalbiyahAudioPlaying()) {
+        soundManager.stopTalbiyahAudio();
+        if (arabicIcon) arabicIcon.innerText = '🔊';
+        if (arabicText) arabicText.innerText = 'Mainkan Bunyi Arab';
+        if (statusBadge) {
+          statusBadge.innerText = 'Dijeda / Berhenti';
+          statusBadge.className = 'text-[10px] font-semibold text-stone-600 bg-stone-100 px-2.5 py-0.5 rounded-full';
+        }
+      } else {
+        if (arabicIcon) arabicIcon.innerText = '⏸️';
+        if (arabicText) arabicText.innerText = 'Hentikan Bunyi Arab';
+        if (statusBadge) {
+          statusBadge.innerText = 'Sedang Mengalunkan Talbiyah 🎵';
+          statusBadge.className = 'text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full animate-pulse';
+        }
+        soundManager.playTalbiyahAudio(
+          () => {
+            if (arabicIcon) arabicIcon.innerText = '🔊';
+            if (arabicText) arabicText.innerText = 'Mainkan Bunyi Arab';
+            if (statusBadge) {
+              statusBadge.innerText = 'Selesai Dimainkan';
+              statusBadge.className = 'text-[10px] font-semibold text-stone-600 bg-stone-100 px-2.5 py-0.5 rounded-full';
+            }
+          },
+          () => {
+            if (arabicIcon) arabicIcon.innerText = '🔊';
+            if (arabicText) arabicText.innerText = 'Mainkan Bunyi Arab';
+            if (statusBadge) {
+              statusBadge.innerText = 'Sedia Dimainkan';
+              statusBadge.className = 'text-[10px] font-semibold text-stone-600 bg-stone-100 px-2.5 py-0.5 rounded-full';
+            }
+          }
+        );
+      }
+    });
+
+    modal.querySelector('#btn-talbiyah-modal-play-malay')?.addEventListener('click', () => {
+      soundManager.stopTalbiyahAudio();
+      if (arabicIcon) arabicIcon.innerText = '🔊';
+      if (arabicText) arabicText.innerText = 'Mainkan Bunyi Arab';
+      if (statusBadge) {
+        statusBadge.innerText = 'Membaca Terjemahan...';
+        statusBadge.className = 'text-[10px] font-semibold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full';
+      }
+      soundManager.speakDua(
+        'Lafaz Talbiyah. Labbaik Allahumma labbaik, labbaika laa syariika laka labbaik. Innal-hamda wan-ni\'mata laka wal-mulk, laa syariika lak. ' +
+        'Maksudnya: Hamba-Mu datang menyahut panggilan-Mu ya Allah, hamba-Mu datang. Tiada sekutu bagi-Mu, hamba-Mu datang. ' +
+        'Sesungguhnya segala puji, nikmat dan kerajaan adalah milik-Mu semata-mata, tiada sekutu bagi-Mu.'
+      );
+    });
   }
 
   /**
@@ -1844,6 +2453,10 @@ export class HUD {
       close();
       this.onResetProgressCallback?.();
     });
+  }
+
+  public showNotification(message: string) {
+    this.showSaveToast(message);
   }
 
   public showSaveToast(message: string = '💾 Kemajuan disimpan') {
