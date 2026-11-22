@@ -730,34 +730,49 @@ export class HUD {
 
         <!-- Central Compass Dial (Azimuth & Radius) -->
         <div class="flex items-center gap-2.5 py-0.5">
-          <!-- Circular Compass SVG -->
-          <div class="relative w-[78px] h-[78px] sm:w-[84px] sm:h-[84px] shrink-0 flex items-center justify-center">
+          <!-- Circular Compass SVG (Motawef Style Kaaba & Mataf) -->
+          <div class="relative w-[82px] h-[82px] sm:w-[88px] sm:h-[88px] shrink-0 flex items-center justify-center">
             <svg id="tawaf-compass-svg" viewBox="0 0 100 100" class="w-full h-full transform -rotate-90">
-              <!-- Background Ring Track -->
-              <circle cx="50" cy="50" r="38" fill="none" stroke="#292524" stroke-width="7" />
+              <!-- Background Dashed Ring Tracks -->
+              <circle cx="50" cy="50" r="44" fill="none" stroke="#44403C" stroke-width="1" stroke-dasharray="2 3" />
+              <circle cx="50" cy="50" r="38" fill="none" stroke="#292524" stroke-width="5" />
+              <circle cx="50" cy="50" r="30" fill="none" stroke="#44403C" stroke-width="1" stroke-dasharray="2 3" />
+
               <!-- Dynamic Counter-Clockwise Progress Arc (Circumference ~238.76) -->
-              <circle id="tawaf-compass-arc" cx="50" cy="50" r="38" fill="none" stroke="#F59E0B" stroke-width="7" stroke-dasharray="239" stroke-dashoffset="239" stroke-linecap="round" class="transition-all duration-150" />
+              <circle id="tawaf-compass-arc" cx="50" cy="50" r="38" fill="none" stroke="#F59E0B" stroke-width="5" stroke-dasharray="239" stroke-dashoffset="239" stroke-linecap="round" class="transition-all duration-150" />
+              
               <!-- 4 Corner Tick Markers -->
               <!-- 0 deg: Hajarul Aswad (Top in normal view, Right in -90 rot) -->
-              <circle cx="88" cy="50" r="4" fill="#10B981" />
+              <circle cx="88" cy="50" r="3.5" fill="#10B981" />
               <!-- 90 deg: Iraqi (Bottom in -90 rot) -->
-              <circle cx="50" cy="88" r="3" fill="#F59E0B" />
+              <circle cx="50" cy="88" r="2.5" fill="#F59E0B" />
               <!-- 180 deg: Syami (Left in -90 rot) -->
-              <circle cx="12" cy="50" r="3" fill="#A8A29E" />
+              <circle cx="12" cy="50" r="2.5" fill="#A8A29E" />
               <!-- 270 deg: Yamani (Top in -90 rot) -->
-              <circle cx="50" cy="12" r="3.5" fill="#10B981" />
+              <circle cx="50" cy="12" r="3" fill="#10B981" />
+
+              <!-- Hijr Ismail Mini Crescent (Between Iraqi & Syami) -->
+              <path d="M 44 68 A 12 12 0 0 1 68 44" fill="none" stroke="#F5F5F4" stroke-width="2.5" stroke-linecap="round" />
             </svg>
             
-            <!-- Kaabah Center Icon & Text -->
-            <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span class="text-xs select-none leading-none">🕋</span>
-              <span id="tawaf-compass-deg" class="text-[10px] font-mono font-bold text-amber-300 leading-none mt-0.5">0°</span>
-              <span id="tawaf-compass-radius" class="text-[8px] font-mono text-stone-400 leading-none">18m</span>
+            <!-- Kaabah Center Motawef Rotated Cube & Text -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+              <!-- Mini Rotated Kaaba Diamond -->
+              <div class="relative w-5 h-5 bg-stone-900 border border-stone-700 rotate-45 flex items-center justify-center shadow-sm">
+                <!-- White corner quadrant on Hajar Aswad (bottom vertex) -->
+                <div class="absolute -bottom-[1px] -right-[1px] w-1.5 h-1.5 bg-white rounded-br"></div>
+                <!-- Orange pip on Rukun Yamani (left vertex) -->
+                <div class="absolute -bottom-[1px] -left-[1px] w-1 h-1 bg-amber-400"></div>
+              </div>
+              <span id="tawaf-compass-deg" class="text-[9px] font-mono font-bold text-amber-300 leading-none mt-1">0°</span>
+              <span id="tawaf-compass-radius" class="text-[7.5px] font-mono text-stone-400 leading-none">18m</span>
             </div>
 
-            <!-- Rotating Needle Indicator -->
+            <!-- Rotating Pilgrim Avatar Needle Indicator (Motawef Yellow Circle) -->
             <div id="tawaf-compass-needle" class="absolute w-full h-full pointer-events-none transition-transform duration-100" style="transform: rotate(0deg);">
-              <div class="absolute top-[2px] left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_8px_#ffffff] border border-stone-900"></div>
+              <div class="absolute top-[1px] left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b] border border-amber-600 flex items-center justify-center">
+                <div class="w-1.5 h-1.5 rounded-full bg-stone-950"></div>
+              </div>
             </div>
           </div>
 
