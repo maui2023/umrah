@@ -19,6 +19,7 @@ export class HUD {
   public onToggleTawafModeCallback: ((mode: TawafMode) => void) | null = null;
   public onToggleRamlCallback: ((active: boolean) => void) | null = null;
   public onOpenTawafModalCallback: (() => void) | null = null;
+  public onOpenRealTawafSectionCallback: (() => void) | null = null;
   public isTawafWidgetMinimized: boolean = false;
 
   // Auto-hide Card Timers & State (3 seconds auto-hide)
@@ -118,6 +119,7 @@ export class HUD {
     onToggleTawafMode?: (mode: TawafMode) => void;
     onToggleRaml?: (active: boolean) => void;
     onOpenTawafModal?: () => void;
+    onOpenRealTawafSection?: () => void;
   }) {
     this.onTeleportCallback = options.onTeleport;
     this.onActionButtonCallback = options.onActionButton;
@@ -140,6 +142,7 @@ export class HUD {
     this.onToggleTawafModeCallback = options.onToggleTawafMode || null;
     this.onToggleRamlCallback = options.onToggleRaml || null;
     this.onOpenTawafModalCallback = options.onOpenTawafModal || null;
+    this.onOpenRealTawafSectionCallback = options.onOpenRealTawafSection || null;
   }
 
   public setSupabaseStatus(connected: boolean, realPlayerCount: number) {
@@ -536,10 +539,10 @@ export class HUD {
             <span>Panduan Talbiyah</span>
           </button>
 
-          <!-- 1d. Mod Real Tawaf & Senarai Doa Tawaf -->
-          <button id="btn-top-tawaf" title="Mod Real Tawaf (Kompas & Senarai Doa Tawaf)" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-emerald-50/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-emerald-300/80 text-emerald-950 hover:bg-emerald-100 active:scale-95 transition cursor-pointer text-xs font-bold whitespace-nowrap">
-            <span class="w-4 h-4 flex items-center justify-center text-xs">🕋</span>
-            <span>Doa & Real Tawaf</span>
+          <!-- 1d. Mod Real Tawaf (Kompas Kiblat, Pusingan & Doa) -->
+          <button id="btn-top-tawaf" title="Buka Mod Real Tawaf (Kompas Kiblat, Pusingan & Doa)" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white active:scale-95 transition cursor-pointer text-xs font-bold whitespace-nowrap shadow-md shadow-emerald-950/40 border border-emerald-400/50">
+            <span class="w-4 h-4 flex items-center justify-center text-xs">🧭</span>
+            <span>Mod Real Tawaf</span>
           </button>
 
           <!-- 2. Bantuan & Panduan (?) -->
@@ -939,7 +942,7 @@ export class HUD {
     const tawafTopBtn = this.container.querySelector('#btn-top-tawaf') as HTMLButtonElement;
     tawafTopBtn?.addEventListener('click', () => {
       setDropdownState(false);
-      this.showTawafGuideModal(this.currentStage === 'tawaf' && this.currentLap >= 1 && this.currentLap <= 7 ? (`lap${this.currentLap}` as TawafTabKey) : 'lap1');
+      this.onOpenRealTawafSectionCallback?.();
     });
 
     // === TAWAF COMPASS & POLAR TRACKER LISTENERS ===
@@ -965,10 +968,7 @@ export class HUD {
     });
 
     btnToggleTawafMode?.addEventListener('click', () => {
-      const curMode = this.currentTawafProgress?.tawafMode || 'real';
-      this.showTawafModeDialog(curMode, (mode) => {
-        this.onToggleTawafModeCallback?.(mode);
-      });
+      this.onOpenRealTawafSectionCallback?.();
     });
 
     btnOpenTawafGuide?.addEventListener('click', () => {
@@ -1636,11 +1636,11 @@ export class HUD {
               <span class="text-2xl p-2 rounded-lg bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 shrink-0">🧭</span>
               <div>
                 <div class="flex items-center gap-2">
-                  <span class="font-bold text-white text-sm sm:text-base group-hover:text-emerald-300 transition">Mod Real Tawaf (Kompas & Auto-Lap)</span>
+                  <span class="font-bold text-white text-sm sm:text-base group-hover:text-emerald-300 transition">Mod Real Tawaf (Ibadah Nyata)</span>
                   <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500 text-stone-950">Disyorkan</span>
                 </div>
                 <p class="text-xs text-stone-300 mt-1 leading-relaxed">
-                  Kawalan manual penuh dengan <strong>Widget Kompas 360°</strong>, pengesanan automatik 7 pusingan, penjejak 4 rukun Kaabah, doa bertukar dinamik mengikut kuadran, dan butang Istilam.
+                  Buka bahagian khas <strong>tanpa antaramuka game (game interface)</strong> yang hanya mengandungi Kompas Kiblat sebenar, kiraan 7 pusingan, doa mengikut pusingan, dan panduan 4 Rukun Kaabah.
                 </p>
               </div>
             </div>
@@ -1679,6 +1679,7 @@ export class HUD {
     btnReal?.addEventListener('click', () => {
       onSelect('real');
       modal.remove();
+      this.onOpenRealTawafSectionCallback?.();
     });
 
     btnGuided?.addEventListener('click', () => {

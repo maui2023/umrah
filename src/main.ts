@@ -10,6 +10,7 @@ import { PlayerData } from './types';
 import { soundManager } from './audio/SoundManager';
 import { MOSQUE_LOCATIONS, MosqueLocation } from './data/solatData';
 import { SolatModal } from './ui/SolatModal';
+import { RealTawafSection } from './ui/RealTawafSection';
 
 class UmrahSimulationApp {
   private scene: THREE.Scene;
@@ -23,6 +24,8 @@ class UmrahSimulationApp {
   private supabaseService: SupabaseService;
   private workflow: UmrahWorkflow;
   private hud!: HUD;
+  private realTawafSection!: RealTawafSection;
+  private isRealMode: boolean = false;
   private masjidilHaram!: MasjidilHaram;
 
   // Mosque & Solat Interactive Session
@@ -184,14 +187,53 @@ class UmrahSimulationApp {
       this.playerController.boardBus();
     }
 
-    // 3. Initialize HUD
+    // 3. Initialize HUD & Real Tawaf Section
     this.hud = new HUD();
     this.hud.currentPahala = this.workflow.totalPahala;
     this.hud.soloSolatCount = this.workflow.soloSolatCount;
     this.hud.jemaahSolatCount = this.workflow.jemaahSolatCount;
     this.hud.visitedMosques = this.workflow.visitedMosques;
     this.hud.updatePahala(this.workflow.totalPahala);
+
+    this.realTawafSection = new RealTawafSection({
+      onSwitchToGame: () => {
+        this.closeRealMode();
+      },
+      onLapChanged: (lap) => {
+        this.workflow.tawafLap = lap;
+        this.playerData.currentLap = lap;
+        this.workflow.saveState();
+        if (this.hud) {
+          this.hud.updateLap('tawaf', lap);
+        }
+        if (this.localAvatar) {
+          this.localAvatar.updateNameTag(
+            this.playerData.name,
+            this.playerData.groupName,
+            this.playerData.groupColor,
+            this.playerData.role,
+            lap
+          );
+        }
+      },
+      onTawafFinished: () => {
+        this.workflow.stage = 'solat_zamzam';
+        this.workflow.tawafLap = 7;
+        this.playerData.stage = 'solat_zamzam';
+        this.playerData.currentLap = 7;
+        this.workflow.saveState();
+        if (this.hud) {
+          this.hud.updateStage('solat_zamzam');
+          this.hud.updateSolatZamzamStatus(this.workflow.solatSunatDone, this.workflow.zamzamDone);
+        }
+      }
+    });
+
     this.setupHUDCallbacks();
+
+    if (data.startInRealMode) {
+      this.openRealMode(currentLap);
+    }
 
     // Wire Interactive Key (KeyE) for entering mosque doors, Istilam, and boarding/exiting bus
     this.playerController.onInteractiveKeyPress = () => {
@@ -231,6 +273,9 @@ class UmrahSimulationApp {
         if (stage === 'tawaf') {
           this.hud.showTawafModeDialog(this.workflow.tawafMode, (mode) => {
             this.workflow.setTawafMode(mode);
+            if (mode === 'real') {
+              this.openRealMode();
+            }
           });
         }
         if (stage === 'solat_zamzam') {
@@ -579,11 +624,14 @@ class UmrahSimulationApp {
       },
       onToggleTawafMode: (mode) => {
         this.workflow.setTawafMode(mode);
-        this.hud.showNotification(
-          mode === 'real'
-            ? '🕋 Mod Real Tawaf diaktifkan: Kompas 360° & penjejak Auto-Lap sedia digunakan!'
-            : '👥 Mod Panduan Jemaah diaktifkan: Ikuti rombongan bersama Mutawwif.'
-        );
+        if (mode === 'real') {
+          this.openRealMode();
+        } else {
+          this.closeRealMode();
+        }
+      },
+      onOpenRealTawafSection: () => {
+        this.openRealMode();
       },
       onToggleRaml: (active) => {
         this.playerController.setRaml(active);
@@ -602,6 +650,36 @@ class UmrahSimulationApp {
         );
       }
     });
+  }
+
+  /**
+   * Open dedicated Real Tawaf Mode without 3D game interface
+   */
+  public openRealMode(lap?: number) {
+    this.isRealMode = true;
+    const canvasContainer = document.getElementById('canvas-container');
+    const hudOverlay = document.getElementById('umrah-hud-overlay');
+    if (canvasContainer) canvasContainer.style.display = 'none';
+    if (hudOverlay) hudOverlay.style.display = 'none';
+
+    this.realTawafSection.open(lap || this.workflow.tawafLap || 1);
+  }
+
+  /**
+   * Close Real Tawaf Mode and restore 3D simulation
+   */
+  public closeRealMode() {
+    this.isRealMode = false;
+    this.realTawafSection.close();
+
+    const canvasContainer = document.getElementById('canvas-container');
+    const hudOverlay = document.getElementById('umrah-hud-overlay');
+    if (canvasContainer) canvasContainer.style.display = 'block';
+    if (hudOverlay) hudOverlay.style.display = 'flex';
+
+    if (this.hud) {
+      this.hud.showNotification('🎮 Kembali ke Mod Simulasi 3D');
+    }
   }
 
   /**
@@ -786,6 +864,11 @@ class UmrahSimulationApp {
 
   private animate = () => {
     requestAnimationFrame(this.animate);
+
+    if (this.isRealMode) {
+      // In Real Mode, skip 3D physics, rendering and updates to save CPU, GPU and battery
+      return;
+    }
 
     const delta = Math.min(this.clock.getDelta(), 0.1);
 

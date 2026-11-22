@@ -11,6 +11,7 @@ export interface OnboardingData {
   groupColor: string;
   startLocation: 'madinah' | 'makkah';
   isResume?: boolean;
+  startInRealMode?: boolean;
 }
 
 export class OnboardingModal {
@@ -186,7 +187,16 @@ export class OnboardingModal {
             class="w-full py-4 px-6 rounded-2xl font-bold text-sm tracking-wide bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-xl shadow-emerald-500/25 transition duration-200 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
           >
             <span class="text-base">▶️</span>
-            <span>Sambung Perjalanan (Teruskan Sesi)</span>
+            <span>Sambung Perjalanan 3D (Teruskan Sesi)</span>
+          </button>
+
+          <button 
+            type="button" 
+            id="btn-resume-real-tawaf" 
+            class="w-full py-3.5 px-6 rounded-2xl font-bold text-xs tracking-wide bg-gradient-to-r from-emerald-700 to-teal-800 hover:from-emerald-600 hover:to-teal-700 text-white shadow-xl shadow-emerald-950/40 border border-emerald-400/50 transition duration-200 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+          >
+            <span class="text-base">🧭</span>
+            <span>Buka Mod Real Tawaf (Kompas Kiblat & Pusingan)</span>
           </button>
 
           <button 
@@ -206,6 +216,7 @@ export class OnboardingModal {
     `;
 
     const continueBtn = this.container.querySelector('#btn-continue-session') as HTMLButtonElement;
+    const realTawafResumeBtn = this.container.querySelector('#btn-resume-real-tawaf') as HTMLButtonElement;
     const newGameBtn = this.container.querySelector('#btn-show-new-game-form') as HTMLButtonElement;
 
     continueBtn.addEventListener('click', () => {
@@ -226,7 +237,23 @@ export class OnboardingModal {
         groupName: savedState.groupName,
         groupColor: savedState.groupColor,
         startLocation: isMakkahStage ? 'makkah' : 'madinah',
-        isResume: true
+        isResume: true,
+        startInRealMode: false
+      });
+    });
+
+    realTawafResumeBtn?.addEventListener('click', () => {
+      this.destroy();
+      this.onCompleteCallback({
+        name: savedState.playerName,
+        gender: savedState.gender,
+        role: savedState.role,
+        groupId: savedState.groupId,
+        groupName: savedState.groupName,
+        groupColor: savedState.groupColor,
+        startLocation: 'makkah',
+        isResume: true,
+        startInRealMode: true
       });
     });
 
@@ -291,10 +318,23 @@ export class OnboardingModal {
                 <input type="radio" name="start_point" value="makkah" class="mt-1 accent-emerald-500" />
                 <div class="flex-1">
                   <div class="font-bold text-xs text-slate-200">
-                    <span>🕋 Terus ke Makkah (Tawaf Masjidil Haram)</span>
+                    <span>🕋 Terus ke Makkah (Tawaf Masjidil Haram 3D)</span>
                   </div>
                   <p class="text-[11px] text-slate-400 mt-0.5 leading-snug">
                     Mulakan terus dari Dataran Kaabah untuk Tawaf, Solat, Zamzam, Sa'i dan Tahallul.
+                  </p>
+                </div>
+              </label>
+
+              <label class="relative flex items-start gap-3 p-2.5 rounded-xl border border-emerald-500/50 bg-slate-900/60 cursor-pointer hover:border-emerald-400 transition select-none">
+                <input type="radio" name="start_point" value="real_tawaf" class="mt-1 accent-emerald-500" />
+                <div class="flex-1">
+                  <div class="font-bold text-xs text-emerald-300 flex items-center gap-1.5">
+                    <span>🧭 Mod Real Tawaf (Ibadah Nyata Tanpa Game)</span>
+                    <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500 text-stone-950 font-extrabold">Fokus Khusyuk</span>
+                  </div>
+                  <p class="text-[11px] text-slate-300 mt-0.5 leading-snug">
+                    Buka skrin khas dengan Kompas Kiblat sebenar, kiraan 7 pusingan, doa pusingan, dan panduan 4 rukun Kaabah tanpa interface 3D.
                   </p>
                 </div>
               </label>
@@ -497,7 +537,9 @@ export class OnboardingModal {
 
       const name = (this.container.querySelector('#player-name') as HTMLInputElement).value.trim() || 'Jemaah';
       const gender = ((this.container.querySelector('input[name="gender"]:checked') as HTMLInputElement)?.value as Gender) || 'male';
-      const startLocation = ((this.container.querySelector('input[name="start_point"]:checked') as HTMLInputElement)?.value as 'madinah' | 'makkah') || 'madinah';
+      const startPointVal = ((this.container.querySelector('input[name="start_point"]:checked') as HTMLInputElement)?.value as string) || 'madinah';
+      const startInRealMode = startPointVal === 'real_tawaf';
+      const startLocation = startPointVal === 'madinah' ? 'madinah' : 'makkah';
 
       let groupId = 'SOLO';
       let groupName = 'Solo';
@@ -536,7 +578,8 @@ export class OnboardingModal {
         groupName,
         groupColor,
         startLocation,
-        isResume: false
+        isResume: false,
+        startInRealMode
       });
     });
   }
