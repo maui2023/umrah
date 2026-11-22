@@ -7,6 +7,7 @@ export interface RealTawafSectionCallbacks {
   onSwitchToGame?: () => void;
   onLapChanged?: (lap: number) => void;
   onTawafFinished?: () => void;
+  onProceedToSai?: () => void;
 }
 
 export type RealTawafTab = 'compass_laps' | 'duas' | 'rukun' | 'fiqh';
@@ -321,19 +322,31 @@ export class RealTawafSection {
           </div>
         </div>
 
-        <div class="flex items-center gap-2 pt-2">
-          <button id="btn-close-completion" class="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md active:scale-95 transition cursor-pointer text-center">
-            Tutup & Teruskan Ibadah
+        <div class="space-y-2 pt-2">
+          <button id="btn-completion-proceed-sai" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-extrabold text-sm shadow-lg shadow-emerald-900/30 active:scale-95 transition cursor-pointer text-center flex items-center justify-center gap-2">
+            <span>🚶‍♂️</span>
+            <span>Teruskan ke Ibadah Sa'i (Safa ➔ Marwah)</span>
           </button>
-          <button id="btn-completion-switch-game" class="py-3.5 px-4 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs border border-stone-300 transition cursor-pointer text-center flex items-center gap-1.5">
-            <span>🎮</span>
-            <span>Simulasi 3D</span>
-          </button>
+          
+          <div class="flex items-center gap-2">
+            <button id="btn-close-completion" class="flex-1 py-3 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs border border-stone-300 transition cursor-pointer text-center">
+              Tutup & Sambung Ibadah
+            </button>
+            <button id="btn-completion-switch-game" class="flex-1 py-3 px-4 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-xs transition cursor-pointer text-center flex items-center justify-center gap-1.5">
+              <span>🎮</span>
+              <span>Simulasi 3D</span>
+            </button>
+          </div>
         </div>
       </div>
     `;
 
     document.body.appendChild(modal);
+    modal.querySelector('#btn-completion-proceed-sai')?.addEventListener('click', () => {
+      modal.remove();
+      this.close();
+      this.callbacks.onProceedToSai?.();
+    });
     modal.querySelector('#btn-close-completion')?.addEventListener('click', () => modal.remove());
     modal.querySelector('#btn-completion-switch-game')?.addEventListener('click', () => {
       modal.remove();

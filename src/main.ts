@@ -226,6 +226,16 @@ class UmrahSimulationApp {
           this.hud.updateStage('solat_zamzam');
           this.hud.updateSolatZamzamStatus(this.workflow.solatSunatDone, this.workflow.zamzamDone);
         }
+      },
+      onProceedToSai: () => {
+        this.closeRealMode();
+        this.workflow.advanceToSai(1);
+        this.playerController.teleport(65, 42, Math.PI);
+        this.playerData.stage = 'sai';
+        this.playerData.currentLap = 1;
+        this.hud.updateStage('sai');
+        this.hud.updateLap('sai', 1);
+        this.hud.showNotification('📍 Selamat tiba di Bukit Safa. Sila mulakan Sa\'i Pusingan 1 (Safa ➔ Marwah).');
       }
     });
 
@@ -281,6 +291,12 @@ class UmrahSimulationApp {
         if (stage === 'solat_zamzam') {
           this.hud.updateSolatZamzamStatus(this.workflow.solatSunatDone, this.workflow.zamzamDone);
         }
+        if (stage === 'sai') {
+          if (this.playerData.x < 50) {
+            this.playerController.teleport(65, 42, Math.PI);
+          }
+          this.hud.updateLap('sai', this.workflow.saiLap || 1);
+        }
         this.localAvatar.updateNameTag(
           this.playerData.name,
           this.playerData.groupName,
@@ -291,6 +307,17 @@ class UmrahSimulationApp {
       },
       onTawafProgress: (progress) => {
         this.hud.updateTawafProgress(progress);
+      },
+      onSaiProgress: (progress) => {
+        this.hud.updateSaiProgress(progress);
+        this.playerData.currentLap = progress.lap;
+        this.localAvatar.updateNameTag(
+          this.playerData.name,
+          this.playerData.groupName,
+          this.playerData.groupColor,
+          this.playerData.role,
+          progress.lap
+        );
       },
       onLapChanged: (stage, lap) => {
         this.playerData.currentLap = lap;
@@ -557,7 +584,7 @@ class UmrahSimulationApp {
           }
           this.hud.updateSolatZamzamStatus(this.workflow.solatSunatDone, this.workflow.zamzamDone);
         } else if (stage === 'sai') {
-          soundManager.playIstilamSound();
+          this.workflow.advanceSaiLapManual();
         } else if (stage === 'tahallul') {
           this.workflow.completeTahallul();
         } else if (stage === 'completed') {
@@ -636,9 +663,13 @@ class UmrahSimulationApp {
       onToggleRaml: (active) => {
         this.playerController.setRaml(active);
         this.workflow.setRaml(active);
+        if (this.hud.currentSaiProgress) {
+          this.hud.currentSaiProgress.isRamlActive = active;
+          this.hud.updateSaiUI();
+        }
         this.hud.showNotification(
           active
-            ? '🏃 Sunnah Raml diaktifkan: Berlari-lari anak (Pusingan 1-3 bagi lelaki).'
+            ? '🏃 Sunnah Raml/Harwalah diaktifkan: Berlari-lari anak bagi lelaki.'
             : '🚶 Raml dimatikan: Berjalan seperti biasa.'
         );
       },
@@ -648,6 +679,21 @@ class UmrahSimulationApp {
             ? (`lap${this.workflow.tawafLap}` as any)
             : 'lap1'
         );
+      },
+      onAdvanceSaiLap: () => {
+        this.workflow.advanceSaiLapManual();
+      },
+      onPrevSaiLap: () => {
+        this.workflow.prevSaiLapManual();
+      },
+      onResetSaiLaps: () => {
+        this.workflow.resetSaiLaps();
+      },
+      onSelectSaiLap: (lap) => {
+        this.workflow.setSaiLap(lap);
+      },
+      onOpenSaiModal: () => {
+        this.hud.showSaiGuideModal();
       }
     });
   }

@@ -1,4 +1,4 @@
-import { DuaItem, SavedUmrahState, TawafMode, TawafProgress, UmrahStage, ZiarahSpot } from '../types';
+import { DuaItem, SaiProgress, SavedUmrahState, TawafMode, TawafProgress, UmrahStage, ZiarahSpot } from '../types';
 import {
   GREEN_LIGHT_DUA,
   ISTILAM_DUA,
@@ -46,6 +46,7 @@ export class UmrahWorkflow {
   private onTeleportRequestedCallback: ((x: number, z: number, rot?: number) => void) | null = null;
   private onPahalaChangedCallback: ((total: number, added: number, isJemaah: boolean, mosqueName: string) => void) | null = null;
   private onTawafProgressCallback: ((progress: TawafProgress) => void) | null = null;
+  private onSaiProgressCallback: ((progress: SaiProgress) => void) | null = null;
   public positionProvider: (() => { x: number; y: number; z: number; rotation: number; isInBus?: boolean }) | null = null;
 
   public static getSavedState(): SavedUmrahState | null {
@@ -109,6 +110,7 @@ export class UmrahWorkflow {
     onTeleportRequested?: (x: number, z: number, rot?: number) => void;
     onPahalaChanged?: (total: number, added: number, isJemaah: boolean, mosqueName: string) => void;
     onTawafProgress?: (progress: TawafProgress) => void;
+    onSaiProgress?: (progress: SaiProgress) => void;
   }) {
     this.onStageChangedCallback = options.onStageChanged;
     this.onLapChangedCallback = options.onLapChanged;
@@ -117,6 +119,7 @@ export class UmrahWorkflow {
     this.onTeleportRequestedCallback = options.onTeleportRequested || null;
     this.onPahalaChangedCallback = options.onPahalaChanged || null;
     this.onTawafProgressCallback = options.onTawafProgress || null;
+    this.onSaiProgressCallback = options.onSaiProgress || null;
   }
 
   /**
@@ -465,21 +468,130 @@ export class UmrahWorkflow {
     }
   }
 
-  private advanceToSai() {
+  public getSaiProgress(): SaiProgress {
+    const lap = Math.max(1, Math.min(7, this.saiLap || 1));
+    const isOdd = lap % 2 === 1;
+    return {
+      lap,
+      from: isOdd ? 'safa' : 'marwah',
+      to: isOdd ? 'marwah' : 'safa',
+      fromLabel: isOdd ? 'Bukit Safa' : 'Bukit Marwah',
+      toLabel: isOdd ? 'Bukit Marwah' : 'Bukit Safa',
+      inGreenLightsZone: this.inGreenLightsZone,
+      isRamlActive: this.tawafTracker.isRamlActive
+    };
+  }
+
+  public advanceToSai(initialLap: number = 1) {
     this.stage = 'sai';
-    this.saiLap = 1;
-    this.saiNextTarget = 'marwah';
+    this.saiLap = Math.max(1, Math.min(7, initialLap));
+    this.saiNextTarget = (this.saiLap % 2 === 1) ? 'marwah' : 'safa';
     this.saveState();
     this.onStageChangedCallback?.(this.stage);
     this.onLapChangedCallback?.('sai', this.saiLap);
+    this.onSaiProgressCallback?.(this.getSaiProgress());
+    const dua = SAI_DUAS[this.saiLap] || SAFA_START_DUA;
     this.onDuaTriggeredCallback?.(
-      SAFA_START_DUA,
-      'Selesai Tawaf & Solat! Menuju ke Bukit Safa untuk memulakan Sa\'i pusingan 1.'
+      dua,
+      this.saiLap === 1
+        ? 'Selesai Tawaf! Selamat tiba di Bukit Safa untuk memulakan Sa\'i pusingan 1.'
+        : `Menyambung Sa'i pusingan ke-${this.saiLap}.`
     );
   }
 
   /**
-   * Monitor Sa'i between Safa and Marwah
+   * Manual advance for Sa'i lap (Pure button press, no compass)
+   */
+  public advanceSaiLapManual() {
+    if (this.stage !== 'sai') {
+      this.advanceToSai(1);
+      return;
+    }
+
+    soundManager.playCheckpointSound();
+
+    if (this.saiLap < 7) {
+      this.saiLap += 1;
+      this.saiNextTarget = (this.saiLap % 2 === 1) ? 'marwah' : 'safa';
+      this.saveState();
+      this.onLapChangedCallback?.('sai', this.saiLap);
+      this.onSaiProgressCallback?.(this.getSaiProgress());
+
+      const progress = this.getSaiProgress();
+      const dua = SAI_DUAS[this.saiLap] || SAFA_START_DUA;
+      this.onDuaTriggeredCallback?.(
+        dua,
+        `Alhamdulillah! Tiba di ${progress.fromLabel}. Memulakan Sa'i Pusingan ke-${this.saiLap} (${progress.fromLabel} ➔ ${progress.toLabel}).`
+      );
+    } else {
+      this.completeSai();
+    }
+  }
+
+  public prevSaiLapManual() {
+    if (this.stage !== 'sai') return;
+    if (this.saiLap > 1) {
+      this.saiLap -= 1;
+      this.saiNextTarget = (this.saiLap % 2 === 1) ? 'marwah' : 'safa';
+      this.saveState();
+      this.onLapChangedCallback?.('sai', this.saiLap);
+      this.onSaiProgressCallback?.(this.getSaiProgress());
+      const dua = SAI_DUAS[this.saiLap] || SAFA_START_DUA;
+      this.onDuaTriggeredCallback?.(
+        dua,
+        `Kiraan Sa'i diundurkan ke Pusingan ke-${this.saiLap}.`
+      );
+    }
+  }
+
+  public resetSaiLaps() {
+    if (this.stage !== 'sai') return;
+    this.saiLap = 1;
+    this.saiNextTarget = 'marwah';
+    this.saveState();
+    this.onLapChangedCallback?.('sai', 1);
+    this.onSaiProgressCallback?.(this.getSaiProgress());
+    this.onDuaTriggeredCallback?.(
+      SAI_DUAS[1] || SAFA_START_DUA,
+      'Kiraan Sa\'i ditetapkan semula ke Pusingan 1 (Safa ➔ Marwah).'
+    );
+  }
+
+  public setSaiLap(lap: number) {
+    if (this.stage !== 'sai') {
+      this.stage = 'sai';
+      this.onStageChangedCallback?.(this.stage);
+    }
+    this.saiLap = Math.max(1, Math.min(7, lap));
+    this.saiNextTarget = (this.saiLap % 2 === 1) ? 'marwah' : 'safa';
+    this.saveState();
+    this.onLapChangedCallback?.('sai', this.saiLap);
+    this.onSaiProgressCallback?.(this.getSaiProgress());
+    const dua = SAI_DUAS[this.saiLap] || SAFA_START_DUA;
+    this.onDuaTriggeredCallback?.(
+      dua,
+      `Memilih Sa'i Pusingan ke-${this.saiLap}.`
+    );
+  }
+
+  public completeSai() {
+    soundManager.playCompletionFanfare();
+    confetti({
+      particleCount: 160,
+      spread: 90,
+      origin: { y: 0.6 }
+    });
+    this.stage = 'tahallul';
+    this.saveState();
+    this.onStageChangedCallback?.(this.stage);
+    this.onDuaTriggeredCallback?.(
+      TAHALLUL_DUA,
+      'Alhamdulillah! 7 Pusingan Sa\'i selesai dengan sempurna di Bukit Marwah. Kini masa untuk Tahallul (bercukur / bergunting rambut).'
+    );
+  }
+
+  /**
+   * Monitor Sa'i between Safa and Marwah in 3D world
    */
   private processSaiPosition(x: number, z: number) {
     if (x < 55 || x > 75) return;
@@ -489,12 +601,14 @@ export class UmrahWorkflow {
     if (inGreen && !this.inGreenLightsZone) {
       this.inGreenLightsZone = true;
       soundManager.playGreenLightAlert();
+      this.onSaiProgressCallback?.(this.getSaiProgress());
       this.onDuaTriggeredCallback?.(
         GREEN_LIGHT_DUA,
         '🟢 KAWASAN LAMPU HIJAU: Disunatkan bagi lelaki berlari-lari anak (Harwalah / Raml)!'
       );
     } else if (!inGreen && this.inGreenLightsZone) {
       this.inGreenLightsZone = false;
+      this.onSaiProgressCallback?.(this.getSaiProgress());
     }
 
     // Checkpoint Safa (z > 38)
@@ -505,6 +619,7 @@ export class UmrahWorkflow {
         this.saiNextTarget = 'marwah';
         this.saveState();
         this.onLapChangedCallback?.('sai', this.saiLap);
+        this.onSaiProgressCallback?.(this.getSaiProgress());
         const dua = SAI_DUAS[this.saiLap] || SAFA_START_DUA;
         this.onDuaTriggeredCallback?.(
           dua,
@@ -521,6 +636,7 @@ export class UmrahWorkflow {
         this.saiNextTarget = 'safa';
         this.saveState();
         this.onLapChangedCallback?.('sai', this.saiLap);
+        this.onSaiProgressCallback?.(this.getSaiProgress());
         const dua = SAI_DUAS[this.saiLap] || SAFA_START_DUA;
         this.onDuaTriggeredCallback?.(
           dua,
@@ -528,14 +644,7 @@ export class UmrahWorkflow {
         );
       } else {
         // Sa'i Complete on 7th Lap at Marwah!
-        soundManager.playCheckpointSound();
-        this.stage = 'tahallul';
-        this.saveState();
-        this.onStageChangedCallback?.(this.stage);
-        this.onDuaTriggeredCallback?.(
-          TAHALLUL_DUA,
-          'Alhamdulillah! Sa\'i 7 pusingan sempurna di Bukit Marwah. Kini masa untuk Tahallul (bercukur / bergunting).'
-        );
+        this.completeSai();
       }
     }
   }

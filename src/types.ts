@@ -186,3 +186,25 @@ export interface SavedUmrahState {
   lastSavedAt?: string;
   completedAt?: string;
 }
+
+export interface SaiProgress {
+  lap: number; // 1..7
+  from: 'safa' | 'marwah';
+  to: 'marwah' | 'safa';
+  fromLabel: string;
+  toLabel: string;
+  inGreenLightsZone: boolean;
+  isRamlActive?: boolean;
+}
+
+export interface AyatLazimItem {
+  id: string;
+  category: 'ayat' | 'surah' | 'zikir';
+  title: string;
+  surahOrSource: string;
+  arabic: string;
+  transliteration: string;
+  translation: string;
+  fadhilat?: string;
+}
+

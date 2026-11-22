@@ -1343,3 +1343,57 @@ Pelan ini telah dilaksanakan pada 2026-11-22 17:54:44
 
 ---
 
+
+## 🗓️ Sesi Pelaksanaan: 2026-11-22 20:55:00 (Sistem Ibadah Sa'i: Manual Counter, Garisan Lampu Hijau, Doa 7 Pusingan & Susunan Ayat Lazim)
+
+### 💬 Keperluan / Input Terkini Pengguna:
+* Arahan Pengguna: *"Selepas tawaf perlu buat saie. Tiada real saie. Tidak perlu compas, hanya manual tekan, susun ayat lazim untuk dibaca. Line hijau perlu berlari, doa di setiap pusingan"*
+
+### 🚀 Perubahan Kod & Seni Bina Baharu:
+
+1. **Peralihan Alur Kerja Selepas Tawaf ke Sa'i (`RealTawafSection.ts` & `UmrahWorkflow.ts`)**:
+   - Di modal penyelesaian 7 Pusingan Tawaf (`RealTawafSection`), disediakan butang tindakan utama:
+     `[🚶‍♂️ Teruskan ke Ibadah Sa'i (Safa ➔ Marwah)]`.
+   - Apabila ditekan atau diselesaikan dalam 3D, pemain diteleport terus ke Bukit Safa (`x: 65, z: 42, rot: Math.PI`), mod Tawaf ditutup, dan alur ibadah Sa'i diaktifkan secara automatik.
+
+2. **Tiada Real Sa'i & Tiada Kompas (Hanya Manual Tekan)**:
+   - Sa'i berbeza daripada Tawaf Kaabah yang memerlukan polar compass 360°. Sa'i adalah laluan lurus (Mas'a) antara Bukit Safa dan Bukit Marwah.
+   - Dicipta widget manual HUD `#hud-sai-widget` (atas kanan) yang ringkas dan padat:
+     * **Visualizer Trek Linear Mas'a**: Menunjukkan kedudukan `[⛰️ Safa] ═════ [🟢 Lampu Hijau] ═════ [⛰️ Marwah]`.
+     * **Penunjuk Arah Pusingan**: Menunjukkan `Safa ➔ Marwah` bagi pusingan ganjil (1, 3, 5, 7) dan `Marwah ➔ Safa` bagi pusingan genap (2, 4, 6).
+     * **7 Pil Status Pusingan**: Menunjukkan pusingan 1 hingga 7 dengan cahaya kemas kini.
+     * **Butang Tekan Manual Pantas ("Hanya manual tekan")**:
+       - `[✅ Tekan: Tiba di Marwah (Selesai P.1)]` (Pusingan 1, 3, 5)
+       - `[✅ Tekan: Tiba di Safa (Selesai P.2)]` (Pusingan 2, 4, 6)
+       - `[🏆 Tekan: Tiba di Marwah (Selesai 7 Pusingan Sa'i)]` (Pusingan 7)
+     * Kawalan tambahan: `[↩️ Undur P.]`, `[🔄 Mula Semula]`, dan `[📖 Ayat Lazim]`.
+     * Boleh diminimumkan menjadi pil terapung `[🚶‍♂️ Sa'i 1/7 • Safa➔Marwah ▼]`.
+
+3. **Peringatan & Tindakan Garisan Lampu Hijau ("Line hijau perlu berlari")**:
+   - Zon tiang lampu hijau (Batn al-Wadi) dipaparkan dengan lencana neon hijau yang berkelip.
+   - Peringatan fiqh jelas: **Sunnah bagi jemaah LELAKI berlari-lari anak (Harwalah / Raml). Jemaah WANITA berjalan seperti biasa**.
+   - Butang tindakan pantas `[🏃 Lari Anak]` untuk mengaktifkan mod larian jogging watak avatar dalam 3D.
+   - Butang pantas `[🤲 Doa]` untuk membaca dan mendengar sebutan doa lampu hijau:
+     *"Rabbighfir warham, wa'fu wa takarram, wa tajaawaz 'ammaa ta'lam, innaka ta'lamu maa laa na'lam, innaka antallahul-A'azzul-Akram"*.
+   - Dalam persekitaran 3D, melangkah masuk ke koordinat zon lampu hijau secara automatik membunyikan chime amaran dan mencetuskan doa.
+
+4. **Doa Lengkap di Setiap Pusingan (1 hingga 7)**:
+   - Setiap pusingan mempunyai doa ma'thur khusus mengikut destinasi (Safa➔Marwah atau Marwah➔Safa).
+   - Teks Arab berbaris lengkap, sebutan rumi bertransliterasi, terjemahan Bahasa Melayu, dan butang audio sebutan Arab (`[🔊 Dengar]`).
+
+5. **Koleksi Susunan Ayat-Ayat Lazim Al-Quran & Surah Lazim (`src/data/saiData.ts` & `src/ui/SaiModal.ts`)**:
+   - Disediakan modul panduan `SaiModal` dengan tab teratur:
+     * `📜 Fiqh & Syarat`: Syarat sah sa'i, sunnah-sunnah, dan sejarah Sayyidatina Hajar & Nabi Ismail a.s.
+     * `🟢 Lampu Hijau (Lari Anak)`: Panduan khusus kawasan lampu hijau.
+     * `1️⃣ Pusingan 1` hingga `7️⃣ Pusingan 7`: Doa khusus setiap pusingan.
+     * `📖 Ayat-Ayat Lazim Al-Quran`:
+       - Ayat Permulaan Safa (Surah Al-Baqarah: 158)
+       - Ayat Al-Kursi (Surah Al-Baqarah: 255)
+       - Ayat Seribu Dinar (Surah At-Talaq: 2-3)
+       - Doa Nabi Yunus a.s. (Surah Al-Anbiya: 87)
+       - Doa Sapu Jagad Kebaikan Dunia & Akhirat (Surah Al-Baqarah: 201)
+       - Doa Ketetapan Iman (Surah Ali 'Imran: 8)
+       - Doa Zuriat & Keluarga Bahagia (Surah Al-Furqan: 74)
+       - Doa Pengampunan Ibu Bapa (Surah Ibrahim: 41)
+     * `📜 Surah-Surah Lazim`: Surah Al-Fatihah, Surah Al-Ikhlas, Surah Al-Falaq, Surah An-Nas, Surah Al-Kafirun, Surah Al-Insyirah, Surah Al-Qadr.
+     * `📿 Zikir & Selawat`: Takbir Safa-Marwah, Kalimah Thayyibah 4, Sayyidul Istighfar, Selawat Ibrahimiyyah, Doa Kemaafan.

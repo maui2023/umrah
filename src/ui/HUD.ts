@@ -1,9 +1,11 @@
-import { DuaItem, PlayerData, PlayerRole, TawafMode, TawafProgress, UmrahStage, ZiarahSpot } from '../types';
+import { DuaItem, PlayerData, PlayerRole, SaiProgress, TawafMode, TawafProgress, UmrahStage, ZiarahSpot } from '../types';
 import { soundManager } from '../audio/SoundManager';
-import { TALBIYAH_DUA } from '../data/duas';
+import { SAI_DUAS, TALBIYAH_DUA } from '../data/duas';
+import { SAI_LAPS } from '../data/saiData';
 import { ZIARAH_SPOTS } from '../data/ziarahData';
 import { MosqueLocation, MOSQUE_LOCATIONS } from '../data/solatData';
 import { TawafModal, TawafTabKey } from './TawafModal';
+import { SaiModal, SaiTabKey } from './SaiModal';
 
 export class HUD {
   private container: HTMLElement;
@@ -21,6 +23,15 @@ export class HUD {
   public onOpenTawafModalCallback: (() => void) | null = null;
   public onOpenRealTawafSectionCallback: (() => void) | null = null;
   public isTawafWidgetMinimized: boolean = false;
+
+  // Sa'i State & Manual Counter Widget (No compass, pure manual tap)
+  public currentSaiProgress: SaiProgress | null = null;
+  public isSaiWidgetMinimized: boolean = false;
+  public onAdvanceSaiLapCallback: (() => void) | null = null;
+  public onPrevSaiLapCallback: (() => void) | null = null;
+  public onResetSaiLapsCallback: (() => void) | null = null;
+  public onOpenSaiModalCallback: (() => void) | null = null;
+  public onSelectSaiLapCallback: ((lap: number) => void) | null = null;
 
   // Auto-hide Card Timers & State (3 seconds auto-hide)
   private titleCardTimer: number | null = null;
@@ -120,6 +131,11 @@ export class HUD {
     onToggleRaml?: (active: boolean) => void;
     onOpenTawafModal?: () => void;
     onOpenRealTawafSection?: () => void;
+    onAdvanceSaiLap?: () => void;
+    onPrevSaiLap?: () => void;
+    onResetSaiLaps?: () => void;
+    onSelectSaiLap?: (lap: number) => void;
+    onOpenSaiModal?: () => void;
   }) {
     this.onTeleportCallback = options.onTeleport;
     this.onActionButtonCallback = options.onActionButton;
@@ -143,6 +159,11 @@ export class HUD {
     this.onToggleRamlCallback = options.onToggleRaml || null;
     this.onOpenTawafModalCallback = options.onOpenTawafModal || null;
     this.onOpenRealTawafSectionCallback = options.onOpenRealTawafSection || null;
+    this.onAdvanceSaiLapCallback = options.onAdvanceSaiLap || null;
+    this.onPrevSaiLapCallback = options.onPrevSaiLap || null;
+    this.onResetSaiLapsCallback = options.onResetSaiLaps || null;
+    this.onSelectSaiLapCallback = options.onSelectSaiLap || null;
+    this.onOpenSaiModalCallback = options.onOpenSaiModal || null;
   }
 
   public setSupabaseStatus(connected: boolean, realPlayerCount: number) {
@@ -835,6 +856,139 @@ export class HUD {
         <span id="tawaf-mini-pill-deg" class="text-emerald-400 font-mono">0°</span>
         <span class="text-stone-400 text-[10px]">▼</span>
       </button>
+
+      <!-- DEDICATED MANUAL SA'I TRACKER WIDGET (NO COMPASS, PURE MANUAL TAP) -->
+      <div id="hud-sai-widget" style="display: none;" class="pointer-events-auto fixed right-3 top-[68px] sm:top-[74px] z-30 flex flex-col gap-2 w-[285px] sm:w-[325px] bg-stone-950/92 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 border border-emerald-500/40 shadow-2xl text-stone-100 transition-all select-none">
+        
+        <!-- Header: Mode Badge, Lap Counter & Minimize -->
+        <div class="flex items-center justify-between pb-2 border-b border-stone-800/80">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span class="text-sm shrink-0">🚶‍♂️</span>
+            <div class="min-w-0">
+              <span class="text-[9px] uppercase font-extrabold tracking-widest text-emerald-400 block truncate">MOD MANUAL SA'I (TIADA KOMPAS)</span>
+              <div id="sai-widget-lap-text" class="text-xs font-bold text-white truncate">Pusingan 1 / 7 (Safa ➔ Marwah)</div>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-1 shrink-0">
+            <button id="btn-open-sai-guide-modal" title="Buka Panduan & Ayat Lazim Penuh" class="interactive-ui p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition text-xs font-bold flex items-center gap-1 cursor-pointer">
+              <span>📖</span>
+              <span class="text-[10px] hidden sm:inline">Ayat & Doa</span>
+            </button>
+            <button id="btn-sai-minimize" title="Kecilkan Widget" class="interactive-ui p-1 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 text-xs transition cursor-pointer">
+              ─
+            </button>
+          </div>
+        </div>
+
+        <!-- Linear Track Visualization (Mas'a between Safa and Marwah) -->
+        <div class="py-1 px-2 rounded-xl bg-stone-900/80 border border-stone-800/80 space-y-1">
+          <div class="flex items-center justify-between text-[10px] font-bold">
+            <span id="sai-track-safa-label" class="text-amber-400 flex items-center gap-1">
+              <span>⛰️</span>
+              <span>Bukit Safa</span>
+            </span>
+            <span id="sai-track-direction-badge" class="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-600/40 text-[9px] font-mono">
+              Safa ➔ Marwah
+            </span>
+            <span id="sai-track-marwah-label" class="text-stone-400 flex items-center gap-1">
+              <span>Bukit Marwah</span>
+              <span>⛰️</span>
+            </span>
+          </div>
+
+          <!-- Progress track bar with Green Light middle segment -->
+          <div class="relative w-full h-3.5 bg-stone-800 rounded-full overflow-hidden flex items-center">
+            <!-- Safa zone (0% - 35%) -->
+            <div class="w-[35%] h-full bg-amber-900/30"></div>
+            <!-- Green Light zone (35% - 65%) -->
+            <div id="sai-track-green-zone" class="w-[30%] h-full bg-emerald-600/40 border-x border-emerald-400/50 flex items-center justify-center">
+              <span class="text-[7.5px] font-mono text-emerald-300 tracking-tighter">🟢 LAMPU HIJAU</span>
+            </div>
+            <!-- Marwah zone (65% - 100%) -->
+            <div class="w-[35%] h-full bg-amber-900/30"></div>
+
+            <!-- Animated Pilgrim Marker -->
+            <div id="sai-track-walker-marker" class="absolute w-3.5 h-3.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981] border border-white flex items-center justify-center text-[8px] transition-all duration-300" style="left: 10%;">
+            </div>
+          </div>
+        </div>
+
+        <!-- 7 Lap Indicator Pills -->
+        <div class="flex items-center justify-between gap-1 px-1.5 py-1 bg-stone-950/60 rounded-xl border border-stone-800/80">
+          ${[1, 2, 3, 4, 5, 6, 7].map(l => `
+            <div class="flex-1 flex flex-col items-center">
+              <div id="sai-dot-lap-${l}" class="w-full h-1.5 rounded-full bg-stone-800 transition-all ${l === 1 ? 'bg-emerald-400 shadow-[0_0_6px_#10b981]' : ''}"></div>
+              <span class="text-[8px] font-mono text-stone-500 mt-0.5">${l}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- BIG MANUAL TAP BUTTON ("Hanya manual tekan") -->
+        <div class="pt-0.5">
+          <button id="btn-sai-tap-lap" class="interactive-ui w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-500 hover:to-emerald-400 text-stone-950 font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50 active:scale-95 transition cursor-pointer">
+            <span class="text-base">✅</span>
+            <span id="btn-sai-tap-lap-label">Tekan: Tiba di Marwah (Selesai P.1)</span>
+          </button>
+        </div>
+
+        <!-- Green Light Banner & Harwalah/Doa Quick Trigger -->
+        <div id="sai-green-light-banner" class="p-2 rounded-xl bg-emerald-950/70 border border-emerald-500/50 flex items-center justify-between gap-2 transition-all">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span class="text-sm shrink-0 animate-pulse">🟢</span>
+            <div class="min-w-0">
+              <div class="text-[10px] font-bold text-emerald-300 truncate">Lampu Hijau (Batn al-Wadi)</div>
+              <div class="text-[9px] text-stone-300 truncate">Lelaki berlari-lari anak (Raml/Harwalah)</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1 shrink-0">
+            <button id="btn-sai-toggle-raml" title="Lari-lari anak bagi lelaki" class="interactive-ui px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-stone-950 text-[10px] font-extrabold transition cursor-pointer">
+              🏃 Lari Anak
+            </button>
+            <button id="btn-sai-green-light-dua" title="Buka Doa Lampu Hijau" class="interactive-ui px-1.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-emerald-300 border border-emerald-700/50 text-[10px] font-bold transition cursor-pointer">
+              🤲 Doa
+            </button>
+          </div>
+        </div>
+
+        <!-- Current Lap Prayer Snippet -->
+        <div class="p-2 rounded-xl bg-stone-900/60 border border-stone-800/80 space-y-1">
+          <div class="flex items-center justify-between text-[10px]">
+            <span id="sai-current-dua-title" class="font-bold text-amber-300 truncate">Doa Pusingan 1: Safa ➔ Marwah</span>
+            <button id="btn-sai-speak-dua" title="Dengar sebutan Arab" class="interactive-ui px-1.5 py-0.5 rounded bg-stone-800 hover:bg-stone-700 text-stone-200 text-[9px] font-bold flex items-center gap-0.5 cursor-pointer">
+              <span>🔊</span>
+              <span>Dengar</span>
+            </button>
+          </div>
+          <div id="sai-current-dua-snippet" class="text-[10px] font-serif text-stone-300 line-clamp-1 italic text-right dir-rtl">
+            اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ، وَلِلَّهِ الْحَمْدُ...
+          </div>
+        </div>
+
+        <!-- Footer Control Buttons: Undur Pusingan, Reset, Buka Ayat Lazim -->
+        <div class="grid grid-cols-3 gap-1 pt-0.5 text-[10px]">
+          <button id="btn-sai-prev-lap" class="interactive-ui py-1 px-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold transition text-center cursor-pointer truncate">
+            ↩️ Undur P.
+          </button>
+          <button id="btn-sai-reset" class="interactive-ui py-1 px-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-rose-300 hover:text-rose-200 font-bold transition text-center cursor-pointer truncate">
+            🔄 Mula Semula
+          </button>
+          <button id="btn-sai-ayat-lazim" class="interactive-ui py-1 px-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold transition text-center cursor-pointer truncate">
+            📖 Ayat Lazim
+          </button>
+        </div>
+
+      </div>
+
+      <!-- MINIMIZED SA'I PILL -->
+      <button id="hud-sai-mini-pill" style="display: none;" title="Buka Semula Tracker Sa'i" class="interactive-ui pointer-events-auto fixed right-3 top-[68px] sm:top-[74px] z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-900/95 backdrop-blur-md border border-emerald-500/50 shadow-xl text-stone-100 text-xs font-bold hover:bg-stone-800 active:scale-95 transition cursor-pointer">
+        <span>🚶‍♂️</span>
+        <span id="sai-mini-pill-lap" class="text-emerald-400">Sa'i 1/7</span>
+        <span class="text-stone-500">•</span>
+        <span id="sai-mini-pill-target" class="text-amber-400 font-mono">Safa➔Marwah</span>
+        <span class="text-stone-400 text-[10px]">▼</span>
+      </button>
     `;
 
     this.attachEventListeners();
@@ -1004,6 +1158,73 @@ export class HUD {
     btnTawafToggleRaml?.addEventListener('click', () => {
       const nextRaml = !this.currentTawafProgress?.isRamlActive;
       this.onToggleRamlCallback?.(nextRaml);
+    });
+
+    // === SA'I MANUAL TRACKER LISTENERS ===
+    const saiWidget = this.container.querySelector('#hud-sai-widget') as HTMLElement;
+    const saiMiniPill = this.container.querySelector('#hud-sai-mini-pill') as HTMLElement;
+    const btnSaiMinimize = this.container.querySelector('#btn-sai-minimize') as HTMLButtonElement;
+    const btnOpenSaiGuide = this.container.querySelector('#btn-open-sai-guide-modal') as HTMLButtonElement;
+    const btnSaiTapLap = this.container.querySelector('#btn-sai-tap-lap') as HTMLButtonElement;
+    const btnSaiPrevLap = this.container.querySelector('#btn-sai-prev-lap') as HTMLButtonElement;
+    const btnSaiReset = this.container.querySelector('#btn-sai-reset') as HTMLButtonElement;
+    const btnSaiAyatLazim = this.container.querySelector('#btn-sai-ayat-lazim') as HTMLButtonElement;
+    const btnSaiGreenLightDua = this.container.querySelector('#btn-sai-green-light-dua') as HTMLButtonElement;
+    const btnSaiToggleRaml = this.container.querySelector('#btn-sai-toggle-raml') as HTMLButtonElement;
+    const btnSaiSpeakDua = this.container.querySelector('#btn-sai-speak-dua') as HTMLButtonElement;
+
+    btnSaiMinimize?.addEventListener('click', () => {
+      this.isSaiWidgetMinimized = true;
+      if (saiWidget) saiWidget.style.display = 'none';
+      if (saiMiniPill) saiMiniPill.style.display = 'flex';
+    });
+
+    saiMiniPill?.addEventListener('click', () => {
+      this.isSaiWidgetMinimized = false;
+      if (saiWidget) saiWidget.style.display = 'flex';
+      if (saiMiniPill) saiMiniPill.style.display = 'none';
+    });
+
+    btnSaiTapLap?.addEventListener('click', () => {
+      this.onAdvanceSaiLapCallback?.();
+    });
+
+    btnSaiPrevLap?.addEventListener('click', () => {
+      this.onPrevSaiLapCallback?.();
+    });
+
+    btnSaiReset?.addEventListener('click', () => {
+      if (confirm('Tetapkan semula kiraan Sa\'i ke Pusingan 1?')) {
+        this.onResetSaiLapsCallback?.();
+      }
+    });
+
+    btnOpenSaiGuide?.addEventListener('click', () => {
+      this.showSaiGuideModal();
+    });
+
+    btnSaiAyatLazim?.addEventListener('click', () => {
+      this.showSaiGuideModal('ayat_lazim');
+    });
+
+    btnSaiGreenLightDua?.addEventListener('click', () => {
+      this.showSaiGuideModal('green_lights');
+    });
+
+    btnSaiToggleRaml?.addEventListener('click', () => {
+      const isRaml = !this.currentSaiProgress?.isRamlActive;
+      this.onToggleRamlCallback?.(isRaml);
+      if (this.currentSaiProgress) {
+        this.currentSaiProgress.isRamlActive = isRaml;
+      }
+      this.updateSaiUI();
+    });
+
+    btnSaiSpeakDua?.addEventListener('click', () => {
+      const dua = SAI_DUAS[this.currentLap || 1];
+      if (dua?.arabic) {
+        soundManager.speakArabic(dua.arabic);
+      }
     });
 
     // 2. Top Help Button (?)
@@ -1622,6 +1843,141 @@ export class HUD {
     }
   }
 
+  public updateSaiProgress(progress: SaiProgress) {
+    this.currentSaiProgress = progress;
+    this.currentLap = progress.lap;
+    this.updateSaiUI();
+  }
+
+  public updateSaiUI() {
+    const lap = Math.max(1, Math.min(7, this.currentLap || 1));
+    const isOdd = lap % 2 === 1;
+    const fromLabel = isOdd ? 'Bukit Safa' : 'Bukit Marwah';
+    const toLabel = isOdd ? 'Bukit Marwah' : 'Bukit Safa';
+    const dirStr = isOdd ? 'Safa ➔ Marwah' : 'Marwah ➔ Safa';
+
+    const widget = this.container.querySelector('#hud-sai-widget') as HTMLElement;
+    if (!widget) return;
+
+    // Header text
+    const lapText = widget.querySelector('#sai-widget-lap-text') as HTMLElement;
+    if (lapText) {
+      lapText.innerText = `Pusingan ${lap} / 7 (${fromLabel} ➔ ${toLabel})`;
+    }
+
+    // Direction badge
+    const dirBadge = widget.querySelector('#sai-track-direction-badge') as HTMLElement;
+    if (dirBadge) {
+      dirBadge.innerText = dirStr;
+    }
+
+    // Safa & Marwah labels in track
+    const safaLabel = widget.querySelector('#sai-track-safa-label') as HTMLElement;
+    const marwahLabel = widget.querySelector('#sai-track-marwah-label') as HTMLElement;
+    if (safaLabel && marwahLabel) {
+      if (isOdd) {
+        safaLabel.className = 'text-amber-400 font-bold flex items-center gap-1';
+        marwahLabel.className = 'text-stone-400 font-medium flex items-center gap-1';
+      } else {
+        safaLabel.className = 'text-stone-400 font-medium flex items-center gap-1';
+        marwahLabel.className = 'text-amber-400 font-bold flex items-center gap-1';
+      }
+    }
+
+    // Pilgrim marker on track
+    const walkerMarker = widget.querySelector('#sai-track-walker-marker') as HTMLElement;
+    if (walkerMarker) {
+      const inGreen = this.currentSaiProgress?.inGreenLightsZone;
+      if (inGreen) {
+        walkerMarker.style.left = '48%';
+        walkerMarker.className = 'absolute w-4 h-4 rounded-full bg-emerald-400 shadow-[0_0_12px_#10b981] border-2 border-white flex items-center justify-center text-[9px] transition-all duration-300 animate-pulse';
+      } else if (isOdd) {
+        walkerMarker.style.left = '14%';
+        walkerMarker.className = 'absolute w-3.5 h-3.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981] border border-white flex items-center justify-center text-[8px] transition-all duration-300';
+      } else {
+        walkerMarker.style.left = '82%';
+        walkerMarker.className = 'absolute w-3.5 h-3.5 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b] border border-white flex items-center justify-center text-[8px] transition-all duration-300';
+      }
+    }
+
+    // 7 Dot lap pills
+    for (let l = 1; l <= 7; l++) {
+      const dot = widget.querySelector(`#sai-dot-lap-${l}`) as HTMLElement;
+      if (dot) {
+        if (l < lap) {
+          dot.className = 'w-full h-1.5 rounded-full bg-emerald-500';
+        } else if (l === lap) {
+          dot.className = 'w-full h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b] ring-1 ring-amber-300';
+        } else {
+          dot.className = 'w-full h-1.5 rounded-full bg-stone-800';
+        }
+      }
+    }
+
+    // Big manual button label ("Hanya manual tekan")
+    const tapLabel = widget.querySelector('#btn-sai-tap-lap-label') as HTMLElement;
+    const tapBtn = widget.querySelector('#btn-sai-tap-lap') as HTMLButtonElement;
+    if (tapLabel) {
+      if (lap < 7) {
+        tapLabel.innerText = `Tekan: Tiba di ${toLabel} (Selesai P.${lap})`;
+        if (tapBtn) {
+          tapBtn.className = 'interactive-ui w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-500 hover:to-emerald-400 text-stone-950 font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50 active:scale-95 transition cursor-pointer';
+        }
+      } else {
+        tapLabel.innerText = '🏆 Tekan: Tiba di Marwah (Selesai 7 Pusingan Sa\'i)';
+        if (tapBtn) {
+          tapBtn.className = 'interactive-ui w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-stone-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-950/50 active:scale-95 transition cursor-pointer ring-2 ring-amber-300 animate-pulse';
+        }
+      }
+    }
+
+    // Green light banner pulse & Raml label
+    const greenBanner = widget.querySelector('#sai-green-light-banner') as HTMLElement;
+    const ramlBtn = widget.querySelector('#btn-sai-toggle-raml') as HTMLButtonElement;
+    const inGreen = this.currentSaiProgress?.inGreenLightsZone;
+    if (greenBanner) {
+      if (inGreen) {
+        greenBanner.className = 'p-2 rounded-xl bg-emerald-900/90 border-2 border-emerald-400 shadow-[0_0_14px_rgba(16,185,129,0.5)] flex items-center justify-between gap-2 transition-all animate-pulse';
+      } else {
+        greenBanner.className = 'p-2 rounded-xl bg-emerald-950/70 border border-emerald-500/50 flex items-center justify-between gap-2 transition-all';
+      }
+    }
+    if (ramlBtn) {
+      const isRaml = this.currentSaiProgress?.isRamlActive;
+      ramlBtn.innerText = isRaml ? '🏃 Lari: Aktif' : '🏃 Lari Anak';
+      ramlBtn.className = isRaml
+        ? 'interactive-ui px-2 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-stone-950 text-[10px] font-black transition cursor-pointer ring-2 ring-amber-300'
+        : 'interactive-ui px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-stone-950 text-[10px] font-extrabold transition cursor-pointer';
+    }
+
+    // Current lap prayer snippet
+    const duaTitle = widget.querySelector('#sai-current-dua-title') as HTMLElement;
+    const duaSnippet = widget.querySelector('#sai-current-dua-snippet') as HTMLElement;
+    const currentLapInfo = SAI_LAPS[lap];
+    if (duaTitle && currentLapInfo) {
+      duaTitle.innerText = `${currentLapInfo.title}: ${currentLapInfo.theme}`;
+    }
+    if (duaSnippet && currentLapInfo) {
+      duaSnippet.innerText = currentLapInfo.arabic;
+    }
+
+    // Mini pill updates
+    const miniLap = this.container.querySelector('#sai-mini-pill-lap') as HTMLElement;
+    const miniTarget = this.container.querySelector('#sai-mini-pill-target') as HTMLElement;
+    if (miniLap) miniLap.innerText = `Sa'i ${lap}/7`;
+    if (miniTarget) miniTarget.innerText = dirStr;
+
+    // Main HUD action button update
+    if (this.currentStage === 'sai') {
+      const actionText = this.container.querySelector('#main-action-text') as HTMLElement;
+      const actionIcon = this.container.querySelector('#main-action-icon') as HTMLElement;
+      if (actionText) {
+        actionText.innerText = lap < 7 ? `Selesai P.${lap} (${toLabel.replace('Bukit ', '')})` : 'Selesai 7 P. Sa\'i';
+      }
+      if (actionIcon) actionIcon.innerText = '🚶‍♂️';
+    }
+  }
+
   public showTawafModeDialog(currentMode: TawafMode, onSelect: (mode: TawafMode) => void) {
     const existing = document.getElementById('modal-tawaf-mode-dialog');
     if (existing) existing.remove();
@@ -1716,6 +2072,15 @@ export class HUD {
       initialTab,
       onSelectDua: (_duaId) => {
         // Selected dua
+      }
+    });
+  }
+
+  public showSaiGuideModal(initialTab?: SaiTabKey) {
+    new SaiModal({
+      initialTab: initialTab || (this.currentLap >= 1 && this.currentLap <= 7 ? (`lap${this.currentLap}` as SaiTabKey) : 'lap1'),
+      onSelectLap: (lap) => {
+        this.onSelectSaiLapCallback?.(lap);
       }
     });
   }
@@ -1988,6 +2353,9 @@ export class HUD {
     }
 
     this.updateSegmentPills(lap, 7);
+    if (stage === 'sai') {
+      this.updateSaiUI();
+    }
   }
 
   public displayDua(dua: DuaItem, alertMessage?: string) {
