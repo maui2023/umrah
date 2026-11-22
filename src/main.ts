@@ -11,6 +11,7 @@ import { soundManager } from './audio/SoundManager';
 import { MOSQUE_LOCATIONS, MosqueLocation } from './data/solatData';
 import { SolatModal } from './ui/SolatModal';
 import { RealTawafSection } from './ui/RealTawafSection';
+import { RealSaiSection } from './ui/RealSaiSection';
 
 class UmrahSimulationApp {
   private scene: THREE.Scene;
@@ -25,6 +26,7 @@ class UmrahSimulationApp {
   private workflow: UmrahWorkflow;
   private hud!: HUD;
   private realTawafSection!: RealTawafSection;
+  private realSaiSection!: RealSaiSection;
   private isRealMode: boolean = false;
   private masjidilHaram!: MasjidilHaram;
 
@@ -236,12 +238,58 @@ class UmrahSimulationApp {
         this.hud.updateStage('sai');
         this.hud.updateLap('sai', 1);
         this.hud.showNotification('📍 Selamat tiba di Bukit Safa. Sila mulakan Sa\'i Pusingan 1 (Safa ➔ Marwah).');
+        this.openRealSaiMode(1);
+      },
+      onSwitchToSai: () => {
+        this.closeRealMode();
+        this.openRealSaiMode(this.workflow.saiLap || 1);
+      }
+    });
+
+    this.realSaiSection = new RealSaiSection({
+      onSwitchToGame: () => {
+        this.closeRealSaiMode();
+      },
+      onLapChanged: (lap) => {
+        this.workflow.setSaiLap(lap);
+        this.playerData.currentLap = lap;
+        this.playerData.stage = 'sai';
+        this.workflow.saveState();
+        if (this.hud) {
+          this.hud.updateLap('sai', lap);
+        }
+        if (this.localAvatar) {
+          this.localAvatar.updateNameTag(
+            this.playerData.name,
+            this.playerData.groupName,
+            this.playerData.groupColor,
+            this.playerData.role,
+            lap
+          );
+        }
+      },
+      onSaiFinished: () => {
+        this.closeRealSaiMode();
+        this.workflow.completeSai();
+        this.playerData.stage = 'tahallul';
+        this.playerData.currentLap = 7;
+        this.workflow.saveState();
+        if (this.hud) {
+          this.hud.updateStage('tahallul');
+          this.hud.showNotification('🎉 Tahniah! 7 Pusingan Sa\'i selesai. Sila lakukan Tahallul (bercukur / bergunting).');
+        }
+      },
+      onSwitchToTawaf: () => {
+        this.closeRealSaiMode();
+        this.openRealMode(this.workflow.tawafLap || 1);
       }
     });
 
     this.setupHUDCallbacks();
 
-    if (data.startInRealMode) {
+    if (data.startInRealSaiMode) {
+      this.openRealSaiMode(this.workflow.saiLap || 1);
+    } else if (data.startInRealMode) {
       this.openRealMode(currentLap);
     }
 
@@ -694,6 +742,9 @@ class UmrahSimulationApp {
       },
       onOpenSaiModal: () => {
         this.hud.showSaiGuideModal();
+      },
+      onOpenRealSaiSection: () => {
+        this.openRealSaiMode();
       }
     });
   }
@@ -703,6 +754,7 @@ class UmrahSimulationApp {
    */
   public openRealMode(lap?: number) {
     this.isRealMode = true;
+    if (this.realSaiSection) this.realSaiSection.close();
     const canvasContainer = document.getElementById('canvas-container');
     const hudOverlay = document.getElementById('umrah-hud-overlay');
     if (canvasContainer) canvasContainer.style.display = 'none';
@@ -717,6 +769,47 @@ class UmrahSimulationApp {
   public closeRealMode() {
     this.isRealMode = false;
     this.realTawafSection.close();
+
+    const canvasContainer = document.getElementById('canvas-container');
+    const hudOverlay = document.getElementById('umrah-hud-overlay');
+    if (canvasContainer) canvasContainer.style.display = 'block';
+    if (hudOverlay) hudOverlay.style.display = 'flex';
+
+    if (this.hud) {
+      this.hud.showNotification('🎮 Kembali ke Mod Simulasi 3D');
+    }
+  }
+
+  /**
+   * Open dedicated Real Sa'i Mode without 3D game interface (Safa ⇄ Marwah)
+   */
+  public openRealSaiMode(lap?: number) {
+    this.isRealMode = true;
+    if (this.realTawafSection) this.realTawafSection.close();
+
+    const canvasContainer = document.getElementById('canvas-container');
+    const hudOverlay = document.getElementById('umrah-hud-overlay');
+    if (canvasContainer) canvasContainer.style.display = 'none';
+    if (hudOverlay) hudOverlay.style.display = 'none';
+
+    const currentSaiLap = lap || this.workflow.saiLap || 1;
+    this.workflow.stage = 'sai';
+    this.workflow.saiLap = currentSaiLap;
+    this.workflow.saveState();
+    if (this.hud) {
+      this.hud.updateStage('sai');
+      this.hud.updateLap('sai', currentSaiLap);
+    }
+
+    this.realSaiSection.open(currentSaiLap);
+  }
+
+  /**
+   * Close Real Sa'i Mode and restore 3D simulation
+   */
+  public closeRealSaiMode() {
+    this.isRealMode = false;
+    this.realSaiSection.close();
 
     const canvasContainer = document.getElementById('canvas-container');
     const hudOverlay = document.getElementById('umrah-hud-overlay');

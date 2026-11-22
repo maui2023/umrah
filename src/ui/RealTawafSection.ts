@@ -8,6 +8,7 @@ export interface RealTawafSectionCallbacks {
   onLapChanged?: (lap: number) => void;
   onTawafFinished?: () => void;
   onProceedToSai?: () => void;
+  onSwitchToSai?: () => void;
 }
 
 export type RealTawafTab = 'compass_laps' | 'duas' | 'rukun' | 'fiqh';
@@ -374,16 +375,24 @@ export class RealTawafSection {
             <div class="text-[10px] text-stone-500 font-medium">Panduan Arah & Pusingan Kaabah</div>
           </div>
 
-          <!-- Headphone / Audio Recitation Button -->
-          <button id="btn-motawef-audio" title="Dengar Talbiyah & Zikir Audio" class="${
-            this.isTalbiyahAudioActive
-              ? 'w-10 h-10 rounded-full bg-amber-500 text-stone-950 shadow-md ring-2 ring-amber-400/70 flex items-center justify-center transition active:scale-95 cursor-pointer animate-pulse'
-              : 'w-10 h-10 rounded-full bg-white/95 border border-stone-200/90 shadow-sm flex items-center justify-center text-stone-800 hover:bg-stone-100 transition active:scale-95 cursor-pointer'
-          }">
-            <svg class="w-5 h-5 stroke-current stroke-2 fill-none" viewBox="0 0 24 24">
-              <path d="M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
+          <!-- Right Buttons: Switch to Real Sa'i & Headphone Audio -->
+          <div class="flex items-center gap-1.5">
+            <button id="btn-motawef-to-sai" title="Tukar ke Mod Real Sa'i (Safa ⇄ Marwah)" class="px-2.5 py-1.5 rounded-full bg-white/95 border border-stone-200/90 shadow-sm flex items-center gap-1 text-[11px] font-bold text-stone-700 hover:bg-stone-100 transition active:scale-95 cursor-pointer">
+              <span>🚶‍♂️</span>
+              <span>Sa'i</span>
+            </button>
+
+            <!-- Headphone / Audio Recitation Button -->
+            <button id="btn-motawef-audio" title="Dengar Talbiyah & Zikir Audio" class="${
+              this.isTalbiyahAudioActive
+                ? 'w-10 h-10 rounded-full bg-amber-500 text-stone-950 shadow-md ring-2 ring-amber-400/70 flex items-center justify-center transition active:scale-95 cursor-pointer animate-pulse'
+                : 'w-10 h-10 rounded-full bg-white/95 border border-stone-200/90 shadow-sm flex items-center justify-center text-stone-800 hover:bg-stone-100 transition active:scale-95 cursor-pointer'
+            }">
+              <svg class="w-5 h-5 stroke-current stroke-2 fill-none" viewBox="0 0 24 24">
+                <path d="M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
         </header>
 
         <!-- SUB-NAVIGATION TABS (Clean pill switches) -->
@@ -1004,6 +1013,13 @@ export class RealTawafSection {
     btnBack?.addEventListener('click', () => {
       this.close();
       this.callbacks.onSwitchToGame?.();
+    });
+
+    // Switch to Real Sa'i button
+    const btnToSai = this.container.querySelector('#btn-motawef-to-sai');
+    btnToSai?.addEventListener('click', () => {
+      this.close();
+      this.callbacks.onSwitchToSai?.();
     });
 
     // Audio Headphone button

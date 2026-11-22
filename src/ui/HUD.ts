@@ -22,6 +22,7 @@ export class HUD {
   public onToggleRamlCallback: ((active: boolean) => void) | null = null;
   public onOpenTawafModalCallback: (() => void) | null = null;
   public onOpenRealTawafSectionCallback: (() => void) | null = null;
+  public onOpenRealSaiSectionCallback: (() => void) | null = null;
   public isTawafWidgetMinimized: boolean = false;
 
   // Sa'i State & Manual Counter Widget (No compass, pure manual tap)
@@ -131,6 +132,7 @@ export class HUD {
     onToggleRaml?: (active: boolean) => void;
     onOpenTawafModal?: () => void;
     onOpenRealTawafSection?: () => void;
+    onOpenRealSaiSection?: () => void;
     onAdvanceSaiLap?: () => void;
     onPrevSaiLap?: () => void;
     onResetSaiLaps?: () => void;
@@ -159,6 +161,7 @@ export class HUD {
     this.onToggleRamlCallback = options.onToggleRaml || null;
     this.onOpenTawafModalCallback = options.onOpenTawafModal || null;
     this.onOpenRealTawafSectionCallback = options.onOpenRealTawafSection || null;
+    this.onOpenRealSaiSectionCallback = options.onOpenRealSaiSection || null;
     this.onAdvanceSaiLapCallback = options.onAdvanceSaiLap || null;
     this.onPrevSaiLapCallback = options.onPrevSaiLap || null;
     this.onResetSaiLapsCallback = options.onResetSaiLaps || null;
@@ -566,6 +569,12 @@ export class HUD {
             <span>Mod Real Tawaf</span>
           </button>
 
+          <!-- 1e. Mod Real Sa'i (Safa ⇄ Marwah) -->
+          <button id="btn-top-sai" title="Buka Mod Real Sa'i (Ibadah Nyata Safa ⇄ Marwah)" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-gradient-to-r from-teal-700 to-emerald-800 hover:from-teal-600 hover:to-emerald-700 text-white active:scale-95 transition cursor-pointer text-xs font-bold whitespace-nowrap shadow-md shadow-emerald-950/40 border border-emerald-400/50">
+            <span class="w-4 h-4 flex items-center justify-center text-xs">🚶‍♂️</span>
+            <span>Mod Real Sa'i</span>
+          </button>
+
           <!-- 2. Bantuan & Panduan (?) -->
           <button id="btn-top-help" title="Panduan Ibadah & Kawalan" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 hover:bg-stone-50 active:scale-95 transition cursor-pointer text-xs font-semibold whitespace-nowrap">
             <span class="w-4 h-4 flex items-center justify-center font-serif font-bold text-sm text-stone-700">?</span>
@@ -871,6 +880,10 @@ export class HUD {
           </div>
           
           <div class="flex items-center gap-1 shrink-0">
+            <button id="btn-open-real-sai-mode" title="Buka Mod Real Sa'i (Ibadah Nyata)" class="interactive-ui px-2 py-1 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-stone-950 transition text-[10px] font-extrabold flex items-center gap-1 cursor-pointer shadow-md">
+              <span>🧭</span>
+              <span>Mod Real</span>
+            </button>
             <button id="btn-open-sai-guide-modal" title="Buka Panduan & Ayat Lazim Penuh" class="interactive-ui p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition text-xs font-bold flex items-center gap-1 cursor-pointer">
               <span>📖</span>
               <span class="text-[10px] hidden sm:inline">Ayat & Doa</span>
@@ -1114,6 +1127,13 @@ export class HUD {
       this.onOpenRealTawafSectionCallback?.();
     });
 
+    // 1e. Top Sa'i Real Mode Button
+    const saiTopBtn = this.container.querySelector('#btn-top-sai') as HTMLButtonElement;
+    saiTopBtn?.addEventListener('click', () => {
+      setDropdownState(false);
+      this.onOpenRealSaiSectionCallback?.();
+    });
+
     // === TAWAF COMPASS & POLAR TRACKER LISTENERS ===
     const tawafWidget = this.container.querySelector('#hud-tawaf-compass-widget') as HTMLElement;
     const tawafMiniPill = this.container.querySelector('#hud-tawaf-mini-pill') as HTMLElement;
@@ -1197,6 +1217,11 @@ export class HUD {
       if (confirm('Tetapkan semula kiraan Sa\'i ke Pusingan 1?')) {
         this.onResetSaiLapsCallback?.();
       }
+    });
+
+    const btnOpenRealSaiMode = this.container.querySelector('#btn-open-real-sai-mode') as HTMLButtonElement;
+    btnOpenRealSaiMode?.addEventListener('click', () => {
+      this.onOpenRealSaiSectionCallback?.();
     });
 
     btnOpenSaiGuide?.addEventListener('click', () => {

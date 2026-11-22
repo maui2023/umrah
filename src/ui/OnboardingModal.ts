@@ -12,6 +12,7 @@ export interface OnboardingData {
   startLocation: 'madinah' | 'makkah';
   isResume?: boolean;
   startInRealMode?: boolean;
+  startInRealSaiMode?: boolean;
 }
 
 export class OnboardingModal {
@@ -201,6 +202,15 @@ export class OnboardingModal {
 
           <button 
             type="button" 
+            id="btn-resume-real-sai" 
+            class="w-full py-3.5 px-6 rounded-2xl font-bold text-xs tracking-wide bg-gradient-to-r from-emerald-800 to-teal-900 hover:from-emerald-700 hover:to-teal-800 text-white shadow-xl shadow-emerald-950/40 border border-emerald-500/50 transition duration-200 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+          >
+            <span class="text-base">🚶‍♂️</span>
+            <span>Buka Mod Real Sa'i (Safa ⇄ Marwah)</span>
+          </button>
+
+          <button 
+            type="button" 
             id="btn-show-new-game-form" 
             class="w-full py-3 px-4 rounded-xl font-semibold text-xs text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700 transition flex items-center justify-center gap-2 cursor-pointer"
           >
@@ -217,6 +227,7 @@ export class OnboardingModal {
 
     const continueBtn = this.container.querySelector('#btn-continue-session') as HTMLButtonElement;
     const realTawafResumeBtn = this.container.querySelector('#btn-resume-real-tawaf') as HTMLButtonElement;
+    const realSaiResumeBtn = this.container.querySelector('#btn-resume-real-sai') as HTMLButtonElement;
     const newGameBtn = this.container.querySelector('#btn-show-new-game-form') as HTMLButtonElement;
 
     continueBtn.addEventListener('click', () => {
@@ -238,7 +249,8 @@ export class OnboardingModal {
         groupColor: savedState.groupColor,
         startLocation: isMakkahStage ? 'makkah' : 'madinah',
         isResume: true,
-        startInRealMode: false
+        startInRealMode: false,
+        startInRealSaiMode: false
       });
     });
 
@@ -253,7 +265,24 @@ export class OnboardingModal {
         groupColor: savedState.groupColor,
         startLocation: 'makkah',
         isResume: true,
-        startInRealMode: true
+        startInRealMode: true,
+        startInRealSaiMode: false
+      });
+    });
+
+    realSaiResumeBtn?.addEventListener('click', () => {
+      this.destroy();
+      this.onCompleteCallback({
+        name: savedState.playerName,
+        gender: savedState.gender,
+        role: savedState.role,
+        groupId: savedState.groupId,
+        groupName: savedState.groupName,
+        groupColor: savedState.groupColor,
+        startLocation: 'makkah',
+        isResume: true,
+        startInRealMode: false,
+        startInRealSaiMode: true
       });
     });
 
@@ -335,6 +364,19 @@ export class OnboardingModal {
                   </div>
                   <p class="text-[11px] text-slate-300 mt-0.5 leading-snug">
                     Buka skrin khas dengan Kompas Kiblat sebenar, kiraan 7 pusingan, doa pusingan, dan panduan 4 rukun Kaabah tanpa interface 3D.
+                  </p>
+                </div>
+              </label>
+
+              <label class="relative flex items-start gap-3 p-2.5 rounded-xl border border-emerald-500/50 bg-slate-900/60 cursor-pointer hover:border-emerald-400 transition select-none">
+                <input type="radio" name="start_point" value="real_sai" class="mt-1 accent-emerald-500" />
+                <div class="flex-1">
+                  <div class="font-bold text-xs text-emerald-300 flex items-center gap-1.5">
+                    <span>🚶‍♂️ Mod Real Sa'i (Ibadah Nyata Safa ⇄ Marwah)</span>
+                    <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500 text-stone-950 font-extrabold">Safa ⇄ Marwah</span>
+                  </div>
+                  <p class="text-[11px] text-slate-300 mt-0.5 leading-snug">
+                    Buka terus panduan Sa'i 7 pusingan Safa-Marwah mengikut reka bentuk lakaran sebenar: doa puncak, zon lampu hijau & ayat lazim.
                   </p>
                 </div>
               </label>
@@ -539,6 +581,7 @@ export class OnboardingModal {
       const gender = ((this.container.querySelector('input[name="gender"]:checked') as HTMLInputElement)?.value as Gender) || 'male';
       const startPointVal = ((this.container.querySelector('input[name="start_point"]:checked') as HTMLInputElement)?.value as string) || 'madinah';
       const startInRealMode = startPointVal === 'real_tawaf';
+      const startInRealSaiMode = startPointVal === 'real_sai';
       const startLocation = startPointVal === 'madinah' ? 'madinah' : 'makkah';
 
       let groupId = 'SOLO';
@@ -579,7 +622,8 @@ export class OnboardingModal {
         groupColor,
         startLocation,
         isResume: false,
-        startInRealMode
+        startInRealMode,
+        startInRealSaiMode
       });
     });
   }
