@@ -12,7 +12,9 @@ export class PlayerController {
   private keys: Record<string, boolean> = {};
   public isMoving: boolean = false;
   public isSprinting: boolean = false;
+  public isRaml: boolean = false;
   private walkSpeed: number = 4.2; // meters/sec
+  private ramlSpeed: number = 5.8; // meters/sec (jogging / lari anak)
   private sprintSpeed: number = 7.5; // meters/sec
 
   // Bus Riding State
@@ -173,6 +175,11 @@ export class PlayerController {
 
   public setSprinting(sprint: boolean) {
     this.isSprinting = sprint;
+  }
+
+  public setRaml(active: boolean) {
+    this.isRaml = active;
+    this.avatar.setRaml(active);
   }
 
   /**
@@ -421,7 +428,7 @@ export class PlayerController {
     // 3. ON-FOOT WALKING MODE WITH FULL WALL & BUS SLIDING COLLISION
     const inputLen = Math.hypot(inputRight, inputForward);
     const isSprintKey = this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.isSprinting;
-    const baseSpeed = isSprintKey ? this.sprintSpeed : this.walkSpeed;
+    const baseSpeed = isSprintKey ? this.sprintSpeed : (this.isRaml ? this.ramlSpeed : this.walkSpeed);
 
     if (inputLen > 0.05) {
       this.isMoving = true;

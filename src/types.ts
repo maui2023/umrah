@@ -119,6 +119,40 @@ export interface CheckpointZone {
   description: string;
 }
 
+export type TawafMode = 'real' | 'guided';
+
+export type TawafSectorId = 1 | 2 | 3 | 4;
+
+export interface TawafSectorInfo {
+  id: TawafSectorId;
+  name: string;
+  shortName: string;
+  cornerName: string;
+  startDeg: number;
+  endDeg: number;
+  duaTitle: string;
+  sunnahNote: string;
+  arabicSnippet: string;
+}
+
+export interface TawafProgress {
+  lap: number; // 1 to 7
+  totalLaps: number; // 7
+  radius: number; // Distance in meters from Kaabah center
+  angleDeg: number; // 0 to 360 degrees (0 at Hajarul Aswad, increasing counter-clockwise)
+  sector: TawafSectorId;
+  sectorInfo: TawafSectorInfo;
+  lapPercentage: number; // 0% to 100% of current lap
+  isInsideHijrIsmail: boolean;
+  isOutsideMataf: boolean;
+  isWrongDirection: boolean;
+  isNearHajarAswad: boolean;
+  isNearYamani: boolean;
+  isIstilamAvailable: boolean;
+  tawafMode: TawafMode;
+  isRamlActive?: boolean;
+}
+
 export interface SavedUmrahState {
   playerId: string;
   playerName: string;
@@ -130,6 +164,7 @@ export interface SavedUmrahState {
   stage: UmrahStage;
   ziarahSpotIndex?: number;
   tawafLap: number;
+  tawafMode?: TawafMode;
   saiLap: number;
   zamzamDone: boolean;
   solatSunatDone: boolean;

@@ -1,8 +1,9 @@
-import { DuaItem, PlayerData, PlayerRole, UmrahStage, ZiarahSpot } from '../types';
+import { DuaItem, PlayerData, PlayerRole, TawafMode, TawafProgress, UmrahStage, ZiarahSpot } from '../types';
 import { soundManager } from '../audio/SoundManager';
 import { TALBIYAH_DUA } from '../data/duas';
 import { ZIARAH_SPOTS } from '../data/ziarahData';
 import { MosqueLocation, MOSQUE_LOCATIONS } from '../data/solatData';
+import { TawafModal, TawafTabKey } from './TawafModal';
 
 export class HUD {
   private container: HTMLElement;
@@ -11,6 +12,14 @@ export class HUD {
   private currentDua: DuaItem | null = null;
   private currentZiarahSpot: ZiarahSpot | null = null;
   private currentZiarahIndex: number = 0;
+
+  // Real Tawaf State & Compass Widget
+  public currentTawafProgress: TawafProgress | null = null;
+  public onPerformIstilamCallback: (() => void) | null = null;
+  public onToggleTawafModeCallback: ((mode: TawafMode) => void) | null = null;
+  public onToggleRamlCallback: ((active: boolean) => void) | null = null;
+  public onOpenTawafModalCallback: (() => void) | null = null;
+  public isTawafWidgetMinimized: boolean = false;
 
   // Auto-hide Card Timers & State (3 seconds auto-hide)
   private titleCardTimer: number | null = null;
@@ -105,6 +114,10 @@ export class HUD {
     onTeleportToCoords?: (x: number, z: number) => void;
     onReconnectSupabase?: () => void;
     onSaveSupabaseConfig?: (url: string, key: string) => void;
+    onPerformIstilam?: () => void;
+    onToggleTawafMode?: (mode: TawafMode) => void;
+    onToggleRaml?: (active: boolean) => void;
+    onOpenTawafModal?: () => void;
   }) {
     this.onTeleportCallback = options.onTeleport;
     this.onActionButtonCallback = options.onActionButton;
@@ -123,6 +136,10 @@ export class HUD {
     this.onTeleportToCoordsCallback = options.onTeleportToCoords || null;
     this.onReconnectSupabaseCallback = options.onReconnectSupabase || null;
     this.onSaveSupabaseConfigCallback = options.onSaveSupabaseConfig || null;
+    this.onPerformIstilamCallback = options.onPerformIstilam || null;
+    this.onToggleTawafModeCallback = options.onToggleTawafMode || null;
+    this.onToggleRamlCallback = options.onToggleRaml || null;
+    this.onOpenTawafModalCallback = options.onOpenTawafModal || null;
   }
 
   public setSupabaseStatus(connected: boolean, realPlayerCount: number) {
@@ -519,6 +536,12 @@ export class HUD {
             <span>Panduan Talbiyah</span>
           </button>
 
+          <!-- 1d. Mod Real Tawaf & Senarai Doa Tawaf -->
+          <button id="btn-top-tawaf" title="Mod Real Tawaf (Kompas & Senarai Doa Tawaf)" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-emerald-50/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-emerald-300/80 text-emerald-950 hover:bg-emerald-100 active:scale-95 transition cursor-pointer text-xs font-bold whitespace-nowrap">
+            <span class="w-4 h-4 flex items-center justify-center text-xs">🕋</span>
+            <span>Doa & Real Tawaf</span>
+          </button>
+
           <!-- 2. Bantuan & Panduan (?) -->
           <button id="btn-top-help" title="Panduan Ibadah & Kawalan" class="interactive-ui flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/95 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] border border-stone-200/80 text-stone-800 hover:bg-stone-50 active:scale-95 transition cursor-pointer text-xs font-semibold whitespace-nowrap">
             <span class="w-4 h-4 flex items-center justify-center font-serif font-bold text-sm text-stone-700">?</span>
@@ -675,6 +698,125 @@ export class HUD {
           </button>
         </div>
       </div>
+
+      <!-- DEDICATED REAL TAWAF COMPASS & POLAR TRACKER WIDGET -->
+      <div id="hud-tawaf-compass-widget" style="display: none;" class="pointer-events-auto fixed right-3 top-[68px] sm:top-[74px] z-30 flex flex-col gap-2 w-[275px] sm:w-[315px] bg-stone-950/92 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 border border-amber-500/40 shadow-2xl text-stone-100 transition-all select-none">
+        
+        <!-- Header: Mode Badge, Lap Counter & Minimize -->
+        <div class="flex items-center justify-between pb-2 border-b border-stone-800/80">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span class="text-sm shrink-0">🕋</span>
+            <div class="min-w-0">
+              <span class="text-[9px] uppercase font-extrabold tracking-widest text-amber-400 block truncate">MOD REAL TAWAF</span>
+              <div id="tawaf-widget-lap-text" class="text-xs font-bold text-white truncate">Pusingan 1 / 7</div>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-1 shrink-0">
+            <button id="btn-toggle-tawaf-mode" title="Tukar Mod: Real Tawaf / Panduan Jemaah" class="interactive-ui px-2 py-0.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-[10px] font-bold text-stone-300 border border-stone-700 transition">
+              Mod: <span id="tawaf-mode-label" class="text-amber-400">Real</span>
+            </button>
+            <button id="btn-open-tawaf-guide-modal" title="Buka Senarai Doa Penuh" class="interactive-ui p-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 transition text-xs">
+              📖
+            </button>
+            <button id="btn-tawaf-minimize" title="Kecilkan Widget" class="interactive-ui p-1 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 text-xs transition">
+              ─
+            </button>
+          </div>
+        </div>
+
+        <!-- Central Compass Dial (Azimuth & Radius) -->
+        <div class="flex items-center gap-2.5 py-0.5">
+          <!-- Circular Compass SVG -->
+          <div class="relative w-[78px] h-[78px] sm:w-[84px] sm:h-[84px] shrink-0 flex items-center justify-center">
+            <svg id="tawaf-compass-svg" viewBox="0 0 100 100" class="w-full h-full transform -rotate-90">
+              <!-- Background Ring Track -->
+              <circle cx="50" cy="50" r="38" fill="none" stroke="#292524" stroke-width="7" />
+              <!-- Dynamic Counter-Clockwise Progress Arc (Circumference ~238.76) -->
+              <circle id="tawaf-compass-arc" cx="50" cy="50" r="38" fill="none" stroke="#F59E0B" stroke-width="7" stroke-dasharray="239" stroke-dashoffset="239" stroke-linecap="round" class="transition-all duration-150" />
+              <!-- 4 Corner Tick Markers -->
+              <!-- 0 deg: Hajarul Aswad (Top in normal view, Right in -90 rot) -->
+              <circle cx="88" cy="50" r="4" fill="#10B981" />
+              <!-- 90 deg: Iraqi (Bottom in -90 rot) -->
+              <circle cx="50" cy="88" r="3" fill="#F59E0B" />
+              <!-- 180 deg: Syami (Left in -90 rot) -->
+              <circle cx="12" cy="50" r="3" fill="#A8A29E" />
+              <!-- 270 deg: Yamani (Top in -90 rot) -->
+              <circle cx="50" cy="12" r="3.5" fill="#10B981" />
+            </svg>
+            
+            <!-- Kaabah Center Icon & Text -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+              <span class="text-xs select-none leading-none">🕋</span>
+              <span id="tawaf-compass-deg" class="text-[10px] font-mono font-bold text-amber-300 leading-none mt-0.5">0°</span>
+              <span id="tawaf-compass-radius" class="text-[8px] font-mono text-stone-400 leading-none">18m</span>
+            </div>
+
+            <!-- Rotating Needle Indicator -->
+            <div id="tawaf-compass-needle" class="absolute w-full h-full pointer-events-none transition-transform duration-100" style="transform: rotate(0deg);">
+              <div class="absolute top-[2px] left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_8px_#ffffff] border border-stone-900"></div>
+            </div>
+          </div>
+
+          <!-- Right Column: Sector & Lap Progress Info -->
+          <div class="flex-1 min-w-0 space-y-1">
+            <div class="flex items-center gap-1">
+              <span id="tawaf-sector-badge" class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-950/80 text-emerald-300 border border-emerald-600/50 truncate block">
+                Sektor 1: HA ➔ Iraqi
+              </span>
+            </div>
+            <div id="tawaf-sector-desc" class="text-[11px] font-medium text-stone-200 line-clamp-2 leading-tight">
+              Lafazkan zikir permulaan pusingan.
+            </div>
+            <div class="flex items-center gap-2 pt-0.5 text-[10px]">
+              <span class="text-stone-400">Pusingan:</span>
+              <span id="tawaf-lap-percent" class="font-bold text-amber-400">0%</span>
+              <span id="tawaf-boundary-status" class="text-emerald-400 font-semibold">• Sah</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7 Lap Indicator Dots -->
+        <div class="flex items-center justify-between gap-1 px-1.5 py-1 bg-stone-950/60 rounded-xl border border-stone-800/80">
+          ${[1, 2, 3, 4, 5, 6, 7].map(l => `
+            <div class="flex-1 flex flex-col items-center">
+              <div id="tawaf-dot-lap-${l}" class="w-full h-1.5 rounded-full bg-stone-800 transition-all ${l === 1 ? 'bg-amber-400 shadow-[0_0_6px_#f59e0b]' : ''}"></div>
+              <span class="text-[8px] font-mono text-stone-500 mt-0.5">${l}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Interactive Buttons (Istilam, Read Dua, Raml) -->
+        <div class="grid grid-cols-2 gap-1.5 pt-0.5">
+          <!-- Istilam Button: Flashing/Pulsing when in Istilam zone -->
+          <button id="btn-tawaf-istilam" class="interactive-ui col-span-2 py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-stone-950 font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/30 active:scale-95 transition cursor-pointer">
+            <span class="text-sm">✋</span>
+            <span id="btn-tawaf-istilam-label">Lakukan Istilam</span>
+          </button>
+
+          <!-- Speak Dua of Current Sector -->
+          <button id="btn-tawaf-speak-dua" title="Dengar sebutan zikir/doa sektor semasa" class="interactive-ui py-1.5 px-2 rounded-xl bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 font-bold text-[11px] flex items-center justify-center gap-1 active:scale-95 transition cursor-pointer">
+            <span id="tawaf-speak-icon">🔊</span>
+            <span id="tawaf-speak-label">Dua Sektor</span>
+          </button>
+
+          <!-- Raml Jogging Toggle (Laps 1-3) -->
+          <button id="btn-tawaf-toggle-raml" title="Lari-lari anak (Raml) bagi jemaah lelaki pusingan 1-3" class="interactive-ui py-1.5 px-2 rounded-xl bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 font-bold text-[11px] flex items-center justify-center gap-1 active:scale-95 transition cursor-pointer">
+            <span>🏃</span>
+            <span id="tawaf-raml-label">Raml: Mati</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- MINIMIZED TAWAF PILL (When user collapses the compass widget) -->
+      <button id="hud-tawaf-mini-pill" style="display: none;" title="Buka Semula Kompas Tawaf" class="interactive-ui pointer-events-auto fixed right-3 top-[68px] sm:top-[74px] z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-900/95 backdrop-blur-md border border-amber-500/50 shadow-xl text-stone-100 text-xs font-bold hover:bg-stone-800 active:scale-95 transition cursor-pointer">
+        <span>🕋</span>
+        <span id="tawaf-mini-pill-lap" class="text-amber-400">Tawaf 1/7</span>
+        <span class="text-stone-500">•</span>
+        <span id="tawaf-mini-pill-deg" class="text-emerald-400 font-mono">0°</span>
+        <span class="text-stone-400 text-[10px]">▼</span>
+      </button>
     `;
 
     this.attachEventListeners();
@@ -791,6 +933,62 @@ export class HUD {
     talbiyahTopBtn?.addEventListener('click', () => {
       setDropdownState(false);
       this.showTalbiyahModal();
+    });
+
+    // 1d. Top Tawaf Guide & Real Mode Button
+    const tawafTopBtn = this.container.querySelector('#btn-top-tawaf') as HTMLButtonElement;
+    tawafTopBtn?.addEventListener('click', () => {
+      setDropdownState(false);
+      this.showTawafGuideModal(this.currentStage === 'tawaf' && this.currentLap >= 1 && this.currentLap <= 7 ? (`lap${this.currentLap}` as TawafTabKey) : 'lap1');
+    });
+
+    // === TAWAF COMPASS & POLAR TRACKER LISTENERS ===
+    const tawafWidget = this.container.querySelector('#hud-tawaf-compass-widget') as HTMLElement;
+    const tawafMiniPill = this.container.querySelector('#hud-tawaf-mini-pill') as HTMLElement;
+    const btnTawafMinimize = this.container.querySelector('#btn-tawaf-minimize') as HTMLButtonElement;
+    const btnToggleTawafMode = this.container.querySelector('#btn-toggle-tawaf-mode') as HTMLButtonElement;
+    const btnOpenTawafGuide = this.container.querySelector('#btn-open-tawaf-guide-modal') as HTMLButtonElement;
+    const btnTawafIstilam = this.container.querySelector('#btn-tawaf-istilam') as HTMLButtonElement;
+    const btnTawafSpeakDua = this.container.querySelector('#btn-tawaf-speak-dua') as HTMLButtonElement;
+    const btnTawafToggleRaml = this.container.querySelector('#btn-tawaf-toggle-raml') as HTMLButtonElement;
+
+    btnTawafMinimize?.addEventListener('click', () => {
+      this.isTawafWidgetMinimized = true;
+      if (tawafWidget) tawafWidget.style.display = 'none';
+      if (tawafMiniPill) tawafMiniPill.style.display = 'flex';
+    });
+
+    tawafMiniPill?.addEventListener('click', () => {
+      this.isTawafWidgetMinimized = false;
+      if (tawafWidget) tawafWidget.style.display = 'flex';
+      if (tawafMiniPill) tawafMiniPill.style.display = 'none';
+    });
+
+    btnToggleTawafMode?.addEventListener('click', () => {
+      const curMode = this.currentTawafProgress?.tawafMode || 'real';
+      this.showTawafModeDialog(curMode, (mode) => {
+        this.onToggleTawafModeCallback?.(mode);
+      });
+    });
+
+    btnOpenTawafGuide?.addEventListener('click', () => {
+      this.showTawafGuideModal(this.currentStage === 'tawaf' && this.currentLap >= 1 && this.currentLap <= 7 ? (`lap${this.currentLap}` as TawafTabKey) : 'lap1');
+    });
+
+    btnTawafIstilam?.addEventListener('click', () => {
+      this.onPerformIstilamCallback?.();
+    });
+
+    btnTawafSpeakDua?.addEventListener('click', () => {
+      const snippet = this.currentTawafProgress?.sectorInfo.arabicSnippet;
+      if (snippet) {
+        soundManager.speakArabic(snippet);
+      }
+    });
+
+    btnTawafToggleRaml?.addEventListener('click', () => {
+      const nextRaml = !this.currentTawafProgress?.isRamlActive;
+      this.onToggleRamlCallback?.(nextRaml);
     });
 
     // 2. Top Help Button (?)
@@ -1267,6 +1465,243 @@ export class HUD {
     this.showTitleCard(3);
     this.showDescCard(3);
     this.updateTalbiyahQuickButton();
+
+    // Toggle Tawaf Compass Widget
+    const tawafWidget = this.container.querySelector('#hud-tawaf-compass-widget') as HTMLElement;
+    const tawafMiniPill = this.container.querySelector('#hud-tawaf-mini-pill') as HTMLElement;
+    if (stage === 'tawaf') {
+      if (this.isTawafWidgetMinimized) {
+        if (tawafWidget) tawafWidget.style.display = 'none';
+        if (tawafMiniPill) tawafMiniPill.style.display = 'flex';
+      } else {
+        if (tawafWidget) tawafWidget.style.display = 'flex';
+        if (tawafMiniPill) tawafMiniPill.style.display = 'none';
+      }
+    } else {
+      if (tawafWidget) tawafWidget.style.display = 'none';
+      if (tawafMiniPill) tawafMiniPill.style.display = 'none';
+    }
+  }
+
+  public updateTawafProgress(progress: TawafProgress) {
+    this.currentTawafProgress = progress;
+    this.currentLap = progress.lap;
+
+    const tawafWidget = this.container.querySelector('#hud-tawaf-compass-widget') as HTMLElement;
+    const tawafMiniPill = this.container.querySelector('#hud-tawaf-mini-pill') as HTMLElement;
+
+    if (this.currentStage === 'tawaf') {
+      if (this.isTawafWidgetMinimized) {
+        if (tawafWidget) tawafWidget.style.display = 'none';
+        if (tawafMiniPill) tawafMiniPill.style.display = 'flex';
+      } else {
+        if (tawafWidget) tawafWidget.style.display = 'flex';
+        if (tawafMiniPill) tawafMiniPill.style.display = 'none';
+      }
+    }
+
+    // Mini Pill updates
+    const miniLap = this.container.querySelector('#tawaf-mini-pill-lap') as HTMLElement;
+    const miniDeg = this.container.querySelector('#tawaf-mini-pill-deg') as HTMLElement;
+    if (miniLap) miniLap.innerText = `Tawaf ${progress.lap}/7`;
+    if (miniDeg) miniDeg.innerText = `${Math.round(progress.angleDeg)}°`;
+
+    // Lap text
+    const lapText = this.container.querySelector('#tawaf-widget-lap-text') as HTMLElement;
+    if (lapText) lapText.innerText = `Pusingan ${progress.lap} / 7`;
+
+    // Mode label
+    const modeLabel = this.container.querySelector('#tawaf-mode-label') as HTMLElement;
+    if (modeLabel) modeLabel.innerText = progress.tawafMode === 'real' ? 'Real' : 'Jemaah';
+
+    // Compass degree & radius
+    const degEl = this.container.querySelector('#tawaf-compass-deg') as HTMLElement;
+    if (degEl) degEl.innerText = `${Math.round(progress.angleDeg)}°`;
+
+    const radEl = this.container.querySelector('#tawaf-compass-radius') as HTMLElement;
+    if (radEl) radEl.innerText = `${progress.radius}m`;
+
+    // Compass Needle
+    const needleEl = this.container.querySelector('#tawaf-compass-needle') as HTMLElement;
+    if (needleEl) {
+      needleEl.style.transform = `rotate(${progress.angleDeg}deg)`;
+    }
+
+    // Compass Arc (Circumference ~ 239)
+    const arcEl = this.container.querySelector('#tawaf-compass-arc') as SVGPathElement;
+    if (arcEl) {
+      const circumference = 239;
+      const offset = circumference - (circumference * (progress.lapPercentage / 100));
+      arcEl.style.strokeDashoffset = String(Math.max(0, offset));
+    }
+
+    // Sector badge & description
+    const sectorBadge = this.container.querySelector('#tawaf-sector-badge') as HTMLElement;
+    if (sectorBadge) {
+      sectorBadge.innerText = `Sektor ${progress.sector}: ${progress.sectorInfo.shortName}`;
+    }
+
+    const sectorDesc = this.container.querySelector('#tawaf-sector-desc') as HTMLElement;
+    if (sectorDesc) {
+      sectorDesc.innerText = progress.sectorInfo.duaTitle;
+    }
+
+    // Lap percentage
+    const lapPercent = this.container.querySelector('#tawaf-lap-percent') as HTMLElement;
+    if (lapPercent) {
+      lapPercent.innerText = `${progress.lapPercentage}%`;
+    }
+
+    // Boundary status
+    const boundaryStatus = this.container.querySelector('#tawaf-boundary-status') as HTMLElement;
+    if (boundaryStatus) {
+      if (progress.isInsideHijrIsmail) {
+        boundaryStatus.innerHTML = `<span class="text-rose-400 font-bold">⚠️ Dalam Hijr Ismail!</span>`;
+      } else if (progress.isWrongDirection) {
+        boundaryStatus.innerHTML = `<span class="text-rose-400 font-bold">⚠️ Arah Salah!</span>`;
+      } else if (progress.isOutsideMataf) {
+        boundaryStatus.innerHTML = `<span class="text-amber-400 font-bold">⚠️ Luar Mataf</span>`;
+      } else {
+        boundaryStatus.innerHTML = `<span class="text-emerald-400 font-semibold">• Sah</span>`;
+      }
+    }
+
+    // 7 Lap Dots
+    for (let l = 1; l <= 7; l++) {
+      const dot = this.container.querySelector(`#tawaf-dot-lap-${l}`) as HTMLElement;
+      if (dot) {
+        if (l < progress.lap) {
+          dot.className = 'w-full h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]';
+        } else if (l === progress.lap) {
+          dot.className = 'w-full h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]';
+        } else {
+          dot.className = 'w-full h-1.5 rounded-full bg-stone-800';
+        }
+      }
+    }
+
+    // Istilam Button (Pulses if available)
+    const btnIstilam = this.container.querySelector('#btn-tawaf-istilam') as HTMLButtonElement;
+    const btnIstilamLabel = this.container.querySelector('#btn-tawaf-istilam-label') as HTMLElement;
+    if (btnIstilam && btnIstilamLabel) {
+      if (progress.isIstilamAvailable) {
+        btnIstilam.className = 'interactive-ui col-span-2 py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 text-stone-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(16,185,129,0.8)] border-2 border-white animate-bounce active:scale-95 transition cursor-pointer';
+        btnIstilamLabel.innerText = '✋ [E] TEKAN UNTUK ISTILAM!';
+      } else {
+        btnIstilam.className = 'interactive-ui col-span-2 py-2 px-3 rounded-xl bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-300 font-semibold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition cursor-pointer';
+        btnIstilamLabel.innerText = '✋ Istilam (Garisan Mula)';
+      }
+    }
+
+    // Raml Button
+    const btnRaml = this.container.querySelector('#btn-tawaf-toggle-raml') as HTMLButtonElement;
+    const labelRaml = this.container.querySelector('#tawaf-raml-label') as HTMLElement;
+    if (btnRaml && labelRaml) {
+      if (progress.isRamlActive) {
+        btnRaml.className = 'interactive-ui py-1.5 px-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-[11px] flex items-center justify-center gap-1 active:scale-95 transition cursor-pointer shadow-md shadow-amber-900/40';
+        labelRaml.innerText = 'Raml: Aktif 🏃';
+      } else {
+        btnRaml.className = 'interactive-ui py-1.5 px-2 rounded-xl bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 font-bold text-[11px] flex items-center justify-center gap-1 active:scale-95 transition cursor-pointer';
+        labelRaml.innerText = 'Raml: Mati';
+      }
+    }
+  }
+
+  public showTawafModeDialog(currentMode: TawafMode, onSelect: (mode: TawafMode) => void) {
+    const existing = document.getElementById('modal-tawaf-mode-dialog');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-tawaf-mode-dialog';
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md select-none font-sans overflow-hidden animate-fade-in';
+
+    modal.innerHTML = `
+      <div class="relative w-full max-w-lg bg-stone-900 border border-amber-500/40 rounded-2xl shadow-2xl p-5 sm:p-6 text-stone-100 space-y-5">
+        
+        <div class="text-center space-y-1.5">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-700 text-stone-950 flex items-center justify-center text-2xl mx-auto shadow-lg shadow-amber-500/20">
+            🕋
+          </div>
+          <span class="text-xs uppercase font-extrabold tracking-widest text-amber-400">DATARAN MATAF KAABAH</span>
+          <h2 class="text-xl sm:text-2xl font-bold text-white">Pilih Mod Pengalaman Tawaf</h2>
+          <p class="text-xs text-stone-400">
+            Anda telah tiba di hadapan Kaabah. Sila pilih kaedah pelaksanaan Tawaf anda:
+          </p>
+        </div>
+
+        <div class="space-y-3">
+          <!-- Option 1: Mod Real Tawaf (Recommended) -->
+          <button id="btn-select-real-tawaf" class="w-full p-4 rounded-xl text-left bg-gradient-to-r from-emerald-950/70 to-stone-800 border-2 ${currentMode === 'real' ? 'border-emerald-400 ring-2 ring-emerald-400/30' : 'border-stone-700'} hover:border-emerald-400 active:scale-[0.99] transition cursor-pointer group">
+            <div class="flex items-start gap-3">
+              <span class="text-2xl p-2 rounded-lg bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 shrink-0">🧭</span>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-white text-sm sm:text-base group-hover:text-emerald-300 transition">Mod Real Tawaf (Kompas & Auto-Lap)</span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500 text-stone-950">Disyorkan</span>
+                </div>
+                <p class="text-xs text-stone-300 mt-1 leading-relaxed">
+                  Kawalan manual penuh dengan <strong>Widget Kompas 360°</strong>, pengesanan automatik 7 pusingan, penjejak 4 rukun Kaabah, doa bertukar dinamik mengikut kuadran, dan butang Istilam.
+                </p>
+              </div>
+            </div>
+          </button>
+
+          <!-- Option 2: Mod Panduan Jemaah -->
+          <button id="btn-select-guided-tawaf" class="w-full p-4 rounded-xl text-left bg-stone-800/80 border-2 ${currentMode === 'guided' ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-stone-700'} hover:border-amber-400 active:scale-[0.99] transition cursor-pointer group">
+            <div class="flex items-start gap-3">
+              <span class="text-2xl p-2 rounded-lg bg-amber-900/40 text-amber-300 border border-amber-500/30 shrink-0">👥</span>
+              <div>
+                <span class="font-bold text-white text-sm sm:text-base group-hover:text-amber-300 transition">Mod Panduan Jemaah (Santai)</span>
+                <p class="text-xs text-stone-300 mt-1 leading-relaxed">
+                  Mengikuti rombongan secara santai bersama jemaah dan mutawwif sambil membaca doa pusingan secara santai.
+                </p>
+              </div>
+            </div>
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-stone-800 text-xs">
+          <span class="text-stone-400">Boleh ditukar pada bila-bila masa di menu atas.</span>
+          <button id="btn-close-tawaf-mode-dialog" class="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold transition">
+            Tutup
+          </button>
+        </div>
+
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const btnReal = modal.querySelector('#btn-select-real-tawaf') as HTMLButtonElement;
+    const btnGuided = modal.querySelector('#btn-select-guided-tawaf') as HTMLButtonElement;
+    const btnClose = modal.querySelector('#btn-close-tawaf-mode-dialog') as HTMLButtonElement;
+
+    btnReal?.addEventListener('click', () => {
+      onSelect('real');
+      modal.remove();
+    });
+
+    btnGuided?.addEventListener('click', () => {
+      onSelect('guided');
+      modal.remove();
+    });
+
+    btnClose?.addEventListener('click', () => {
+      modal.remove();
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+  }
+
+  public showTawafGuideModal(initialTab: TawafTabKey = 'lap1') {
+    new TawafModal({
+      initialTab,
+      onSelectDua: (_duaId) => {
+        // Selected dua
+      }
+    });
   }
 
   public setNearBusDoor(isNear: boolean) {

@@ -76,6 +76,14 @@ export class SoundManager {
   }
 
   /**
+   * Play complete Istilam takbir cue with Arabic recitation ("Bismillahi Allahu Akbar")
+   */
+  public playIstilamTakbir(onComplete?: () => void) {
+    this.playIstilamSound();
+    this.speakArabic('بِسْمِ اللَّهِ وَاللَّهُ أَكْبَرُ', onComplete);
+  }
+
+  /**
    * Play checkpoint / lap completion chime
    */
   public playCheckpointSound() {

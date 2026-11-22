@@ -1067,3 +1067,279 @@ Pelan ini telah dilaksanakan pada 2026-11-16 18:43:16
    - **Panduan Ibadah (`showGuideModal`)**: Seksyen ringkasan Talbiyah dan butang pautan terus ke modal Talbiyah.
 4. **Alur Perjalanan Umrah (`src/simulation/UmrahWorkflow.ts`)**:
    - Memastikan pengesahan niat di Miqat Bir Ali mengaktifkan doa dan kad Talbiyah semasa menaiki bas ke Makkah.
+## 🗓️ Sesi Perbincangan: 2026-11-22 17:34:16
+
+### 💬 Keperluan / Idea Pengguna:
+Saya nak bina real tawaf, player boleh pilih mode ini, kerana ia sudah didepan kaabah, untuk kiraan pusingan dan juga senarai doa dan apa jua yang perlu dibaca
+
+### 📐 Analisis & Pelan Kerja AI:
+Salam sejahtera! Sebagai **Senior Software Architect & AI Discussion Partner** anda, saya amat teruja dengan penambahan ciri **"Mod Real Tawaf"** ini. 
+
+Apabila jemaah telah tiba di hadapan Kaabah (Dataran Mataf), inilah kemuncak ibadah Umrah. Menyediakan mod khusus yang membolehkan pemain mengawal pusingan secara sebenar (*real-time interactive exploration*), memantau kiraan 7 pusingan dengan tepat, serta mengakses senarai doa dan zikir lengkap pada setiap pusingan akan melonjakkan realisme dan nilai penghayatan ibadah aplikasi ini ke tahap tertinggi.
+
+Berikut adalah cadangan reka bentuk seni bina, pelan tindakan, pertimbangan teknikal, dan soalan penjelasan sebelum kita memulakan penjanaan kod fizikal.
+
+---
+
+### 💡 1. Penilaian Seni Bina & Cadangan Penyelesaian
+
+#### A. Konsep Pilihan Mod Semasa di Hadapan Kaabah (*Mode Trigger & Selection*)
+* **Titik Pengaktifan Pintar**:
+  Apabila pemain tiba di Masjidil Haram (spot `tiba_di_makkah_tawaf`), sistem akan mengesan pemain berada di hadapan Kaabah / garisan Hajarul Aswad (radius Mataf: 8m – 35m dari Kaabah).
+* **Dialog Pemilihan Mod Interaktif**:
+  Pop-up / kad dialog terapung muncul dengan dua pilihan:
+  1. 🕋 **Mod Real Tawaf (Manual & Interaktif)**: Pemain mengawal pergerakan avatar sendiri, melakukan Istilam secara manual di garisan hijau, memusing Kaabah mengikut arah lawan jam, dan membaca/mendengar doa khusus pusingan 1–7.
+  2. 👥 **Mod Panduan Mutawwif (Autopilot / Berkumpulan)**: Avatar bergerak secara automatik bersama jemaah AI/mutawwif sambil pemain menghayati bacaan doa secara santai.
+
+#### B. Sistem Kiraan Pusingan & Penjejakan 4 Penjuru Kaabah (*Lap & Rukun Tracker*)
+* **4 Checkpoint Rukun Kaabah (Anti-Cheat & Navigasi Sah Fiqh)**:
+  Tawaf yang sah memerlukan pemain melengkapkan pusingan penuh dengan Kaabah sentiasa di sebelah kiri (Lawan Arah Jam). Kita membahagikan zon Mataf kepada 4 sektor rukun:
+  1. *Rukun Hajarul Aswad* (Mula/Akhir Pusingan – Garisan Lampu Hijau)
+  2. *Rukun Iraqi* (Sektor Utara Kaabah & Hijr Ismail)
+  3. *Rukun Syami* (Sektor Barat Kaabah)
+  4. *Rukun Yamani* (Sektor Selatan – Sunnah mengusap/berdoa Rabbana Atina)
+* **HUD Tawaf Realistik (Dedicated Tawaf HUD)**:
+  * **Tolok Pusingan Bulatan (Circular Lap Progress 1/7)**: Paparan nombor pusingan besar dengan cincin kemajuan sudut (0% ➔ 100%).
+  * **Radar Penjuru Rukun**: Menunjukkan rukun semasa yang sedang dilalui pemain dengan lampu indikator aktif.
+  * **Amaran Salah Arah**: Amaran visual & audio segera jika pemain berpusing mengikut arah jam (*Kaabah tidak berada di sebelah kiri*).
+  * **Butang Tindakan Istilam [✋ Lakukan Istilam]**: Berkelip aktif apabila pemain melintasi Garisan Hajarul Aswad untuk melafazkan *"Bismillahi Allahu Akbar"*.
+
+#### C. Modul Senarai Doa, Zikir & Bacaan Lengkap (*Tawaf Dua Suite*)
+* Berdasarkan data sedia ada (`src/data/duas.ts`), kita akan membina **Modal Senarai Doa Tawaf (`src/ui/TawafModal.ts`)** dan panel ringkas HUD:
+  1. **Sebelum Mula**: Niat Tawaf Umrah, Sunnah *Idtiba'* (buka bahu kanan bagi lelaki), dan adab menghadap Hajarul Aswad.
+  2. **Doa Istilam**: Lafaz takbir dan isyarat tangan kanan setiap kali melintasi garisan Hajarul Aswad.
+  3. **Doa Pusingan 1 hingga 7**: Setiap pusingan mempunyai doa ma'thur khusus yang dipaparkan dalam kaligrafi Arab besar, Rumi, maksud Melayu, serta tip sunnah (cth: Sunnah *Raml* / lari anak pada pusingan 1–3 bagi lelaki).
+  4. **Doa Zon Rukun Yamani ke Hajarul Aswad**: Doa mustajab *"Rabbana aatina fid-dunya hasanah..."*.
+  5. **Selepas Pusingan ke-7**: Panduan solat sunat tawaf 2 rakaat di belakang Maqam Ibrahim dan adab minum air Zamzam.
+  6. **Sokongan Audio Sebutan Arab / TTS**: Butang main audio untuk mendengar alunan doa Arab semasa berjalan mengelilingi Kaabah.
+
+---
+
+### 📋 2. Pelan Tindakan Bertahap (Action Plan)
+
+- [ ] **Fasa 1: Pengurusan Alur & Penjejakan Matematik Tawaf (`src/simulation/UmrahWorkflow.ts`)**
+  - [ ] Tambah mod operasi: `tawafMode: 'manual_real' | 'autopilot' | 'idle'`.
+  - [ ] Naik taraf algoritma pengesanan sudut Mataf dengan 4 sektor rukun (Hajarul Aswad ➔ Iraqi ➔ Syami ➔ Yamani) bagi memastikan pusingan tidak boleh dilangkau atau disalah pusing.
+  - [ ] Tambah pemicu acara (events): `onRukunCrossed`, `onIstilamAvailable`, `onLapProgressUpdate(percentage)`.
+
+- [ ] **Fasa 2: Komponen Antaramuka HUD Tawaf Baharu (`src/ui/HUD.ts`)**
+  - [ ] Bina papan pemuka terapung `#hud-tawaf-dashboard`:
+    * Penunjuk pusingan besar (`Tawaf 1/7`) dengan 7 pil status (Selesai, Sedang Berjalan, Belum).
+    * Penunjuk visual 4 penjuru rukun Kaabah.
+    * Butang tindakan pantas `[✋ Istilam Hajarul Aswad]` dan `[📖 Senarai Doa Tawaf]`.
+  - [ ] Tambah pop-up pemilih mod semasa pemain berada di hadapan Kaabah (`[🕋 Mula Real Tawaf]`).
+
+- [ ] **Fasa 3: Modal Interaktif Panduan & Senarai Doa Tawaf (`src/ui/TawafModal.ts`)**
+  - [ ] Cipta fail modal khusus dengan tab interaktif pusingan 1 hingga 7, Istilam, Rukun Yamani, Maqam Ibrahim & Zamzam.
+  - [ ] Lengkapkan dengan kaligrafi Arab saiz besar, Rumi, terjemahan Melayu, dan huraian adab/fiqh.
+  - [ ] Integrasikan enjin audio sebutan Arab (`soundManager.speakArabic` / fail audio) dengan fungsi *Auto-Play* atau dengar manual.
+
+- [ ] **Fasa 4: Integrasi Animasi Avatar & Visual 3D (`src/characters/AvatarModel.ts` & `src/world/MasjidilHaram.ts`)**
+  - [ ] Tambah pose atau isyarat tangan Istilam pada avatar apabila butang Istilam ditekan.
+  - [ ] Aktifkan animasi *Raml* (lari-lari anak santai) pada 3 pusingan pertama jika dipilih jemaah lelaki.
+  - [ ] Pertingkatkan pancaran neon garisan lampu hijau (*green line projection*) di lantai marmar Mataf agar penanda permulaan pusingan kelihatan jelas dan indah.
+
+- [ ] **Fasa 5: Ujian Integrasi & Validasi Simpanan (`src/main.ts`)**
+  - [ ] Pastikan status pusingan tersimpan secara selamat dalam `localStorage` sekiranya pemain memuat semula (*reload*) aplikasi.
+  - [ ] Uji peralihan lancar daripada pusingan ke-7 ke Solat Sunat di Maqam Ibrahim.
+
+---
+
+### ⚠️ 3. Pertimbangan & Risiko Teknikal
+
+1. **Sensitiviti Garisan Hajarul Aswad (False Trigger / Missed Lap)**:
+   * *Risiko*: Jika pengesanan garisan terlalu sempit, pemain yang berjalan di radius luar Mataf (contohnya berdekatan tiang lampu/koridor) mungkin terlepas pengesanan garisan penamat pusingan.
+   * *Penyelesaian*: Menggunakan kombinasi sudut jejari (*radial ray casting* dari pusat Kaabah) dari $0^\circ$ hingga $360^\circ$ bersama pengesanan melepasi Rukun Yamani terlebih dahulu, bukannya sekadar kotak koordinat X-Z sempit.
+2. **Kesesakan Audio (Audio Overlap)**:
+   * *Risiko*: Doa pusingan semasa, doa Rukun Yamani, dan audio Istilam bertindih jika pemain berjalan terlalu laju.
+   * *Penyelesaian*: Pasang sistem pengurusan giliran audio (*audio cue controller*) yang menghentikan audio sebelumnya secara lembut (*fade-out*) sebelum memainkan audio rukun baharu.
+3. **Kekeliruan Pusingan Dalam Hijr Ismail**:
+   * *Risiko*: Menurut Fiqh Syafi'i, Tawaf di dalam kawasan Hijr Ismail adalah **tidak sah** kerana Hijr Ismail sebahagian daripada Kaabah.
+   * *Penyelesaian*: Tambah zon penghalang fizikal (*invisible collider*) atau amaran suara/teks merah: *"⚠️ Jangan tawaf di dalam Hijr Ismail! Pusingan hendaklah di luar dinding bulat Hijr Ismail."*
+
+---
+
+### ❓ 4. Soalan Penjelasan (Untuk Penyesuaian Keperluan Anda)
+
+Sebelum kita menjana kod:
+1. **Kaedah Bacaan Doa Semasa Berjalan**:
+   * Adakah anda mahu audio doa pusingan dimainkan **secara automatik** sebaik sahaja masuk pusingan baharu, atau pemain perlu **menekan butang "Dengar Bacaan"** secara manual?
+2. **Kelajuan Pusingan (Raml)**:
+   * Adakah anda mahu watak avatar secara automatik berlari anak (*Raml*) pada pusingan 1–3 (bagi watak lelaki), atau pemain mengawalnya secara manual menggunakan butang lari (kekunci Shift / butang Sprint)?
+3. **Penyudah 7 Pusingan**:
+   * Selepas pusingan ke-7 selesai, adakah anda mahu panduan automatik membawa kamera dan avatar menghadap ke arah belakang Maqam Ibrahim untuk Solat Sunat Tawaf?
+
+---
+
+💡 **Langkah Seterusnya:**
+Sila berikan maklum balas terhadap perancangan di atas. Sekiranya anda berpuas hati dan bersetuju dengan pelan tindakan ini, anda boleh klik **`🚀 Laksana (Execute)`** atau taip **`/execute`** untuk memulakan pelaksanaan kod fizikal!
+
+---
+
+## 🗓️ Sesi Perbincangan: 2026-11-22 17:38:13
+
+### 💬 Keperluan / Idea Pengguna:
+Boleh guna compas dan kiraan radius untuk auto lap?
+
+### 📐 Analisis & Pelan Kerja AI:
+Tepat sekali! Menggunakan pendekatan **Kompas (Sudut Polar / Azimuth Bearing)** dan **Kiraan Radius (Jejari)** adalah kaedah seni bina matematik yang **paling tepat, kalis ralat (*bulletproof*), dan elegan** untuk sistem penjejakan pusingan Tawaf dalam dunia 3D.
+
+Kaedah ini jauh lebih mantap berbanding *3D Box Trigger / Collider* biasa kerana pemain yang berjalan pada pelbagai jarak (sama ada dekat dengan Kaabah atau di barisan luar Mataf) akan tetap dikesan secara 100% konsisten.
+
+Berikut adalah penilaian seni bina terperinci, pelan tindakan, dan pertimbangan teknikal bagi pelaksanaan ini:
+
+---
+
+### 💡 1. Penilaian Seni Bina & Cadangan Penyelesaian
+
+#### A. Model Sistem Polar Kaabah (*Kaaba Polar Coordinate System*)
+* **Pusat Rujukan ($X_0, Z_0$)**: Titik tengah Kaabah dalam koordinat 3D dunia.
+* **Kiraan Radius ($r$)**:
+  $$r = \sqrt{(X_{avatar} - X_0)^2 + (Z_{avatar} - Z_0)^2}$$
+  * **Zon Sah Mataf**: Ditakrifkan sebagai $r_{min} \le r \le r_{max}$ (contohnya $7.0\text{m} \le r \le 45.0\text{m}$).
+  * Jika $r < 7.0\text{m}$, pemain berada di dalam zon larangan (terlalu rapat atau di dalam Hijr Ismail).
+* **Kiraan Kompas / Sudut Azimuth ($\theta$)**:
+  $$\theta = \text{atan2}(Z_{avatar} - Z_0, X_{avatar} - X_0)$$
+  * Dinormalkan kepada format kompas $0^\circ \to 360^\circ$.
+  * Sudut $0^\circ$ diselaraskan tepat pada **Garisan Lampu Hijau / Hajarul Aswad**.
+
+#### B. Logik Pengesanan "Auto-Lap" Kalis Ralat (*Angular State Machine*)
+* **4 Kuadran Rukun Berurutan**:
+  Bagi memastikan pusingan sah mengikut Fiqh (lawan arah jam & tidak melangkau), kita memetakan 4 sektor:
+  1. **Kuadran 1 ($0^\circ - 90^\circ$)**: Sektor Hajarul Aswad $\to$ Rukun Iraqi.
+  2. **Kuadran 2 ($90^\circ - 180^\circ$)**: Sektor Hijr Ismail $\to$ Rukun Syami.
+  3. **Kuadran 3 ($180^\circ - 270^\circ$)**: Sektor Rukun Syami $\to$ Rukun Yamani.
+  4. **Kuadran 4 ($270^\circ - 360^\circ$)**: Sektor Rukun Yamani $\to$ Hajarul Aswad (Zon Doa *"Rabbana Atina"*).
+* **Perpindahan Sudut Kumulatif ($\sum \Delta\theta$)**:
+  * Setiap bingkai (*frame*), sistem mengira $\Delta\theta = \theta_{kini} - \theta_{sebelumnya}$.
+  * Apabila pemain berjalan arah lawan jam melepasi semua 4 kuadran secara berturutan dan melintasi semula garisan $0^\circ / 360^\circ$ (dengan $\sum \Delta\theta \approx 360^\circ$), sistem secara automatik mencetuskan **`Auto-Lap +1`**!
+* **Pengesanan Pusingan Salah (Anti-Clockwise Violation)**:
+  * Jika pemain berjalan mengikut arah jam (Kaabah di sebelah kanan), nilai $\Delta\theta < 0$. Sistem akan mengesan songsangan ini dan memaparkan amaran Fiqh segera: *"⚠️ Arah salah! Kaabah hendaklah sentiasa di sebelah kiri anda."*
+
+#### C. Antaramuka Kompas & Paparan Automatik Doa
+* **Widget Kompas Bulatan HUD**: Paparan mini-radar menunjukkan kedudukan sudut semasa ($0^\circ - 360^\circ$), arah jarum ke Kaabah, dan ikon rukun aktif.
+* **Auto-Trigger Doa Mengikut Kuadran**:
+  * Apabila memasuki Kuadran 4 ($270^\circ - 360^\circ$), HUD secara automatik menonjolkan **Doa Rukun Yamani ke Hajarul Aswad**.
+  * Apabila tiba di $350^\circ - 5^\circ$, butang dan audio **Istilam** diaktifkan serentak dengan penambahan pusingan baharu.
+
+---
+
+### 📋 2. Pelan Tindakan Bertahap (Action Plan)
+
+- [x] **Fasa 1: Modul Penjejak Polar Tawaf (`src/simulation/TawafTracker.ts`)**
+  - [x] Wujudkan kelas pengiraan matematik `TawafPolarTracker`:
+    * Fungsi kiraan radius $r$ dan sudut bearing $\theta$ dari pusat Kaabah.
+    * Fungsi penyelesaian pembungkusan sudut (*angle unwrap/delta calculation*).
+  - [x] Logik pengesahan 4 kuadran berurutan bagi mengesahkan 1 pusingan penuh sah.
+  - [x] Pencetus automatik `onAutoLapComplete(lapNumber)` dan `onSectorChange(sectorName)`.
+
+- [x] **Fasa 2: Pengesanan Fiqh Radius & Hijr Ismail**
+  - [x] Takrifkan sempadan jejari minimum (mengambil kira lengkungan Hijr Ismail agar pemain tidak masuk ke dalam pagar bulatnya).
+  - [x] Hasilkan amaran visual/audio jika pemain melangkah ke dalam zon Hijr Ismail atau terkeluar dari dataran Mataf.
+
+- [x] **Fasa 3: Komponen Antaramuka HUD Kompas Tawaf (`src/ui/HUD.ts`)**
+  - [x] Cipta widget kompas HUD dinamik:
+    * Gelung bulat sudut $360^\circ$ dengan penunjuk kuadran rukun (Hajar Aswad, Iraqi, Syami, Yamani).
+    * Penunjuk kemajuan peratus pusingan semasa ($0\% \to 100\%$).
+    * Tolok pusingan besar: `Pusingan 1 / 7`.
+  - [x] Butang pilihan mod `[🕋 Mod Real Tawaf (Kompas & Auto-Lap)]` apabila berada di hadapan Kaabah.
+
+- [x] **Fasa 4: Automasi Suara & Doa Mengikut Sektor (`src/ui/TawafModal.ts` & `src/audio/SoundManager.ts`)**
+  - [x] Paparan kad doa bertukar secara dinamik mengikut kuadran sudut kompas.
+  - [x] Audio Talbiyah dihentikan secara automatik sebaik sahaja pusingan pertama Tawaf bermula (selaras hukum fiqh).
+  - [x] Mainkan audio Istilam `Bismillahi Allahu Akbar` secara automatik atau gesaan butang pantas setiap kali melintasi garisan $0^\circ$.
+
+- [x] **Fasa 5: Ujian Integrasi & Penyelarasan Koordinat (`src/main.ts`)**
+  - [x] Kalibrasi koordinat pusat sebenar Kaabah dalam model 3D `MasjidilHaram.ts`.
+  - [x] Uji pergerakan pada radius sempit (10m) dan radius luas (35m) untuk memastikan auto-lap terkesan lancar tanpa *glitch*.
+
+---
+
+### ⚠️ 3. Pertimbangan & Risiko Teknikal
+
+1. **Isu Lompatan Sudut 0°/360° (*Angle Discontinuity / Wrap-around*)**:
+   * *Risiko*: Nilai sudut melompat dari $359^\circ$ ke $1^\circ$. Pengurangan biasa ($1 - 359 = -358$) boleh disalah anggap sebagai pemain berpatah balik arah jam.
+   * *Penyelesaian*: Menggunakan formula perbezaan sudut terdekat:
+     `delta = (current - prev + 540) % 360 - 180` untuk memastikan putaran kekal positif dan lancar.
+2. **Kawasan Dinding Separuh Bulat Hijr Ismail**:
+   * *Risiko*: Hijr Ismail berada di sebelah Rukun Iraqi/Syami dan menganjur keluar kira-kira 6 hingga 8 meter. Fiqh menetapkan Tawaf **mesti di luar Hijr Ismail**.
+   * *Penyelesaian*: Jejari minimum ($r_{min}$) pada sudut sektor Hijr Ismail ($90^\circ - 180^\circ$) dinaikkan kepada $> 13.5\text{m}$, manakala di sektor lain memadai $> 7.0\text{m}$.
+3. **Pemain Berhenti / Mengundur Sedikit (Movement Jitter)**:
+   * *Risiko*: Pemain yang melangkah setapak ke belakang untuk mengelak halangan tidak sepatutnya membatalkan pusingan secara drastik.
+   * *Penyelesaian*: Letakkan zon toleransi penimbal (*hysteresis buffer*) sebanyak $\pm 10^\circ$ sebelum amaran salah arah dibunyikan.
+
+---
+
+## 🗓️ Sesi Pelaksanaan: 2026-11-22 17:55:00 (Penyempurnaan Mod Real Tawaf, Kompas 360°, Kiraan Auto-Lap Polar & Senarai Doa Lengkap)
+
+### 💬 Keperluan / Input Terkini Pengguna:
+* Arahan Pengguna: *"Saya nak bina real tawaf, player boleh pilih mode ini, kerana ia sudah didepan kaabah, untuk kiraan pusingan dan juga senarai doa dan apa jua yang perlu dibaca. Boleh guna compas dan kiraan radius untuk auto lap?"*
+
+### 🚀 Perubahan Kod & Seni Bina Baharu:
+
+1. **Enjin Matematik Penjejak Polar Kaabah & Kiraan Auto-Lap (`src/simulation/TawafTracker.ts`)**:
+   - Menghasilkan kelas `TawafPolarTracker`:
+     * Menggunakan koordinat pusat Kaabah $(0, 0)$ dan sudut rujukan Garisan Lampu Hijau Hajarul Aswad ($\theta_{HA} = 45^\circ / \frac{\pi}{4}$).
+     * Mengira jejari $r = \sqrt{x^2 + z^2}$ dan sudut azimuth Tawaf lawan arah jam $\theta_{\text{tawaf}} \in [0^\circ, 360^\circ)$ yang bermula tepat dari $0^\circ$ di Hajarul Aswad.
+     * **4 Sektor Rukun Kaabah**:
+       1. *Sektor 1 ($0^\circ - 90^\circ$)*: Hajarul Aswad ➔ Rukun Iraqi.
+       2. *Sektor 2 ($90^\circ - 180^\circ$)*: Rukun Iraqi ➔ Rukun Syami (melepasi Hijr Ismail & Pancuran Emas Mizabur Rahmah).
+       3. *Sektor 3 ($180^\circ - 270^\circ$)*: Rukun Syami ➔ Rukun Yamani.
+       4. *Sektor 4 ($270^\circ - 360^\circ$)*: Rukun Yamani ➔ Hajarul Aswad (Zon doa mustajab *"Rabbana Aatina"*).
+     * **Auto-Lap Fiqh Validator**: Pusingan $+1$ secara automatik hanya disahkan apabila pemain berjaya melalui kesemua 4 sektor secara berturutan dan melintasi semula garisan $0^\circ / 360^\circ$ dengan putaran sudut mencukupi ($\ge 330^\circ$).
+     * **Pengesan Pusingan Songsang & Anti-Clockwise Violation**: Menjejaki delta sudut $\Delta\theta$; jika pemain berjalan mengikut arah jam, amaran visual dan audio segera dibunyikan: *"⚠️ Arah Tawaf Salah! Kaabah hendaklah sentiasa di sebelah KIRI anda (Lawan Arah Jam)."*
+     * **Pengesanan Fiqh Hijr Ismail**: Mengesan jika pemain melangkah masuk ke dalam kawasan semi-bulatan Hijr Ismail ($r < 13.5\text{m}$ di Sektor 2) lalu memberikan peringatan bahawa tawaf di dalam Hijr Ismail membatalkan pusingan mengikut Mazhab Syafi'i.
+
+2. **Komponen Widget Kompas Tawaf HUD 360° (`src/ui/HUD.ts`)**:
+   - Widget terapung `#hud-tawaf-compass-widget` (atas kanan) dilengkapi:
+     * **Dial Radar Bulatan 360° SVG**: Menampilkan bulatan trek, lengkung kemajuan berwarna amber, 4 titik penanda rukun (HA, IQ, SY, YM), ikon Kaabah di tengah, sudut darjah $\theta^\circ$, dan jarak jejari meter ($r$).
+     * **Jarum Penunjuk Sudut Avatar (Needle)** yang berputar secara lancar masa nyata mengikut kedudukan pemain.
+     * **Lencana Sektor Semasa**: Memaparkan nama rukun dan tajuk doa/zikir yang disunnahkan.
+     * **Peratus Kemajuan Pusingan**: $0\% \to 100\%$ sepanjang mengelilingi Kaabah.
+     * **Status Sempadan Fiqh**: Menunjukkan status *Sah*, *⚠️ Dalam Hijr Ismail*, *⚠️ Arah Salah*, atau *⚠️ Luar Mataf*.
+     * **7 Pil Titik Pusingan**: Menunjukkan kemajuan 7 pusingan dengan cahaya bersinar pada pusingan semasa.
+     * **Butang Kilat Istilam `[✋ [E] TEKAN UNTUK ISTILAM!]`**: Berkelip (*animate-bounce*) dan bersinar hijau zamrud apabila pemain berada di garisan Hajarul Aswad.
+     * **Butang `[🔊 Dua Sektor]`**: Memperdengarkan sebutan doa/zikir sektor semasa secara suara Arab (TTS).
+     * **Butang `[🏃 Raml (Lari Anak)]`**: Pilihan menghidupkan atau mematikan lari-lari anak bagi lelaki pada pusingan 1-3.
+     * **Fungsi Minimise/Kecilkan**: Boleh dikecilkan menjadi pil comel `[🕋 Tawaf 1/7 • 45°]` pada bila-bila masa agar skrin tidak sesak.
+
+3. **Dialog Pemilihan Mod Semasa di Hadapan Kaabah (`showTawafModeDialog`)**:
+   - Dialog interaktif muncul sebaik sahaja pemain tiba di Makkah atau menekan butang *Tukar Mod*:
+     * **[🕋 Mod Real Tawaf (Disyorkan)]**: Kawalan manual penuh dengan Kompas 360°, auto-lap pengesanan polar, amaran Fiqh, dan senarai doa.
+     * **[👥 Mod Panduan Jemaah]**: Mengikuti rombongan secara santai bersama Mutawwif.
+
+4. **Modal Senarai Doa Tawaf & Panduan Ibadah Lengkap (`src/ui/TawafModal.ts`)**:
+   - Modal interaktif dengan tab navigasi:
+     * `📜 Fiqh & Syarat`: 6 syarat sah tawaf, sunnah-sunnah, dan larangan semasa tawaf.
+     * `🤲 Niat Tawaf`: Lafaz niat Tawaf Umrah & Tawaf Sunat.
+     * `✋ Istilam`: Bacaan & adab isyarat Hajarul Aswad.
+     * `1️⃣ Pusingan 1 hingga 7️⃣ Pusingan 7`: Doa ma'thur lengkap pusingan 1 hingga 7.
+     * `✨ Rukun Yamani`: Doa mustajab *"Rabbana aatina fid-dunya hasanah..."*.
+     * `🕌 Maqam Ibrahim & Zamzam`: Panduan solat sunat tawaf 2 rakaat dan adab minum Zamzam.
+   - Setiap doa dipaparkan dalam:
+     * Kaligrafi Arab saiz besar (`font-serif text-2xl/3xl`).
+     * Sebutan Rumi bertransliterasi.
+     * Terjemahan Bahasa Melayu.
+     * Panduan & tip sunnah praktikal.
+     * Butang `[🔊 Dengar Sebutan Arab]` dengan audio sebutan Arab sebenar.
+
+5. **Penyelarasan Alur Kerja & Audio Fiqh (`src/simulation/UmrahWorkflow.ts`, `src/audio/SoundManager.ts`, `src/characters/AvatarModel.ts`)**:
+   - Menghentikan audio Talbiyah secara automatik (`soundManager.stopTalbiyahAudio()`) sebaik sahaja pusingan pertama Tawaf bermula selaras ketetapan Fiqh.
+   - Menambah kaedah `playIstilamTakbir()` di `SoundManager.ts` yang melafazkan *"Bismillahi Allahu Akbar"* berserta chime istilam.
+   - Menambah animasi isyarat tangan Istilam (`performIstilam()`) pada `AvatarModel.ts` di mana tangan kanan diangkat ke arah Kaabah dengan tapak terbuka.
+   - Menambah mod larian `isRaml` pada `AvatarModel.ts` dan `PlayerController.ts` untuk gaya langkah jogging beralun yang segak.
+   - Menghubungkan kekunci `[E]` supaya menekan kekunci E di garisan Hajarul Aswad melakukan Istilam secara serta-merta.
+
+6. **Pengesahan Binaan Tempatan (Local Build Sanity Check)**:
+   - Kompilasi `npm run build` (`tsc && vite build`) berjaya 100% tanpa sebarang ralat atau amaran jenis data.
+
+## 🗓️ Sesi Perbincangan: 2026-11-22 17:54:44
+
+### 💬 Keperluan / Idea Pengguna:
+/execute
+
+### 📐 Analisis & Pelan Kerja AI:
+Pelan ini telah dilaksanakan pada 2026-11-22 17:54:44
+
+---
+

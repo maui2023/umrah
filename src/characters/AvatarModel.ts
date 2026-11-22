@@ -341,9 +341,21 @@ export class AvatarModel {
   public targetRotation = 0;
   public isMoving = false;
   public prayerPose: SolatAvatarPose = 'berdiri';
+  public isIstilam: boolean = false;
+  public istilamTimer: number = 0;
+  public isRaml: boolean = false;
 
   public setPrayerPose(pose: SolatAvatarPose) {
     this.prayerPose = pose;
+  }
+
+  public performIstilam(durationSeconds: number = 2.5) {
+    this.isIstilam = true;
+    this.istilamTimer = durationSeconds;
+  }
+
+  public setRaml(active: boolean) {
+    this.isRaml = active;
   }
 
   constructor(data: {
@@ -1265,28 +1277,46 @@ export class AvatarModel {
    * Procedural animation loop (realistic walking gait, swinging limbs, breathing)
    */
   public update(delta: number, isMoving: boolean, speedMultiplier: number = 1.0) {
+    if (this.isRaml && isMoving) {
+      speedMultiplier *= 1.35;
+    }
     this.animTimer += delta * (isMoving ? 8 * speedMultiplier : 1.8);
+
+    if (this.isIstilam) {
+      this.istilamTimer -= delta;
+      if (this.istilamTimer <= 0) {
+        this.isIstilam = false;
+      }
+    }
 
     if (isMoving) {
       // Natural walking / running limb swings with subtle sideways sway
-      const legAngle = Math.sin(this.animTimer) * 0.62;
+      const legAngle = Math.sin(this.animTimer) * (this.isRaml ? 0.78 : 0.62);
       const armAngle = -Math.sin(this.animTimer) * 0.58;
 
       this.leftLeg.rotation.x = legAngle;
       this.rightLeg.rotation.x = -legAngle;
 
       this.leftArm.rotation.x = armAngle;
-      this.rightArm.rotation.x = -armAngle;
+      if (this.isIstilam) {
+        // Raise right arm towards Hajarul Aswad with open palm gesture
+        this.rightArm.rotation.set(-2.2, -0.15, 0.35);
+        this.head.rotation.set(0.08, -0.28, 0);
+      } else {
+        this.rightArm.rotation.x = -armAngle;
+      }
 
       // Subtle hip & spine rotation for realistic gait
       const spineTwist = Math.sin(this.animTimer) * 0.05;
       this.torso.rotation.y = spineTwist;
-      this.head.rotation.y = -spineTwist * 0.5;
+      if (!this.isIstilam) {
+        this.head.rotation.y = -spineTwist * 0.5;
+      }
 
       // Natural vertical bobbing
       const baseTorsoY = this.gender === 'male' ? 1.05 : 0.95;
       const baseHeadY = this.gender === 'male' ? 1.54 : 1.48;
-      const bob = Math.abs(Math.sin(this.animTimer * 2)) * 0.04;
+      const bob = Math.abs(Math.sin(this.animTimer * 2)) * (this.isRaml ? 0.075 : 0.04);
       this.torso.position.y = baseTorsoY + bob;
       this.head.position.y = baseHeadY + bob;
 
@@ -1295,6 +1325,17 @@ export class AvatarModel {
         this.mutawwifFlagMesh.rotation.y = Math.sin(this.animTimer * 2.2) * 0.28;
         this.mutawwifFlagMesh.rotation.z = Math.cos(this.animTimer * 1.8) * 0.08;
       }
+    } else if (this.isIstilam) {
+      // Standing still and performing Istilam
+      const baseTorsoY = this.gender === 'male' ? 1.05 : 0.95;
+      const baseHeadY = this.gender === 'male' ? 1.54 : 1.48;
+      this.torso.position.y = baseTorsoY;
+      this.head.position.y = baseHeadY;
+      this.leftArm.rotation.set(0.08, 0, 0);
+      this.rightArm.rotation.set(-2.2, -0.15, 0.35);
+      this.head.rotation.set(0.08, -0.28, 0);
+      this.leftLeg.rotation.set(0, 0, 0);
+      this.rightLeg.rotation.set(0, 0, 0);
     } else if (this.prayerPose !== 'berdiri') {
       // Interactive Prayer Poser (Rukun Solat Poses)
       const baseTorsoY = this.gender === 'male' ? 1.05 : 0.95;

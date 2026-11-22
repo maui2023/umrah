@@ -1,4 +1,4 @@
-import { DuaItem, SavedUmrahState, UmrahStage, ZiarahSpot } from '../types';
+import { DuaItem, SavedUmrahState, TawafMode, TawafProgress, UmrahStage, ZiarahSpot } from '../types';
 import {
   GREEN_LIGHT_DUA,
   ISTILAM_DUA,
@@ -13,12 +13,15 @@ import {
 } from '../data/duas';
 import { ZIARAH_SPOTS } from '../data/ziarahData';
 import { soundManager } from '../audio/SoundManager';
+import { TawafPolarTracker } from './TawafTracker';
 import confetti from 'canvas-confetti';
 
 export class UmrahWorkflow {
   public stage: UmrahStage = 'ziarah_dalam';
   public currentZiarahIndex: number = 0;
   public tawafLap: number = 0; // 0 before start, 1..7 during tawaf
+  public tawafMode: TawafMode = 'real'; // 'real' (compass & auto-lap) or 'guided'
+  public tawafTracker: TawafPolarTracker;
   public saiLap: number = 0;   // 0 before start, 1..7 during sai
   public zamzamDone: boolean = false;
   public solatSunatDone: boolean = false;
@@ -31,13 +34,6 @@ export class UmrahWorkflow {
   public jemaahSolatCount: number = 0;
   public visitedMosques: string[] = [];
 
-  // Tawaf progress tracking (quadrant tracking to prevent cheating)
-  private hasPassedYamani: boolean = false;
-  private lastTawafAngle: number | null = null;
-  private tawafAngularAccumulation: number = 0;
-  private clockwiseWrongAccumulation: number = 0;
-  private lastWrongDirectionWarningTime: number = 0;
-
   // Sa'i progress tracking
   private saiNextTarget: 'safa' | 'marwah' = 'safa';
   public inGreenLightsZone: boolean = false;
@@ -49,6 +45,7 @@ export class UmrahWorkflow {
   private onDuaTriggeredCallback: ((dua: DuaItem, alertMessage?: string) => void) | null = null;
   private onTeleportRequestedCallback: ((x: number, z: number, rot?: number) => void) | null = null;
   private onPahalaChangedCallback: ((total: number, added: number, isJemaah: boolean, mosqueName: string) => void) | null = null;
+  private onTawafProgressCallback: ((progress: TawafProgress) => void) | null = null;
   public positionProvider: (() => { x: number; y: number; z: number; rotation: number; isInBus?: boolean }) | null = null;
 
   public static getSavedState(): SavedUmrahState | null {
@@ -62,6 +59,45 @@ export class UmrahWorkflow {
   }
 
   constructor() {
+    this.tawafTracker = new TawafPolarTracker({
+      onLapCompleted: (lap) => {
+        this.tawafLap = lap;
+        this.saveState();
+        soundManager.playIstilamSound();
+        this.onLapChangedCallback?.('tawaf', this.tawafLap);
+        const nextDua = TAWAF_DUAS[this.tawafLap] || ISTILAM_DUA;
+        this.onDuaTriggeredCallback?.(
+          nextDua,
+          `Alhamdulillah! Pusingan selesai. Memulakan Tawaf Pusingan ke-${this.tawafLap}. Lakukan Istilam!`
+        );
+      },
+      onTawafFinished: () => {
+        this.tawafLap = 7;
+        soundManager.playCheckpointSound();
+        this.stage = 'solat_zamzam';
+        this.saveState();
+        this.onStageChangedCallback?.(this.stage);
+        this.onDuaTriggeredCallback?.(
+          MAQAM_IBRAHIM_DUA,
+          'Tahniah! 7 Pusingan Tawaf selesai dengan sempurna. Seterusnya solat sunat tawaf di belakang Maqam Ibrahim.'
+        );
+      },
+      onSectorChanged: (sector) => {
+        if (sector.id === 4) {
+          this.onDuaTriggeredCallback?.(
+            RUKUN_YAMANI_DUA,
+            'Mendekati Rukun Yamani: Sunnah membaca Rabbana atina fid-dunya hasanah...'
+          );
+        }
+      },
+      onWrongDirection: (warning) => {
+        this.onDuaTriggeredCallback?.(ISTILAM_DUA, warning);
+      },
+      onHijrIsmailWarning: (warning) => {
+        this.onDuaTriggeredCallback?.(TAWAF_DUAS[this.tawafLap] || ISTILAM_DUA, warning);
+      }
+    });
+
     this.loadSavedState();
   }
 
@@ -72,6 +108,7 @@ export class UmrahWorkflow {
     onDuaTriggered: (dua: DuaItem, alertMessage?: string) => void;
     onTeleportRequested?: (x: number, z: number, rot?: number) => void;
     onPahalaChanged?: (total: number, added: number, isJemaah: boolean, mosqueName: string) => void;
+    onTawafProgress?: (progress: TawafProgress) => void;
   }) {
     this.onStageChangedCallback = options.onStageChanged;
     this.onLapChangedCallback = options.onLapChanged;
@@ -79,6 +116,7 @@ export class UmrahWorkflow {
     this.onDuaTriggeredCallback = options.onDuaTriggered;
     this.onTeleportRequestedCallback = options.onTeleportRequested || null;
     this.onPahalaChangedCallback = options.onPahalaChanged || null;
+    this.onTawafProgressCallback = options.onTawafProgress || null;
   }
 
   /**
@@ -273,6 +311,12 @@ export class UmrahWorkflow {
   public arriveAtMakkah() {
     this.stage = 'tawaf';
     this.tawafLap = 1;
+    this.tawafTracker.setLap(1);
+    this.tawafTracker.setMode(this.tawafMode);
+
+    // Stop Talbiyah audio automatically upon beginning Tawaf (Fiqh requirement)
+    soundManager.stopTalbiyahAudio();
+
     this.saveState();
     this.onStageChangedCallback?.(this.stage);
     this.onLapChangedCallback?.('tawaf', this.tawafLap);
@@ -288,6 +332,24 @@ export class UmrahWorkflow {
 
   public confirmNiat() {
     this.arriveAtMakkah();
+  }
+
+  public setTawafMode(mode: TawafMode) {
+    this.tawafMode = mode;
+    this.tawafTracker.setMode(mode);
+    this.saveState();
+  }
+
+  public setRaml(active: boolean) {
+    this.tawafTracker.setRaml(active);
+  }
+
+  public performIstilam() {
+    soundManager.playIstilamTakbir();
+    this.onDuaTriggeredCallback?.(
+      ISTILAM_DUA,
+      'Istilam Hajarul Aswad: "Bismillahi Allahu Akbar" dilafazkan sambil mengangkat tangan kanan ke arah Kaabah.'
+    );
   }
 
   /**
@@ -346,81 +408,11 @@ export class UmrahWorkflow {
   }
 
   /**
-   * Accurate Tawaf angular progression & counter-clockwise validation
+   * Accurate Tawaf angular progression & counter-clockwise validation using TawafPolarTracker
    */
   private processTawafPosition(x: number, z: number) {
-    const distToKaabahCenter = Math.sqrt(x * x + z * z);
-
-    // Only count if within Mataf courtyard (radius 7.5m to 42m)
-    if (distToKaabahCenter < 7.5 || distToKaabahCenter > 42) {
-      return;
-    }
-
-    const currentAngle = Math.atan2(z, x);
-
-    if (this.lastTawafAngle !== null) {
-      let deltaAngle = currentAngle - this.lastTawafAngle;
-      if (deltaAngle > Math.PI) deltaAngle -= Math.PI * 2;
-      if (deltaAngle < -Math.PI) deltaAngle += Math.PI * 2;
-
-      // In Three.js X-Z plane, counter-clockwise circling Kaabah has deltaAngle < 0
-      if (deltaAngle < 0 && Math.abs(deltaAngle) < 0.6) {
-        this.tawafAngularAccumulation += Math.abs(deltaAngle);
-        this.clockwiseWrongAccumulation = 0;
-      } else if (deltaAngle > 0.02 && deltaAngle < 0.6) {
-        // Player is walking clockwise (wrong direction!)
-        this.clockwiseWrongAccumulation += deltaAngle;
-        const now = Date.now();
-        if (this.clockwiseWrongAccumulation > 0.5 && now - this.lastWrongDirectionWarningTime > 12000) {
-          this.lastWrongDirectionWarningTime = now;
-          this.onDuaTriggeredCallback?.(
-            ISTILAM_DUA,
-            '⚠️ Peringatan Arah Tawaf: Sila pusing mengikut LAWAN ARAH JAM (Kaabah sentiasa di sebelah kiri anda)!'
-          );
-        }
-      }
-    }
-    this.lastTawafAngle = currentAngle;
-
-    // Check if near Rukun Yamani (approx x: -12 to -8, z: 8 to 16)
-    if (x < -6 && z > 6 && !this.hasPassedYamani) {
-      this.hasPassedYamani = true;
-      this.onDuaTriggeredCallback?.(
-        RUKUN_YAMANI_DUA,
-        'Mendekati Rukun Yamani: Sunnah membaca Rabbana atina fid-dunya hasanah...'
-      );
-    }
-
-    // Check if crossing Hajarul Aswad Line (approx angle PI/4, x > 8, z > 8)
-    const isNearHajarAswadLine = x > 8 && z > 8 && Math.abs(x - z) < 4.5;
-
-    if (isNearHajarAswadLine && this.hasPassedYamani && this.tawafAngularAccumulation > 5.0) {
-      soundManager.playIstilamSound();
-      this.hasPassedYamani = false;
-      this.tawafAngularAccumulation = 0;
-
-      if (this.tawafLap < 7) {
-        this.tawafLap += 1;
-        this.saveState();
-        this.onLapChangedCallback?.('tawaf', this.tawafLap);
-
-        const nextDua = TAWAF_DUAS[this.tawafLap] || ISTILAM_DUA;
-        this.onDuaTriggeredCallback?.(
-          nextDua,
-          `Alhamdulillah! Memulakan Tawaf Pusingan ke-${this.tawafLap}. Lakukan Istilam!`
-        );
-      } else {
-        // Tawaf Complete!
-        soundManager.playCheckpointSound();
-        this.stage = 'solat_zamzam';
-        this.saveState();
-        this.onStageChangedCallback?.(this.stage);
-        this.onDuaTriggeredCallback?.(
-          MAQAM_IBRAHIM_DUA,
-          'Tahniah, 7 Pusingan Tawaf selesai! Seterusnya solat sunat di belakang Maqam Ibrahim.'
-        );
-      }
-    }
+    const progress = this.tawafTracker.update(x, z);
+    this.onTawafProgressCallback?.(progress);
   }
 
   /**
@@ -623,8 +615,7 @@ export class UmrahWorkflow {
     this.soloSolatCount = 0;
     this.jemaahSolatCount = 0;
     this.visitedMosques = [];
-    this.hasPassedYamani = false;
-    this.tawafAngularAccumulation = 0;
+    this.tawafTracker.reset();
     this.onStageChangedCallback?.(this.stage);
     this.onLapChangedCallback?.('tawaf', 0);
     this.onZiarahChangedCallback?.(ZIARAH_SPOTS[0], 0, ZIARAH_SPOTS.length);
@@ -658,6 +649,7 @@ export class UmrahWorkflow {
       stage: this.stage,
       ziarahSpotIndex: this.currentZiarahIndex,
       tawafLap: this.tawafLap,
+      tawafMode: this.tawafMode,
       saiLap: this.saiLap,
       zamzamDone: this.zamzamDone,
       solatSunatDone: this.solatSunatDone,
@@ -685,7 +677,14 @@ export class UmrahWorkflow {
       const state: SavedUmrahState = JSON.parse(raw);
       if (state.stage) this.stage = state.stage;
       if (typeof state.ziarahSpotIndex === 'number') this.currentZiarahIndex = state.ziarahSpotIndex;
-      if (typeof state.tawafLap === 'number') this.tawafLap = state.tawafLap;
+      if (state.tawafMode) {
+        this.tawafMode = state.tawafMode;
+        this.tawafTracker.setMode(this.tawafMode);
+      }
+      if (typeof state.tawafLap === 'number') {
+        this.tawafLap = state.tawafLap;
+        this.tawafTracker.setLap(state.tawafLap);
+      }
       if (typeof state.saiLap === 'number') {
         this.saiLap = state.saiLap;
         this.saiNextTarget = (this.saiLap % 2 === 1) ? 'marwah' : 'safa';

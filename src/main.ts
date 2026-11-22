@@ -193,10 +193,13 @@ class UmrahSimulationApp {
     this.hud.updatePahala(this.workflow.totalPahala);
     this.setupHUDCallbacks();
 
-    // Wire Interactive Key (KeyE) for entering mosque doors and boarding/exiting bus
+    // Wire Interactive Key (KeyE) for entering mosque doors, Istilam, and boarding/exiting bus
     this.playerController.onInteractiveKeyPress = () => {
       if (this.playerController.isInBus) {
         this.playerController.exitBus();
+      } else if (this.workflow.stage === 'tawaf' && this.hud.currentTawafProgress?.isIstilamAvailable) {
+        this.workflow.performIstilam();
+        this.localAvatar.performIstilam();
       } else if (this.hud.currentNearMosque) {
         this.hud.onEnterMosqueDoorCallback?.(this.hud.currentNearMosque);
       } else {
@@ -225,6 +228,11 @@ class UmrahSimulationApp {
       onStageChanged: (stage) => {
         this.playerData.stage = stage;
         this.hud.updateStage(stage);
+        if (stage === 'tawaf') {
+          this.hud.showTawafModeDialog(this.workflow.tawafMode, (mode) => {
+            this.workflow.setTawafMode(mode);
+          });
+        }
         if (stage === 'solat_zamzam') {
           this.hud.updateSolatZamzamStatus(this.workflow.solatSunatDone, this.workflow.zamzamDone);
         }
@@ -235,6 +243,9 @@ class UmrahSimulationApp {
           this.playerData.role,
           this.playerData.currentLap
         );
+      },
+      onTawafProgress: (progress) => {
+        this.hud.updateTawafProgress(progress);
       },
       onLapChanged: (stage, lap) => {
         this.playerData.currentLap = lap;
@@ -491,7 +502,8 @@ class UmrahSimulationApp {
         } else if (stage === 'perjalanan_makkah' || stage === 'niat') {
           this.workflow.arriveAtMakkah();
         } else if (stage === 'tawaf') {
-          soundManager.playIstilamSound();
+          this.workflow.performIstilam();
+          this.localAvatar.performIstilam();
         } else if (stage === 'solat_zamzam') {
           if (!this.workflow.solatSunatDone) {
             this.workflow.completeSolatSunat();
@@ -560,6 +572,34 @@ class UmrahSimulationApp {
       onSaveSupabaseConfig: (url: string, key: string) => {
         this.supabaseService.saveCustomCredentials(url, key, this.playerData);
         this.hud.showNotification('💾 Tetapan Supabase disimpan! Menyambung semula...');
+      },
+      onPerformIstilam: () => {
+        this.workflow.performIstilam();
+        this.localAvatar.performIstilam();
+      },
+      onToggleTawafMode: (mode) => {
+        this.workflow.setTawafMode(mode);
+        this.hud.showNotification(
+          mode === 'real'
+            ? '🕋 Mod Real Tawaf diaktifkan: Kompas 360° & penjejak Auto-Lap sedia digunakan!'
+            : '👥 Mod Panduan Jemaah diaktifkan: Ikuti rombongan bersama Mutawwif.'
+        );
+      },
+      onToggleRaml: (active) => {
+        this.playerController.setRaml(active);
+        this.workflow.setRaml(active);
+        this.hud.showNotification(
+          active
+            ? '🏃 Sunnah Raml diaktifkan: Berlari-lari anak (Pusingan 1-3 bagi lelaki).'
+            : '🚶 Raml dimatikan: Berjalan seperti biasa.'
+        );
+      },
+      onOpenTawafModal: () => {
+        this.hud.showTawafGuideModal(
+          this.workflow.stage === 'tawaf' && this.workflow.tawafLap >= 1 && this.workflow.tawafLap <= 7
+            ? (`lap${this.workflow.tawafLap}` as any)
+            : 'lap1'
+        );
       }
     });
   }
