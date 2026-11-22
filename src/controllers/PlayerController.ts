@@ -262,17 +262,17 @@ export class PlayerController {
       return true;
     }
 
-    // 6. Mas'a Gallery Boundary Walls
+    // 6. Mas'a Gallery Boundary Walls & Hill Summit Balustrades
     // Mas'a extends from Z = -52 to +52, center X = 65, width = 14 (X from ~58 to 72)
     if (x > 56 && x < 74) {
       // East outer wall of Mas'a
-      if (x > 71.5) return true;
+      if (x > 71.4) return true;
       // West wall of Mas'a (with grand opening corridor to Mataf at Z between -2 and +9)
-      if (x < 58.5 && !(z >= -2 && z <= 9)) return true;
-      // North wall (behind Bukit Marwah)
-      if (z < -51.5) return true;
-      // South wall (behind Bukit Safa)
-      if (z > 51.5) return true;
+      if (x < 58.6 && !(z >= -2 && z <= 9)) return true;
+      // North summit protective balustrade behind Bukit Marwah
+      if (z < -48.0) return true;
+      // South summit protective balustrade behind Bukit Safa
+      if (z > 48.0) return true;
     }
 
     // 7. Masjidil Haram Colonnade & Perimeter Walls (Radius ~54-58m from Kaabah center)
@@ -493,6 +493,20 @@ export class PlayerController {
       }
     }
 
+    // Dynamic Terrain & Hill Elevation Physics ("Sa'i panjat bukit")
+    // Ensures pilgrim ascends Safa & Marwah smoothly up to 1.8m atop the hill, never clipping inside
+    if (!this.isInBus) {
+      const targetY = this.getWorldElevation(
+        this.avatar.group.position.x,
+        this.avatar.group.position.z
+      );
+      this.avatar.group.position.y = THREE.MathUtils.lerp(
+        this.avatar.group.position.y,
+        targetY,
+        Math.min(delta * 22, 1.0)
+      );
+    }
+
     // Camera Third-Person Orbit Follow (Behind player)
     const playerPos = this.avatar.group.position;
     const horizontalDist = this.cameraDistance * Math.cos(this.cameraPitch);
@@ -509,11 +523,48 @@ export class PlayerController {
     this.camera.lookAt(playerPos.clone().add(new THREE.Vector3(0, 1.4, 0)));
   }
 
+  /**
+   * Calculate precise 3D terrain elevation for walking and climbing.
+   * Enables realistic ascent/descent of Bukit Safa and Bukit Marwah ("panjat bukit").
+   */
+  public getWorldElevation(x: number, z: number): number {
+    // Mas'a gallery is located between X: 57.5 and X: 72.5
+    if (x >= 57.5 && x <= 72.5) {
+      // 1. Bukit Safa Incline & Summit (z from 32 to 48.5)
+      if (z >= 32) {
+        if (z >= 44) {
+          // Elevated Summit Viewing & Du'a Plateau
+          return Math.min(1.8 + (z - 44) * 0.02, 1.9);
+        }
+        // Smoothstep ramp ascent from z = 32 (y = 0) to z = 44 (y = 1.8)
+        const t = (z - 32) / 12;
+        const smoothT = t * t * (3 - 2 * t);
+        return smoothT * 1.8;
+      }
+
+      // 2. Bukit Marwah Incline & Summit (z from -32 to -48.5)
+      if (z <= -32) {
+        if (z <= -44) {
+          // Elevated Summit Viewing & Du'a Plateau
+          return Math.min(1.8 + (-44 - z) * 0.02, 1.9);
+        }
+        // Smoothstep ramp ascent from z = -32 (y = 0) to z = -44 (y = 1.8)
+        const t = (-32 - z) / 12;
+        const smoothT = t * t * (3 - 2 * t);
+        return smoothT * 1.8;
+      }
+    }
+
+    // Default flat ground level across Mataf, Mosque Plaza & Madinah
+    return 0;
+  }
+
   public teleport(x: number, z: number, rotation: number = 0) {
     if (this.isInBus) {
       this.exitBus();
     }
-    this.avatar.group.position.set(x, 0, z);
+    const y = this.getWorldElevation(x, z);
+    this.avatar.group.position.set(x, y, z);
     this.avatar.group.rotation.y = rotation;
     this.cameraYaw = rotation;
     this.snapCamera();

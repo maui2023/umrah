@@ -116,8 +116,10 @@ class UmrahSimulationApp {
           initX = 14; initZ = 4.5; initRot = -Math.PI / 2;
         } else if (savedState.stage === 'sai') {
           initX = 65; initZ = 42; initRot = Math.PI;
+          initY = 1.65;
         } else if (savedState.stage === 'tahallul' || savedState.stage === 'completed') {
           initX = 65; initZ = -42; initRot = 0;
+          initY = 1.65;
         } else {
           const spot = this.workflow.getCurrentZiarahSpot();
           if (spot?.coordinates) {
@@ -170,7 +172,7 @@ class UmrahSimulationApp {
       currentLap: currentLap
     });
 
-    this.localAvatar.group.position.set(this.playerData.x, 0, this.playerData.z);
+    this.localAvatar.group.position.set(this.playerData.x, initY, this.playerData.z);
     this.localAvatar.group.rotation.y = this.playerData.rotation;
     this.scene.add(this.localAvatar.group);
 
@@ -956,13 +958,15 @@ class UmrahSimulationApp {
           currentLap: p.currentLap,
           showOverheadTag: true
         });
-        avatar.group.position.set(p.x, 0, p.z);
+        const remoteY = typeof p.y === 'number' && !isNaN(p.y) ? p.y : 0;
+        avatar.group.position.set(p.x, remoteY, p.z);
         avatar.group.rotation.y = typeof p.rotation === 'number' && !isNaN(p.rotation) ? p.rotation : 0;
         this.scene.add(avatar.group);
         this.remoteAvatars.set(p.id, avatar);
       }
 
-      avatar.targetPosition.set(p.x, 0, p.z);
+      const remoteY = typeof p.y === 'number' && !isNaN(p.y) ? p.y : 0;
+      avatar.targetPosition.set(p.x, remoteY, p.z);
       if (typeof p.rotation === 'number' && !isNaN(p.rotation)) {
         avatar.targetRotation = p.rotation;
       }
@@ -1019,6 +1023,7 @@ class UmrahSimulationApp {
       const rot = this.localAvatar.group.rotation.y;
 
       this.playerData.x = pos.x;
+      this.playerData.y = pos.y;
       this.playerData.z = pos.z;
       this.playerData.rotation = rot;
       this.playerData.isMoving = this.playerController.isMoving;
