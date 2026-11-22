@@ -115,11 +115,11 @@ class UmrahSimulationApp {
         } else if (savedState.stage === 'solat_zamzam') {
           initX = 14; initZ = 4.5; initRot = -Math.PI / 2;
         } else if (savedState.stage === 'sai') {
-          initX = 65; initZ = 42; initRot = Math.PI;
-          initY = 1.65;
+          initX = 65; initZ = 44; initRot = Math.PI;
+          initY = 1.85;
         } else if (savedState.stage === 'tahallul' || savedState.stage === 'completed') {
-          initX = 65; initZ = -42; initRot = 0;
-          initY = 1.65;
+          initX = 65; initZ = -44; initRot = 0;
+          initY = 1.85;
         } else {
           const spot = this.workflow.getCurrentZiarahSpot();
           if (spot?.coordinates) {
@@ -234,7 +234,7 @@ class UmrahSimulationApp {
       onProceedToSai: () => {
         this.closeRealMode();
         this.workflow.advanceToSai(1);
-        this.playerController.teleport(65, 42, Math.PI);
+        this.playerController.teleport(65, 44, Math.PI);
         this.playerData.stage = 'sai';
         this.playerData.currentLap = 1;
         this.hud.updateStage('sai');
@@ -343,7 +343,7 @@ class UmrahSimulationApp {
         }
         if (stage === 'sai') {
           if (this.playerData.x < 50) {
-            this.playerController.teleport(65, 42, Math.PI);
+            this.playerController.teleport(65, 44, Math.PI);
           }
           this.hud.updateLap('sai', this.workflow.saiLap || 1);
         }
@@ -541,9 +541,9 @@ class UmrahSimulationApp {
         } else if (loc === 'zamzam') {
           this.playerController.teleport(38, 8, -Math.PI / 4);
         } else if (loc === 'safa') {
-          this.playerController.teleport(65, 42, Math.PI);
+          this.playerController.teleport(65, 44, Math.PI);
         } else if (loc === 'marwah') {
-          this.playerController.teleport(65, -42, 0);
+          this.playerController.teleport(65, -44, 0);
         }
       },
       onBoardBus: () => {

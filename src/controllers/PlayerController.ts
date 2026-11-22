@@ -534,25 +534,28 @@ export class PlayerController {
       if (z >= 32) {
         if (z >= 44) {
           // Elevated Summit Viewing & Du'a Plateau
-          return Math.min(1.8 + (z - 44) * 0.02, 1.9);
+          return Math.min(1.85 + (z - 44) * 0.02, 1.92);
         }
-        // Smoothstep ramp ascent from z = 32 (y = 0) to z = 44 (y = 1.8)
+        // Smoothstep ramp ascent from concourse (z = 32, y = 0.20) to summit (z = 44, y = 1.85)
         const t = (z - 32) / 12;
         const smoothT = t * t * (3 - 2 * t);
-        return smoothT * 1.8;
+        return 0.20 + smoothT * 1.65;
       }
 
       // 2. Bukit Marwah Incline & Summit (z from -32 to -48.5)
       if (z <= -32) {
         if (z <= -44) {
           // Elevated Summit Viewing & Du'a Plateau
-          return Math.min(1.8 + (-44 - z) * 0.02, 1.9);
+          return Math.min(1.85 + (-44 - z) * 0.02, 1.92);
         }
-        // Smoothstep ramp ascent from z = -32 (y = 0) to z = -44 (y = 1.8)
+        // Smoothstep ramp ascent from concourse (z = -32, y = 0.20) to summit (z = -44, y = 1.85)
         const t = (-32 - z) / 12;
         const smoothT = t * t * (3 - 2 * t);
-        return smoothT * 1.8;
+        return 0.20 + smoothT * 1.65;
       }
+
+      // Flat Concourse Marble Floor of Mas'a between Safa & Marwah (z: -32 to 32, surface at Y = 0.20)
+      return 0.20;
     }
 
     // Default flat ground level across Mataf, Mosque Plaza & Madinah

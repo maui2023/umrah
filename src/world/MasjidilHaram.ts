@@ -740,16 +740,39 @@ export class MasjidilHaram {
       metalness: 0.1
     });
 
-    const marbleStepMat = new THREE.MeshStandardMaterial({
-      color: 0xfbf9f4,
-      roughness: 0.28,
-      metalness: 0.05
-    });
-
     const darkGraniteBorderMat = new THREE.MeshStandardMaterial({
       color: 0x362c23,
       roughness: 0.4,
       metalness: 0.1
+    });
+
+    const hillRampMat = new THREE.MeshStandardMaterial({
+      color: 0x6e5c4a,
+      map: rockTex,
+      bumpMap: rockBump,
+      bumpScale: 0.16,
+      roughness: 0.86,
+      metalness: 0.05,
+      flatShading: true
+    });
+
+    const darkStoneStepMat = new THREE.MeshStandardMaterial({
+      color: 0x3d3227,
+      map: rockTex,
+      bumpMap: rockBump,
+      bumpScale: 0.10,
+      roughness: 0.78,
+      metalness: 0.08
+    });
+
+    const summitTerraceMat = new THREE.MeshStandardMaterial({
+      color: 0x58483a,
+      map: rockTex,
+      bumpMap: rockBump,
+      bumpScale: 0.14,
+      roughness: 0.85,
+      metalness: 0.04,
+      flatShading: true
     });
 
     // -------------------------------------------------------------------------
@@ -765,8 +788,10 @@ export class MasjidilHaram {
       highlightRockMat,
       brassMat,
       safetyGlassMat,
-      marbleStepMat,
-      darkGraniteBorderMat
+      darkGraniteBorderMat,
+      hillRampMat,
+      darkStoneStepMat,
+      summitTerraceMat
     );
     this.scene.add(this.safaHillMesh);
 
@@ -783,8 +808,10 @@ export class MasjidilHaram {
       highlightRockMat,
       brassMat,
       safetyGlassMat,
-      marbleStepMat,
-      darkGraniteBorderMat
+      darkGraniteBorderMat,
+      hillRampMat,
+      darkStoneStepMat,
+      summitTerraceMat
     );
     this.scene.add(this.marwahHillMesh);
 
@@ -825,10 +852,12 @@ export class MasjidilHaram {
 
   /**
    * Constructs an authentic, highly detailed 3D polygonal mountain zone for Bukit Safa / Bukit Marwah,
-   * including the ascending marble incline/ramp, stepped terraced flanking walkways with brass nosing,
-   * elevated summit viewing & du'a platform (1.8m), glass & brass protective balustrades,
+   * including the ascending rocky mountain slope/ramp (with realistic mountain stone & granite curbs),
+   * natural crags & boulders flanking the slope, stepped terraced flanking walkways with brass nosing,
+   * elevated summit viewing & du'a platform (1.85m), glass & brass protective balustrades,
    * Islamic calligraphy gold plaque, floor Qibla indicator, and ancient preserved mountain rock formations
    * with multi-tiered bedrock, jagged crags, stratified shelves, mountain peaks, and warm architectural spotlights.
+   * Eliminates the plain white floor on the hill so that pilgrims visibly climb a realistic mountain ("panjat bukit").
    */
   private buildHillZone(
     hillGroup: THREE.Group,
@@ -839,53 +868,100 @@ export class MasjidilHaram {
     highlightRockMat: THREE.Material,
     brassMat: THREE.Material,
     safetyGlassMat: THREE.Material,
-    marbleStepMat: THREE.Material,
-    darkGraniteBorderMat: THREE.Material
+    darkGraniteBorderMat: THREE.Material,
+    hillRampMat: THREE.Material,
+    darkStoneStepMat: THREE.Material,
+    summitTerraceMat: THREE.Material
   ) {
     const dir = isSafa ? 1 : -1;
     const internalWidth = 13.5;
 
     // -------------------------------------------------------------------------
-    // 1. Ascending Marble Ramp Wedge (z: 32 to 44)
+    // 1. Ascending Rocky Mountain Incline / Ramp (z: 32 to 44, ascending from Y = 0.20 to Y = 1.85)
     // -------------------------------------------------------------------------
-    const rampLength = Math.hypot(12, 1.6); // ~12.106m
-    const rampAngle = dir * Math.atan2(1.6, 12);
-    const rampGeo = new THREE.BoxGeometry(internalWidth, 0.3, rampLength);
-    const rampMesh = new THREE.Mesh(rampGeo, marbleStepMat);
-    rampMesh.position.set(masaX, 1.0, 38 * dir);
+    const dy = 1.65;
+    const dz = 12.0;
+    const rampLength = Math.hypot(dz, dy); // ~12.113m
+    // Correct angle: Safa slopes UP towards +Z (theta < 0); Marwah slopes UP towards -Z (theta > 0)
+    const rampAngle = -dir * Math.atan2(dy, dz);
+    const rampThickness = 0.30;
+
+    const zCenter = 38 * dir;
+    const yCenterTop = (0.20 + 1.85) / 2; // 1.025m
+    const rampCenterY = yCenterTop - (rampThickness / 2) * Math.cos(rampAngle); // ~0.876m
+    const rampCenterZ = zCenter - (rampThickness / 2) * Math.sin(rampAngle);
+
+    const rampGeo = new THREE.BoxGeometry(internalWidth, rampThickness, rampLength);
+    const rampMesh = new THREE.Mesh(rampGeo, hillRampMat);
+    rampMesh.position.set(masaX, rampCenterY, rampCenterZ);
     rampMesh.rotation.x = rampAngle;
     rampMesh.receiveShadow = true;
+    rampMesh.castShadow = true;
     hillGroup.add(rampMesh);
 
-    // Supporting foundation plinths underneath the ramp (fills gaps from y = 0 to ramp bottom)
-    const f1 = new THREE.Mesh(new THREE.BoxGeometry(internalWidth, 0.4, 9), darkGraniteBorderMat);
-    f1.position.set(masaX, 0.2, (32 + 4.5) * dir);
+    // Dark granite architectural curbs flanking the ramp on both sides
+    const curbGeo = new THREE.BoxGeometry(0.35, 0.40, rampLength);
+    const curbLeft = new THREE.Mesh(curbGeo, darkGraniteBorderMat);
+    curbLeft.position.set(masaX - internalWidth / 2 + 0.175, rampCenterY + 0.08, rampCenterZ);
+    curbLeft.rotation.x = rampAngle;
+    const curbRight = new THREE.Mesh(curbGeo, darkGraniteBorderMat);
+    curbRight.position.set(masaX + internalWidth / 2 - 0.175, rampCenterY + 0.08, rampCenterZ);
+    curbRight.rotation.x = rampAngle;
+    hillGroup.add(curbLeft, curbRight);
+
+    // Solid bedrock foundation blocks underneath the ramp (fills gaps strictly down to y = 0)
+    const f1 = new THREE.Mesh(new THREE.BoxGeometry(internalWidth, 0.40, 4.0), darkRockMat);
+    f1.position.set(masaX, 0.20, 35.5 * dir);
     hillGroup.add(f1);
 
-    const f2 = new THREE.Mesh(new THREE.BoxGeometry(internalWidth, 0.5, 6), darkGraniteBorderMat);
-    f2.position.set(masaX, 0.65, (35 + 3.0) * dir);
+    const f2 = new THREE.Mesh(new THREE.BoxGeometry(internalWidth, 0.75, 4.0), darkRockMat);
+    f2.position.set(masaX, 0.375, 38.5 * dir);
     hillGroup.add(f2);
 
-    const f3 = new THREE.Mesh(new THREE.BoxGeometry(internalWidth, 0.5, 3), darkGraniteBorderMat);
-    f3.position.set(masaX, 1.15, (38 + 1.5) * dir);
+    const f3 = new THREE.Mesh(new THREE.BoxGeometry(internalWidth, 1.20, 3.5), darkRockMat);
+    f3.position.set(masaX, 0.60, 41.5 * dir);
     hillGroup.add(f3);
 
     // -------------------------------------------------------------------------
-    // 2. Side Stepped Terraces (Left & Right walkways with gold nosing strips)
+    // 2. Natural Rugged Mountain Boulders & Crags Flanking the Ascending Slope
+    // (Visible all along the incline so the player clearly climbs the rocky hill)
+    // -------------------------------------------------------------------------
+    const slopeCrags = [
+      { zOff: 34.2, xOff: -internalWidth / 2 + 0.8, r: 0.9, yOff: 0.50, seed: isSafa ? 10 : 60, mat: rockMat },
+      { zOff: 34.5, xOff: internalWidth / 2 - 0.8, r: 0.85, yOff: 0.55, seed: isSafa ? 20 : 70, mat: darkRockMat },
+      { zOff: 37.8, xOff: -internalWidth / 2 + 0.9, r: 1.1, yOff: 0.95, seed: isSafa ? 30 : 80, mat: highlightRockMat },
+      { zOff: 38.2, xOff: internalWidth / 2 - 0.85, r: 1.05, yOff: 1.00, seed: isSafa ? 40 : 90, mat: rockMat },
+      { zOff: 41.2, xOff: -internalWidth / 2 + 0.95, r: 1.25, yOff: 1.45, seed: isSafa ? 50 : 100, mat: darkRockMat },
+      { zOff: 41.6, xOff: internalWidth / 2 - 0.9, r: 1.2, yOff: 1.50, seed: isSafa ? 60 : 110, mat: highlightRockMat },
+    ];
+
+    for (const sc of slopeCrags) {
+      const crag = createCraggyRockMesh(
+        new THREE.DodecahedronGeometry(sc.r),
+        sc.mat,
+        0.22,
+        sc.seed
+      );
+      crag.position.set(masaX + sc.xOff, sc.yOff, sc.zOff * dir);
+      hillGroup.add(crag);
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. Side Stepped Terraces (Left & Right walkways with dark stone & gold nosing)
     // -------------------------------------------------------------------------
     const stepWidth = 2.4;
-    const sideOffsets = [-internalWidth / 2 + stepWidth / 2, internalWidth / 2 - stepWidth / 2];
+    const sideOffsets = [-internalWidth / 2 + stepWidth / 2 + 0.2, internalWidth / 2 - stepWidth / 2 - 0.2];
 
     for (let s = 0; s < 6; s++) {
       const stepZ = (32.8 + s * 1.85) * dir;
-      const stepY = 0.22 + s * 0.26;
+      const stepY = 0.20 + s * 0.26;
       const stepH = 0.28;
 
       for (const offset of sideOffsets) {
-        // Marble Step Tread
+        // Carved Mountain Stone Step Tread
         const step = new THREE.Mesh(
           new THREE.BoxGeometry(stepWidth, stepH, 1.8),
-          marbleStepMat
+          darkStoneStepMat
         );
         step.position.set(masaX + offset, stepY, stepZ);
         step.receiveShadow = true;
@@ -903,14 +979,14 @@ export class MasjidilHaram {
     }
 
     // -------------------------------------------------------------------------
-    // 3. Side Protective Balustrades (Along East & West walls from z: 32 to 48)
+    // 4. Side Protective Balustrades (Along East & West walls from z: 32 to 44)
     // -------------------------------------------------------------------------
     for (const sideX of [masaX - internalWidth / 2 + 0.2, masaX + internalWidth / 2 - 0.2]) {
       // Brass stanchions along ramp
-      for (let zOffset = 33; zOffset <= 47; zOffset += 2.8) {
+      for (let zOffset = 33; zOffset <= 43.5; zOffset += 2.6) {
         const postZ = zOffset * dir;
         const postT = (zOffset - 32) / 12;
-        const postY = (zOffset >= 44 ? 1.8 : postT * 1.8) + 0.55;
+        const postY = 0.20 + postT * 1.65 + 0.55;
         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.1, 10), brassMat);
         post.position.set(sideX, postY, postZ);
         hillGroup.add(post);
@@ -918,36 +994,36 @@ export class MasjidilHaram {
 
       // Angled brass handrail along ramp
       const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, rampLength, 10), brassMat);
-      rail.position.set(sideX, 1.0 + 1.05, 38 * dir);
+      rail.position.set(sideX, rampCenterY + 0.15 + 1.05, rampCenterZ);
       rail.rotation.x = rampAngle;
       hillGroup.add(rail);
 
       // Angled safety glass panels along ramp
       const glass = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.95, rampLength), safetyGlassMat);
-      glass.position.set(sideX, 1.0 + 0.55, 38 * dir);
+      glass.position.set(sideX, rampCenterY + 0.15 + 0.52, rampCenterZ);
       glass.rotation.x = rampAngle;
       hillGroup.add(glass);
     }
 
     // -------------------------------------------------------------------------
-    // 4. Elevated Summit Viewing & Du'a Platform (z: 44 to 48.2 at Y = 1.8m)
+    // 5. Elevated Summit Viewing & Du'a Platform (z: 44 to 48.2 at Y = 1.85m)
     // -------------------------------------------------------------------------
     const summitDepth = 4.2;
     const summitCenterZ = (44 + summitDepth / 2) * dir; // ~46.1 * dir
     const summitPlatform = new THREE.Mesh(
-      new THREE.BoxGeometry(internalWidth, 0.35, summitDepth),
-      marbleStepMat
+      new THREE.BoxGeometry(internalWidth, 0.30, summitDepth),
+      summitTerraceMat
     );
-    summitPlatform.position.set(masaX, 1.625, summitCenterZ);
+    summitPlatform.position.set(masaX, 1.70, summitCenterZ);
     summitPlatform.receiveShadow = true;
     hillGroup.add(summitPlatform);
 
-    // Foundation block under summit platform
+    // Foundation block under summit platform (fills down to ground level)
     const summitFoundation = new THREE.Mesh(
-      new THREE.BoxGeometry(internalWidth, 1.45, summitDepth),
-      darkGraniteBorderMat
+      new THREE.BoxGeometry(internalWidth, 1.55, summitDepth),
+      darkRockMat
     );
-    summitFoundation.position.set(masaX, 0.725, summitCenterZ);
+    summitFoundation.position.set(masaX, 0.775, summitCenterZ);
     hillGroup.add(summitFoundation);
 
     // Dark granite decorative border inlay around summit terrace
@@ -955,7 +1031,7 @@ export class MasjidilHaram {
       new THREE.BoxGeometry(internalWidth, 0.02, 0.4),
       darkGraniteBorderMat
     );
-    borderNorth.position.set(masaX, 1.81, (44 + 0.2) * dir);
+    borderNorth.position.set(masaX, 1.86, (44 + 0.2) * dir);
     hillGroup.add(borderNorth);
 
     // Qibla Directional Floor Inlay (Points West towards Kaabah)
@@ -963,23 +1039,23 @@ export class MasjidilHaram {
       new THREE.CylinderGeometry(0.75, 0.75, 0.02, 8),
       brassMat
     );
-    qiblaStar.position.set(masaX, 1.815, summitCenterZ);
+    qiblaStar.position.set(masaX, 1.865, summitCenterZ);
     hillGroup.add(qiblaStar);
 
     // Directional Arrow pointing towards Kaabah (West: -X)
     const arrowShaft = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.025, 0.12), brassMat);
-    arrowShaft.position.set(masaX - 0.6, 1.82, summitCenterZ);
+    arrowShaft.position.set(masaX - 0.6, 1.87, summitCenterZ);
     hillGroup.add(arrowShaft);
 
     const arrowHead = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.4, 3), brassMat);
     arrowHead.rotation.z = Math.PI / 2;
-    arrowHead.position.set(masaX - 1.15, 1.82, summitCenterZ);
+    arrowHead.position.set(masaX - 1.15, 1.87, summitCenterZ);
     hillGroup.add(arrowHead);
 
     // -------------------------------------------------------------------------
-    // 5. Summit Glass & Brass Protective Balustrade (z = 48.15 * dir)
+    // 6. Summit Glass & Brass Protective Balustrade (z = 48.05 * dir)
     // -------------------------------------------------------------------------
-    const railZ = 48.15 * dir;
+    const railZ = 48.05 * dir;
     const balustradeWidth = internalWidth - 0.2;
 
     // Brass Vertical Stanchions
@@ -988,7 +1064,7 @@ export class MasjidilHaram {
         new THREE.CylinderGeometry(0.045, 0.045, 1.25, 12),
         brassMat
       );
-      stanchion.position.set(masaX + x, 1.8 + 0.625, railZ);
+      stanchion.position.set(masaX + x, 1.85 + 0.625, railZ);
       hillGroup.add(stanchion);
     }
 
@@ -998,7 +1074,7 @@ export class MasjidilHaram {
       brassMat
     );
     summitHandrail.rotation.z = Math.PI / 2;
-    summitHandrail.position.set(masaX, 1.8 + 1.25, railZ);
+    summitHandrail.position.set(masaX, 1.85 + 1.25, railZ);
     hillGroup.add(summitHandrail);
 
     // Tempered Safety Glass Panel Enclosure
@@ -1006,7 +1082,7 @@ export class MasjidilHaram {
       new THREE.BoxGeometry(balustradeWidth, 1.1, 0.04),
       safetyGlassMat
     );
-    summitGlass.position.set(masaX, 1.8 + 0.58, railZ);
+    summitGlass.position.set(masaX, 1.85 + 0.58, railZ);
     hillGroup.add(summitGlass);
 
     // Bottom Brass Kickplate
@@ -1014,17 +1090,17 @@ export class MasjidilHaram {
       new THREE.BoxGeometry(balustradeWidth, 0.12, 0.06),
       brassMat
     );
-    kickplate.position.set(masaX, 1.8 + 0.06, railZ);
+    kickplate.position.set(masaX, 1.85 + 0.06, railZ);
     hillGroup.add(kickplate);
 
     // -------------------------------------------------------------------------
-    // 6. Islamic Calligraphy Sign Plaque on Bronze Pedestal
+    // 7. Islamic Calligraphy Sign Plaque on Bronze Pedestal (Facing approaching pilgrims)
     // -------------------------------------------------------------------------
     const plaquePedestal = new THREE.Mesh(
       new THREE.BoxGeometry(1.6, 0.85, 0.45),
       darkGraniteBorderMat
     );
-    plaquePedestal.position.set(masaX, 1.8 + 0.425, (47.5) * dir);
+    plaquePedestal.position.set(masaX, 1.85 + 0.425, (47.0) * dir);
     hillGroup.add(plaquePedestal);
 
     const signTexture = isSafa
@@ -1047,15 +1123,14 @@ export class MasjidilHaram {
       metalness: 0.2
     });
     const signBoard = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.75), signMat);
-    signBoard.position.set(masaX, 1.8 + 0.88, (47.25) * dir);
-    signBoard.rotation.x = isSafa ? -0.22 : 0.22;
-    if (!isSafa) {
-      signBoard.rotation.y = Math.PI;
-    }
+    signBoard.position.set(masaX, 1.85 + 0.88, (46.75) * dir);
+    // Face the approaching pilgrim: Safa faces North (-Z: rotY=PI), Marwah faces South (+Z: rotY=0)
+    signBoard.rotation.y = isSafa ? Math.PI : 0;
+    signBoard.rotation.x = isSafa ? -0.15 : 0.15;
     hillGroup.add(signBoard);
 
     // -------------------------------------------------------------------------
-    // 7. Authentic Preserved Mountain Rock Formation (Batuan Asli Jabal)
+    // 8. Authentic Preserved Mountain Rock Formation (Batuan Asli Jabal)
     // -------------------------------------------------------------------------
     // Foundation Bedrock slabs (Massive angular mountain base)
     const bedrockConfigs = [
@@ -1147,7 +1222,7 @@ export class MasjidilHaram {
     }
 
     // -------------------------------------------------------------------------
-    // 8. Architectural Warm Spotlight (Highlights 3D facets and natural shadows)
+    // 9. Architectural Warm Spotlight (Highlights 3D facets and natural shadows)
     // -------------------------------------------------------------------------
     const hillSpot = new THREE.SpotLight(0xffedd8, 2.6, 26, Math.PI / 3, 0.45, 1.2);
     hillSpot.position.set(masaX, 6.2, (43.0) * dir);
