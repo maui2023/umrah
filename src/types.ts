@@ -31,6 +31,7 @@ export interface PlayerData {
   stage: UmrahStage;
   isInBus?: boolean;
   lastUpdated?: number;
+  isBot?: boolean;
 }
 
 export interface GroupInfo {

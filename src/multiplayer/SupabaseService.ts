@@ -6,29 +6,44 @@ export class SupabaseService {
   private channel: RealtimeChannel | null = null;
   public isConnected: boolean = false;
   private localPlayerId: string = '';
+  private lastKnownLocalPlayer: PlayerData | null = null;
   private remotePlayers: Map<string, PlayerData> = new Map();
   private mockPilgrims: Map<string, PlayerData> = new Map();
   private onPlayersUpdatedCallback: ((players: PlayerData[]) => void) | null = null;
+  private onStatusChangeCallback: ((connected: boolean, realPlayerCount: number) => void) | null = null;
   private lastBroadcastTime: number = 0;
   private broadcastIntervalMs: number = 90; // ~11Hz
   private lastPosition = { x: 0, y: 0, z: 0, rotation: 0 };
-  private isUsingMock: boolean = true;
+  public isUsingMock: boolean = true;
   private mockIntervalTimer: number | null = null;
+
+  // Active configuration for diagnostics
+  public activeUrl: string = '';
+  public activeKey: string = '';
 
   constructor() {
     this.initSupabase();
   }
 
-  private initSupabase() {
-    // Read from environment variables or localStorage
+  public initSupabase() {
+    // Default project credentials (ensure fallback even if GitHub Actions build lacks repo secrets)
+    const defaultUrl = 'https://ppjkleynojihjdzydbsg.supabase.co';
+    const defaultKey = 'sb_publishable_PP8n19wce5_OtTeXYYktrw_pKImhAT9';
+
+    // Read from environment variables, localStorage, or fallback to default
     const url = 
       import.meta.env.VITE_SUPABASE_URL || 
-      localStorage.getItem('umrah_supabase_url');
+      localStorage.getItem('umrah_supabase_url') ||
+      defaultUrl;
 
     const anonKey = 
       import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 
       import.meta.env.VITE_SUPABASE_ANON_KEY || 
-      localStorage.getItem('umrah_supabase_key');
+      localStorage.getItem('umrah_supabase_key') ||
+      defaultKey;
+
+    this.activeUrl = url;
+    this.activeKey = anonKey;
 
     if (url && anonKey && url.startsWith('http')) {
       try {
@@ -40,6 +55,7 @@ export class SupabaseService {
           }
         });
         this.isUsingMock = false;
+        console.log('✅ Supabase Client berjaya dimulakan untuk Realtime Multiplayer:', url);
       } catch (err) {
         console.warn('Supabase initialization failed, falling back to simulated pilgrims:', err);
         this.isUsingMock = true;
@@ -49,8 +65,50 @@ export class SupabaseService {
     }
   }
 
+  public setStatusCallback(callback: (connected: boolean, realPlayerCount: number) => void) {
+    this.onStatusChangeCallback = callback;
+    this.notifyStatus();
+  }
+
+  public notifyStatus() {
+    if (this.onStatusChangeCallback) {
+      this.onStatusChangeCallback(this.isConnected, this.getRealPlayerCount());
+    }
+  }
+
+  public getRealPlayerCount(): number {
+    // Real players in remote map + local player if connected
+    return this.remotePlayers.size + (this.isConnected ? 1 : 0);
+  }
+
+  public getSupabaseInfo() {
+    return {
+      url: this.activeUrl,
+      keyPreview: this.activeKey ? `${this.activeKey.substring(0, 16)}...` : 'Tiada',
+      isConnected: this.isConnected,
+      realPlayerCount: this.getRealPlayerCount(),
+      channelName: 'public-mataf-world'
+    };
+  }
+
+  public saveCustomCredentials(url: string, key: string, localPlayer?: PlayerData) {
+    if (url) localStorage.setItem('umrah_supabase_url', url.trim());
+    if (key) localStorage.setItem('umrah_supabase_key', key.trim());
+    this.reconnect(localPlayer);
+  }
+
+  public reconnect(localPlayer?: PlayerData) {
+    console.log('🔄 Memulakan semula sambungan Supabase Realtime...');
+    this.disconnect();
+    this.initSupabase();
+    if (localPlayer) {
+      this.connect(localPlayer, this.onPlayersUpdatedCallback || (() => {}));
+    }
+  }
+
   public connect(localPlayer: PlayerData, onPlayersUpdated: (players: PlayerData[]) => void) {
     this.localPlayerId = localPlayer.id;
+    this.lastKnownLocalPlayer = localPlayer;
     this.onPlayersUpdatedCallback = onPlayersUpdated;
 
     // Always run simulated world pilgrims so that the grand mosque is always populated
@@ -79,9 +137,13 @@ export class SupabaseService {
       this.channel.on('broadcast', { event: 'player_pos' }, (payload) => {
         const data = payload.payload as PlayerData;
         if (data && data.id && data.id !== this.localPlayerId) {
-          data.lastUpdated = Date.now();
-          this.remotePlayers.set(data.id, data);
-          this.triggerUpdate();
+          // Safeguard against NaN / undefined coordinates
+          if (typeof data.x === 'number' && !isNaN(data.x) && typeof data.z === 'number' && !isNaN(data.z)) {
+            data.lastUpdated = Date.now();
+            data.isBot = false;
+            this.remotePlayers.set(data.id, data);
+            this.triggerUpdate();
+          }
         }
       });
 
@@ -97,20 +159,53 @@ export class SupabaseService {
             const p = presences[0];
             if (p.id !== this.localPlayerId) {
               activeIds.add(p.id);
-              if (!this.remotePlayers.has(p.id)) {
-                p.lastUpdated = Date.now();
-                this.remotePlayers.set(p.id, p);
+              const existing = this.remotePlayers.get(p.id);
+
+              const validX = typeof p.x === 'number' && !isNaN(p.x) ? p.x : 18;
+              const validZ = typeof p.z === 'number' && !isNaN(p.z) ? p.z : 18;
+              const validRot = typeof p.rotation === 'number' && !isNaN(p.rotation) ? p.rotation : 0;
+
+              if (!existing) {
+                this.remotePlayers.set(p.id, {
+                  ...p,
+                  x: validX,
+                  y: p.y || 0,
+                  z: validZ,
+                  rotation: validRot,
+                  isMoving: !!p.isMoving,
+                  isBot: false,
+                  lastUpdated: Date.now()
+                });
+              } else {
+                existing.name = p.name || existing.name;
+                existing.role = p.role || existing.role;
+                existing.gender = p.gender || existing.gender;
+                existing.groupName = p.groupName || existing.groupName;
+                existing.groupColor = p.groupColor || existing.groupColor;
+                existing.currentLap = p.currentLap ?? existing.currentLap;
+                existing.stage = p.stage || existing.stage;
+                existing.isBot = false;
+                if (typeof p.x === 'number' && !isNaN(p.x)) existing.x = p.x;
+                if (typeof p.z === 'number' && !isNaN(p.z)) existing.z = p.z;
+                if (typeof p.rotation === 'number' && !isNaN(p.rotation)) existing.rotation = p.rotation;
               }
             }
           }
         }
 
-        // Clean up players no longer in presence
+        // Clean up real players no longer in presence
         for (const id of this.remotePlayers.keys()) {
           if (!activeIds.has(id)) {
             this.remotePlayers.delete(id);
           }
         }
+
+        // Announce our exact position to any new players immediately
+        if (this.lastKnownLocalPlayer) {
+          this.broadcastPosition(this.lastKnownLocalPlayer, true);
+        }
+
+        this.notifyStatus();
         this.triggerUpdate();
       });
 
@@ -120,6 +215,7 @@ export class SupabaseService {
             this.remotePlayers.delete(p.id);
           }
         }
+        this.notifyStatus();
         this.triggerUpdate();
       });
 
@@ -127,6 +223,9 @@ export class SupabaseService {
       this.channel.subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           this.isConnected = true;
+          this.notifyStatus();
+          console.log('🟢 Supabase Realtime tersambung ke saluran: public-mataf-world');
+          
           await this.channel?.track({
             id: localPlayer.id,
             name: localPlayer.name,
@@ -136,9 +235,22 @@ export class SupabaseService {
             groupName: localPlayer.groupName,
             groupColor: localPlayer.groupColor,
             currentLap: localPlayer.currentLap,
-            stage: localPlayer.stage
+            stage: localPlayer.stage,
+            x: localPlayer.x,
+            y: localPlayer.y,
+            z: localPlayer.z,
+            rotation: localPlayer.rotation,
+            isMoving: localPlayer.isMoving,
+            isInBus: localPlayer.isInBus,
+            isBot: false,
+            lastUpdated: Date.now()
           });
+
+          // Immediate broadcast announcement
+          this.broadcastPosition(localPlayer, true);
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          this.isConnected = false;
+          this.notifyStatus();
           console.warn(`Supabase channel status: ${status}. Simulation continues with local & simulated pilgrims.`);
         }
       });
@@ -149,17 +261,26 @@ export class SupabaseService {
 
   /**
    * Broadcast local player position and status (Throttled at 10-12Hz)
+   * Includes heartbeat: broadcasts every 2.5s even when standing still to prevent timeout
    */
-  public broadcastPosition(player: PlayerData) {
+  public broadcastPosition(player: PlayerData, force: boolean = false) {
+    this.lastKnownLocalPlayer = player;
     const now = Date.now();
-    if (now - this.lastBroadcastTime < this.broadcastIntervalMs) return;
+    const timeSinceLast = now - this.lastBroadcastTime;
+    
+    // Heartbeat: broadcast every 2.5 seconds even if stationary so other players know we're still here
+    const isHeartbeatNeeded = timeSinceLast >= 2500;
 
-    // Only broadcast if moved noticeably
-    const distSq = (player.x - this.lastPosition.x) ** 2 + (player.z - this.lastPosition.z) ** 2;
-    const rotDelta = Math.abs(player.rotation - this.lastPosition.rotation);
+    if (!force && !isHeartbeatNeeded && timeSinceLast < this.broadcastIntervalMs) return;
 
-    if (distSq < 0.002 && rotDelta < 0.03 && !player.isMoving) {
-      return;
+    // Only suppress if NOT force, NOT heartbeat, and barely moved
+    if (!force && !isHeartbeatNeeded) {
+      const distSq = (player.x - this.lastPosition.x) ** 2 + (player.z - this.lastPosition.z) ** 2;
+      const rotDelta = Math.abs(player.rotation - this.lastPosition.rotation);
+
+      if (distSq < 0.002 && rotDelta < 0.03 && !player.isMoving) {
+        return;
+      }
     }
 
     this.lastBroadcastTime = now;
@@ -183,7 +304,9 @@ export class SupabaseService {
           rotation: Number(player.rotation.toFixed(2)),
           isMoving: player.isMoving,
           currentLap: player.currentLap,
-          stage: player.stage
+          stage: player.stage,
+          isInBus: player.isInBus,
+          isBot: false
         }
       });
     }
@@ -417,6 +540,7 @@ export class SupabaseService {
         isMoving: true,
         currentLap: Math.floor(Math.random() * 5) + 1,
         stage: 'tawaf',
+        isBot: true,
         lastUpdated: Date.now()
       });
     });
@@ -439,6 +563,7 @@ export class SupabaseService {
         isMoving: true,
         currentLap: cfg.currentLap,
         stage: 'sai',
+        isBot: true,
         lastUpdated: Date.now()
       });
     });
@@ -506,8 +631,8 @@ export class SupabaseService {
     const now = Date.now();
 
     for (const p of this.remotePlayers.values()) {
-      // Discard stale players (no update for 12 seconds)
-      if (p.lastUpdated && now - p.lastUpdated < 12000) {
+      // Keep active real players (heartbeat ensures regular refresh; expire after 20s of no ping)
+      if (p.lastUpdated && now - p.lastUpdated < 20000) {
         combined.push(p);
       }
     }
@@ -531,5 +656,6 @@ export class SupabaseService {
     this.remotePlayers.clear();
     this.mockPilgrims.clear();
     this.isConnected = false;
+    this.notifyStatus();
   }
 }

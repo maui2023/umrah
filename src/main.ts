@@ -354,6 +354,10 @@ class UmrahSimulationApp {
     });
 
     // 5. Connect Multiplayer / Public World
+    this.supabaseService.setStatusCallback((connected, realPlayerCount) => {
+      this.hud.setSupabaseStatus(connected, realPlayerCount);
+    });
+
     this.supabaseService.connect(this.playerData, (remotePlayers: PlayerData[]) => {
       this.handleRemotePlayersUpdate(remotePlayers);
     });
@@ -544,6 +548,18 @@ class UmrahSimulationApp {
       },
       onStartSolat: (mosque: MosqueLocation) => {
         this.openSolatSession(mosque);
+      },
+      onTeleportToCoords: (x: number, z: number) => {
+        this.playerController.teleport(x, z, 0);
+        this.hud.showNotification('📍 Telah teleport berdekatan jemaah!');
+      },
+      onReconnectSupabase: () => {
+        this.supabaseService.reconnect(this.playerData);
+        this.hud.showNotification('🔄 Mencuba menyambung semula ke pelayan Supabase...');
+      },
+      onSaveSupabaseConfig: (url: string, key: string) => {
+        this.supabaseService.saveCustomCredentials(url, key, this.playerData);
+        this.hud.showNotification('💾 Tetapan Supabase disimpan! Menyambung semula...');
       }
     });
   }
@@ -664,6 +680,12 @@ class UmrahSimulationApp {
 
     for (const p of players) {
       if (p.id === this.playerData.id) continue;
+      
+      // CRITICAL: Protect against NaN / undefined coordinates
+      if (typeof p.x !== 'number' || isNaN(p.x) || typeof p.z !== 'number' || isNaN(p.z)) {
+        continue;
+      }
+
       activeIds.add(p.id);
 
       let avatar = this.remoteAvatars.get(p.id);
@@ -678,14 +700,16 @@ class UmrahSimulationApp {
           showOverheadTag: true
         });
         avatar.group.position.set(p.x, 0, p.z);
-        avatar.group.rotation.y = p.rotation;
+        avatar.group.rotation.y = typeof p.rotation === 'number' && !isNaN(p.rotation) ? p.rotation : 0;
         this.scene.add(avatar.group);
         this.remoteAvatars.set(p.id, avatar);
       }
 
       avatar.targetPosition.set(p.x, 0, p.z);
-      avatar.targetRotation = p.rotation;
-      avatar.isMoving = p.isMoving;
+      if (typeof p.rotation === 'number' && !isNaN(p.rotation)) {
+        avatar.targetRotation = p.rotation;
+      }
+      avatar.isMoving = !!p.isMoving;
 
       // Update name tag if lap or role changed
       if (avatar.name !== p.name || avatar.groupName !== p.groupName || avatar.groupColor !== p.groupColor) {
@@ -714,7 +738,8 @@ class UmrahSimulationApp {
         },
         this.allConnectedPlayers,
         this.playerData.role,
-        this.playerData.name
+        this.playerData.name,
+        this.supabaseService.isConnected
       );
     }
   }
@@ -774,7 +799,8 @@ class UmrahSimulationApp {
           },
           this.allConnectedPlayers,
           this.playerData.role,
-          this.playerData.name
+          this.playerData.name,
+          this.supabaseService.isConnected
         );
       }
     }
