@@ -1397,3 +1397,57 @@ Pelan ini telah dilaksanakan pada 2026-11-22 17:54:44
        - Doa Pengampunan Ibu Bapa (Surah Ibrahim: 41)
      * `📜 Surah-Surah Lazim`: Surah Al-Fatihah, Surah Al-Ikhlas, Surah Al-Falaq, Surah An-Nas, Surah Al-Kafirun, Surah Al-Insyirah, Surah Al-Qadr.
      * `📿 Zikir & Selawat`: Takbir Safa-Marwah, Kalimah Thayyibah 4, Sayyidul Istighfar, Selawat Ibrahimiyyah, Doa Kemaafan.
+
+---
+
+## 🗓️ Sesi Pelaksanaan: 2026-11-23 19:40:00 (Pembetulan Kaabah Statik & Pelaksanaan Mod Auto Tawaf Kaabah)
+
+### 💬 Keperluan / Input Terkini Pengguna:
+* **Fail Tangkapan Skrin**: `/home/maui/github/umrah/.miqa/uploads/screenshot_20261123_193247.jpg`
+* **Arahan Pengguna**: *"Sepatutnya kaabah statik tidak bergerak, masuk zone hijau player perlu tekan mula secara auto sistem lock kaabah (bawa ke bucu bawah) dan pusingan boleh dikira secara auto selepas player bergerak tanpa perlu tekan pusingan seterusnya. Mari cuba buat mode auto ini"*
+
+### 🔍 Analisis Masalah & Isu Asal:
+1. **Kaabah Berputar Mengikut Orientasi Peranti**: Sebelum ini, pembungkus SVG `#motawef-radar-rose` diputarkan secara langsung mengikut bearing relatif kiblat (`radarRose.style.transform = rotate(-relativeQibla deg)`). Ini menyebabkan seluruh binaan Kaabah, garisan trek, dan penjuru Hajarul Aswad berputar condong apabila pengguna menggerakkan telefon, bertentangan dengan realiti di mana Kaabah adalah statik dan jemaah yang mengelilinginya.
+2. **Ketiadaan Mod Auto Pusingan Tawaf**: Sebelum ini, pemain terpaksa menekan butang ↗ atau menekan butang "Pusingan Seterusnya" secara manual untuk menukar pusingan 1 hingga 7.
+3. **Alur Mula Tawaf di Zon Hijau**: Di permulaan Tawaf, pemain perlu berada di garisan lampu hijau (berhadapan bucu Hajarul Aswad), menekan butang "Mula", lalu sistem mengunci Kaabah dengan bucu Hajarul Aswad menghadap ke bawah, dan pusingan dikira secara automatik apabila bergerak.
+
+### 🚀 Perubahan Kod & Seni Bina Baharu (`src/ui/RealTawafSection.ts`):
+
+1. **Kaabah Kekal Statik & Terkunci di Bucu Bawah (`#motawef-kaaba-group`)**:
+   - Membuang putaran transform pada `#motawef-radar-rose` dan Kaabah.
+   - Kaabah hitam berserta kelengkapan (Bucu Hajarul Aswad berpelindung perak, Rukun Yamani jingga, Hijr Ismail dengan 3 lampu keemasan, Pintu Kaabah dan Maqam Ibrahim) sentiasa **statik dan tegak**.
+   - Bucu Hajarul Aswad sentiasa dikunci tepat menghadap ke bucu bawah (`angle: 90°`, koordinat `180, 238`), bertentangan terus dengan garisan lampu hijau.
+   - Sekiranya sensor kompas peranti aktif, hanya jarum penunjuk kiblat di rim terluar (`#outer-rim-needle`) atau banner panduan yang bertindak balas; Kaabah tidak sekali-kali berputar.
+
+2. **Pengesanan Zon Hijau & Butang 'MULA TAWAF (MOD AUTO)'**:
+   - Zon Garisan Hijau Hajar Aswad dipaparkan di bahagian bawah (`y: 304`) dengan kesan cahaya neon hijau bersinar (`filter="url(#green-glow)"`).
+   - Apabila belum bermula, butang utama memaparkan:
+     `[▶️ MULA TAWAF (MOD AUTO)]` (dengan animasi denyutan hijau).
+   - Apabila ditekan:
+     * Bunyi takbir Istilam dimainkan: *"Bismillahi Allahu Akbar"*.
+     * Getaran haptik (`navigator.vibrate([100, 50, 100])`).
+     * Banner istilam dinaikkan.
+     * Sistem mengunci kedudukan Kaabah di bucu bawah dan memulakan sesi kiraan pusingan automatik.
+
+3. **Kiraan Pusingan Automatik Sepenuhnya Tanpa Perlu Tekan Manual ("Auto Lap Counting")**:
+   - **Enjin Pergerakan Multi-Saluran**:
+     * **Auto-Walk Engine**: Avatar kuning meluncur lancar mengikut orbit lawan arah jam (CCW) dengan kelajuan boleh pilih: `🚶 Santai`, `🏃 Raml (Lari Anak)`, atau `⚡ Pantas (Ujian)`.
+     * **Pedometer Pintar (DeviceMotion Accelerometer)**: Mengesan langkah kaki sebenar pengguna semasa berjalan di Masjidil Haram atau di bilik (`mag > 12.2 m/s²`), memajukan kedudukan avatar ~1.5° setiap langkah dengan kaunter langkah `[👟 X langkah]`.
+     * **Penderia Giroskop & Orientasi**: Mengesan putaran badan pengguna semasa tawaf.
+     * **Kawalan Langkah Tambahan**: Butang `[👣 +1 Langkah]` untuk pergerakan pantas.
+   - **Laluan Dinamik Tawaf (`#tawaf-trail-arc`)**:
+     * Lengkok hijau zamrud yang bersinar dilukis di belakang avatar mengikut jarak sudut perjalanan sebenar dalam pusingan semasa.
+   - **Pertukaran Pusingan Automatik (Auto Lap Advancement)**:
+     * Sistem memantau laluan melepasi semua 4 sektor: Hajar Aswad ➔ Iraqi & Hijr Ismail ➔ Luar Hijr Ismail ➔ Rukun Yamani ➔ Rabbana Aatina.
+     * Apabila melepasi pusingan 360° dan melintasi semula garisan hijau Hajar Aswad:
+       - Pusingan bertambah secara automatik (`currentLap++`, cth: Pusingan 1 ➔ 2 ➔ ... ➔ 7).
+       - Bunyi Istilam & Takbir dimainkan secara automatik.
+       - Doa khusus pusingan baharu dipaparkan secara automatik.
+       - 7 pil penunjuk pusingan dikemas kini (tanda ✓ bagi pusingan selesai).
+       - **Tidak memerlukan pengguna menekan apa-apa butang manual pusingan seterusnya**.
+   - **Penyelesaian 7 Pusingan**:
+     * Apabila pusingan ke-7 selesai melintasi garisan hijau, fanfare kejayaan dan letupan confetti dilancarkan secara automatik serta membuka modal panduan sunnah seterusnya (Solat Sunat Tawaf, Zamzam & Sa'i).
+
+4. **Togol Mod Fleksibel**:
+   - Disediakan togol `[⚡ Mod Auto]` dan `[👆 Mod Manual]` agar pengguna masih boleh memilih untuk mengawal secara manual jika perlu.
+

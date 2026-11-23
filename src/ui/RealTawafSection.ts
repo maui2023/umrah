@@ -26,22 +26,22 @@ export const TAWAF_SECTORS: TawafSectorInfo[] = [
   {
     id: 0,
     angleDeg: 90, // Bottom (Garisan Hajar Aswad)
-    title: 'Pergi ke permulaan Tawaf berdekatan Hajar Aswad',
-    subtitle: 'Bergerak mengikut arah Tawaf',
-    tip: 'Luruskan bahu kiri ke arah Kaabah dan mulakan dengan lafaz Istilam "Bismillahi Allahu Akbar".',
+    title: 'Zon Garisan Hijau (Hajar Aswad)',
+    subtitle: 'Permulaan & Pengakhiran Setiap Pusingan Tawaf',
+    tip: 'Luruskan bahu kiri ke arah Kaabah dan mulakan pusingan dengan lafaz Istilam "Bismillahi Allahu Akbar".',
     duaSnippet: 'بِسْمِ اللَّهِ، اللَّهُ أَكْبَرُ'
   },
   {
     id: 1,
-    angleDeg: 15, // Heading to Iraqi & Hijr Ismail
+    angleDeg: 15, // Heading to Iraqi & Hijr Ismail (East)
     title: 'Bergerak ke arah Rukun Iraqi & Hijr Ismail',
     subtitle: 'Kekalkan Kaabah sentiasa di sebelah bahu kiri',
-    tip: 'Lelaki disunatkan Raml (berlari anak dengan langkah pendek) pada 3 pusingan pertama jika tidak sesak.',
+    tip: 'Lelaki disunatkan Raml (berlari anak dengan langkah pendek) pada 3 pusingan pertama jika lapang.',
     duaSnippet: 'سُبْحَانَ اللَّهِ وَالْحَمْدُ لِلَّهِ وَلاَ إِلَهَ إِلاَّ اللَّهُ وَاللَّهُ أَكْبَرُ'
   },
   {
     id: 2,
-    angleDeg: 300, // Top - Outside Hijr Ismail
+    angleDeg: 300, // Top - Outside Hijr Ismail (North)
     title: 'Tawaf di LUAR dinding Hijr Ismail (Pancuran Emas)',
     subtitle: 'Wajib tawaf di luar Hijr Ismail, dilarang masuk ke dalam',
     tip: 'Hijr Ismail (Hateem) adalah sebahagian daripada Kaabah. Tawaf di dalamnya membatalkan pusingan tersebut.',
@@ -57,7 +57,7 @@ export const TAWAF_SECTORS: TawafSectorInfo[] = [
   },
   {
     id: 4,
-    angleDeg: 135, // Between Yamani & Hajar Aswad
+    angleDeg: 135, // Between Yamani & Hajar Aswad (South)
     title: 'Antara Rukun Yamani & Hajar Aswad',
     subtitle: 'Sunnah membaca: Rabbana aatina fid-dunya hasanah...',
     tip: 'Disunatkan mengusap Rukun Yamani (jika dekat) atau berisyarat dari jauh tanpa mencium tangan.',
@@ -79,6 +79,28 @@ export class RealTawafSection {
   private callbacks: RealTawafSectionCallbacks = {};
   private lastQiblaState: QiblaState | null = null;
 
+  // ==========================================
+  // AUTO-TAWAF & STATIC KAABAH TRACKING STATE
+  // ==========================================
+  private tawafMode: 'auto' | 'manual' = 'auto'; // Default: Mod Auto as requested
+  private isTawafActive: boolean = false; // Player presses "Mula" in green zone to activate
+  private orbitAngle: number = 90; // Default: 90 deg = Bottom corner (Garisan Hajar Aswad)
+  private traveledDegInLap: number = 0; // Cumulative degrees counter-clockwise in current lap (0..360)
+  private visitedSectorsInLap: Set<number> = new Set([0]);
+  private hasTraversedFar: boolean = false; // Becomes true once traveled > 200 deg
+
+  // Auto-Walk Simulation Loop
+  private isAutoWalkPlaying: boolean = true;
+  private autoWalkSpeed: 'normal' | 'raml' | 'fast' = 'normal';
+  private autoWalkRafId: number | null = null;
+  private lastFrameTimestamp: number = 0;
+
+  // Real device sensors / Pedometer
+  private stepCount: number = 0;
+  private lastStepTimestamp: number = 0;
+  private lastSensorHeading: number | null = null;
+  private motionListenerBound: ((e: DeviceMotionEvent) => void) | null = null;
+
   constructor(callbacks?: RealTawafSectionCallbacks) {
     if (callbacks) {
       this.callbacks = callbacks;
@@ -97,6 +119,11 @@ export class RealTawafSection {
     this.currentLap = Math.max(1, Math.min(7, initialLap));
     this.selectedDuaLap = this.currentLap;
     this.currentSectorIndex = 0;
+    this.orbitAngle = 90; // Position at bottom (Hajar Aswad)
+    this.traveledDegInLap = 0;
+    this.visitedSectorsInLap = new Set([0]);
+    this.hasTraversedFar = false;
+    this.isTawafActive = false; // Waiting for user to press "Mula" in green zone
     this.isSectionOpen = true;
     this.container.style.display = 'flex';
 
@@ -107,12 +134,22 @@ export class RealTawafSection {
       this.updateCompassDisplay(state);
     });
 
+    // Start Device Motion (Pedometer step detection)
+    this.startMotionSensor();
+
     this.render();
+
+    // Start Auto-Walk Loop
+    this.startAutoWalkLoop();
   }
 
   public close() {
     this.isSectionOpen = false;
     this.container.style.display = 'none';
+
+    this.stopAutoWalkLoop();
+    this.stopMotionSensor();
+
     if (this.unsubscribeCompass) {
       this.unsubscribeCompass();
       this.unsubscribeCompass = undefined;
@@ -125,10 +162,18 @@ export class RealTawafSection {
     this.currentLap = Math.max(1, Math.min(7, lap));
     this.selectedDuaLap = this.currentLap;
     this.currentSectorIndex = 0;
+    this.orbitAngle = 90;
+    this.traveledDegInLap = 0;
+    this.visitedSectorsInLap = new Set([0]);
+    this.hasTraversedFar = false;
     this.callbacks.onLapChanged?.(this.currentLap);
-    this.render();
+    this.updateLapDisplay();
+    this.updateMotawefVisuals();
   }
 
+  // ==========================================
+  // AUDIO & SPEECH
+  // ==========================================
   private stopAudio() {
     soundManager.stopTalbiyahAudio();
     this.isTalbiyahAudioActive = false;
@@ -201,21 +246,230 @@ export class RealTawafSection {
       const label = b.querySelector('.speech-label');
       if (this.isSpeaking) {
         if (icon) icon.textContent = '⏹️';
-        if (label) label.textContent = 'Berhenti Suara';
+        if (label) label.textContent = 'Berhenti';
       } else {
         if (icon) icon.textContent = '🔊';
-        if (label) label.textContent = 'Dengar Sebutan';
+        if (label) label.textContent = 'Dengar';
       }
     });
   }
 
+  // ==========================================
+  // PHYSICAL STEP SENSOR (DEV MOTION)
+  // ==========================================
+  private startMotionSensor() {
+    if (typeof window === 'undefined' || !('DeviceMotionEvent' in window)) return;
+    this.motionListenerBound = (e: DeviceMotionEvent) => this.handleDeviceMotion(e);
+    window.addEventListener('devicemotion', this.motionListenerBound, true);
+  }
+
+  private stopMotionSensor() {
+    if (this.motionListenerBound && typeof window !== 'undefined') {
+      window.removeEventListener('devicemotion', this.motionListenerBound, true);
+      this.motionListenerBound = null;
+    }
+  }
+
+  private handleDeviceMotion(e: DeviceMotionEvent) {
+    if (!this.isTawafActive || this.tawafMode !== 'auto') return;
+    const acc = e.accelerationIncludingGravity;
+    if (!acc || acc.x === null || acc.y === null || acc.z === null) return;
+
+    const mag = Math.hypot(acc.x, acc.y, acc.z);
+    const now = Date.now();
+
+    // Step detection: typical walking peak threshold > 12.2 m/s² with min interval 280ms
+    if (mag > 12.2 && now - this.lastStepTimestamp > 280) {
+      this.lastStepTimestamp = now;
+      this.stepCount++;
+
+      // Advance orbit by ~1.5 deg per footstep (approx 240 steps per lap)
+      this.advanceOrbit(1.5);
+      this.updateStepCounterDisplay();
+    }
+  }
+
+  private updateStepCounterDisplay() {
+    const stepEl = this.container.querySelector('#motawef-step-count');
+    if (stepEl) {
+      stepEl.textContent = `${this.stepCount} langkah`;
+    }
+  }
+
+  // ==========================================
+  // AUTO-WALK ENGINE (SIMULATION LOOP)
+  // ==========================================
+  private startAutoWalkLoop() {
+    this.stopAutoWalkLoop();
+    this.lastFrameTimestamp = performance.now();
+
+    const loop = (timestamp: number) => {
+      if (!this.isSectionOpen) return;
+
+      const dt = Math.min((timestamp - this.lastFrameTimestamp) / 1000, 0.1); // clamp delta
+      this.lastFrameTimestamp = timestamp;
+
+      if (this.isTawafActive && this.tawafMode === 'auto' && this.isAutoWalkPlaying) {
+        // Speed configurations (deg per second)
+        let degPerSec = 2.4; // normal: ~150s full lap
+        if (this.autoWalkSpeed === 'raml') {
+          degPerSec = 5.2; // raml (lari anak): ~69s full lap
+        } else if (this.autoWalkSpeed === 'fast') {
+          degPerSec = 18.0; // fast testing: ~20s full lap
+        }
+
+        this.advanceOrbit(degPerSec * dt);
+      }
+
+      this.autoWalkRafId = requestAnimationFrame(loop);
+    };
+
+    this.autoWalkRafId = requestAnimationFrame(loop);
+  }
+
+  private stopAutoWalkLoop() {
+    if (this.autoWalkRafId !== null) {
+      cancelAnimationFrame(this.autoWalkRafId);
+      this.autoWalkRafId = null;
+    }
+  }
+
+  // =======================================================
+  // ORBIT MATHEMATICS & AUTOMATIC LAP COUNTING
+  // =======================================================
   /**
-   * Advance along Tawaf sectors counter-clockwise
+   * Advance avatar along Track 3 (r=128) counter-clockwise.
+   * Coordinate system:
+   * Center: (180, 180)
+   * 90 deg = Bottom corner (Hajar Aswad / Garisan Hijau)
+   * Counter-clockwise: 90 -> 0 -> 270 -> 180 -> 90
    */
-  private advanceSectorOrLap() {
+  public advanceOrbit(deltaDeg: number) {
+    if (deltaDeg <= 0) return;
+
+    // Moving counter-clockwise decreases the Cartesian SVG angle
+    this.orbitAngle = ((this.orbitAngle - deltaDeg) % 360 + 360) % 360;
+
+    // Cumulative degrees traveled from starting line at 90 deg:
+    // (90 - orbitAngle + 360) % 360 smoothly increases 0 -> 90 -> 180 -> 270 -> 360
+    const prevTraveled = this.traveledDegInLap;
+    this.traveledDegInLap = ((90 - this.orbitAngle) % 360 + 360) % 360;
+
+    if (this.traveledDegInLap > 180) {
+      this.hasTraversedFar = true;
+    }
+
+    // Determine current Sector (0 to 4)
+    let newSectorIdx = 0;
+    if (this.traveledDegInLap < 25 || this.traveledDegInLap >= 345) {
+      newSectorIdx = 0; // Hajar Aswad / Green line
+    } else if (this.traveledDegInLap >= 25 && this.traveledDegInLap < 105) {
+      newSectorIdx = 1; // Iraqi & Hijr Ismail
+    } else if (this.traveledDegInLap >= 105 && this.traveledDegInLap < 195) {
+      newSectorIdx = 2; // Outside Hijr Ismail (Pancuran Emas)
+    } else if (this.traveledDegInLap >= 195 && this.traveledDegInLap < 280) {
+      newSectorIdx = 3; // Menuju Yamani
+    } else {
+      newSectorIdx = 4; // Antara Yamani & Hajar Aswad (Rabbana Aatina)
+    }
+
+    if (newSectorIdx !== this.currentSectorIndex) {
+      this.currentSectorIndex = newSectorIdx;
+      this.visitedSectorsInLap.add(newSectorIdx);
+      soundManager.playCheckpointSound();
+      this.updateSectorTexts();
+    } else {
+      this.visitedSectorsInLap.add(newSectorIdx);
+    }
+
+    // Check Auto-Lap Completion:
+    // When avatar has traversed the full orbit (visited all sectors) and crosses back across the green line at 90°
+    const hasVisitedAllSectors =
+      this.visitedSectorsInLap.has(1) &&
+      this.visitedSectorsInLap.has(2) &&
+      this.visitedSectorsInLap.has(3) &&
+      this.visitedSectorsInLap.has(4);
+
+    const crossedFinishLine =
+      this.hasTraversedFar &&
+      (this.traveledDegInLap >= 355 || (prevTraveled > 330 && this.traveledDegInLap < 20));
+
+    if (hasVisitedAllSectors && crossedFinishLine) {
+      this.onAutoLapCompleted();
+      return;
+    }
+
+    this.updateMotawefVisuals();
+  }
+
+  /**
+   * Automatically triggered when a full lap is completed
+   * WITHOUT requiring the user to press "pusingan seterusnya"!
+   */
+  private onAutoLapCompleted() {
+    this.hasTraversedFar = false;
+    this.traveledDegInLap = 0;
+    this.visitedSectorsInLap = new Set([0]);
+
+    if (this.currentLap < 7) {
+      this.currentLap++;
+      this.selectedDuaLap = this.currentLap;
+      soundManager.playIstilamTakbir();
+      try {
+        if ('vibrate' in navigator) navigator.vibrate([120, 60, 120]);
+      } catch {}
+
+      this.showIstilamBanner(
+        `🏆 Pusingan ${this.currentLap - 1} Selesai! Bermula Pusingan ${this.currentLap} / 7 • Takbir Hajarul Aswad`
+      );
+      this.callbacks.onLapChanged?.(this.currentLap);
+      this.updateLapDisplay();
+      this.updateMotawefVisuals();
+    } else {
+      // All 7 Laps completed!
+      this.isTawafActive = false;
+      this.stopAutoWalkLoop();
+      this.finishTawaf();
+    }
+  }
+
+  /**
+   * Action button handler: Start Tawaf in green zone
+   * "masuk zone hijau player perlu tekan mula secara auto sistem lock kaabah (bawa ke bucu bawah)"
+   */
+  public startTawafAuto() {
+    this.isTawafActive = true;
+    this.orbitAngle = 90; // Ensure player is at green line (Hajar Aswad bottom corner)
+    this.traveledDegInLap = 0;
+    this.visitedSectorsInLap = new Set([0]);
+    this.hasTraversedFar = false;
+
+    // Istilam Takbir recitation & chime
+    soundManager.playIstilamTakbir();
+    try {
+      if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+    } catch {}
+
+    this.showIstilamBanner('✋ ISTILAM HAJARUL ASWAD • "Bismillahi Allahu Akbar" • Pusingan 1 / 7 Bermula!');
+
+    this.updateActiveActionButtons();
+    this.updateMotawefVisuals();
+    this.startAutoWalkLoop();
+  }
+
+  public pauseResumeTawaf() {
+    this.isAutoWalkPlaying = !this.isAutoWalkPlaying;
+    this.updateActiveActionButtons();
+  }
+
+  public manualAdvanceSectorOrLap() {
     if (this.currentSectorIndex < TAWAF_SECTORS.length - 1) {
       this.currentSectorIndex++;
+      this.orbitAngle = TAWAF_SECTORS[this.currentSectorIndex].angleDeg;
+      this.traveledDegInLap = ((90 - this.orbitAngle) % 360 + 360) % 360;
+      this.visitedSectorsInLap.add(this.currentSectorIndex);
       soundManager.playCheckpointSound();
+      this.updateSectorTexts();
       this.updateMotawefVisuals();
     } else {
       // Completed full circle back at Hajar Aswad!
@@ -223,50 +477,69 @@ export class RealTawafSection {
     }
   }
 
-  private nextLap() {
+  public nextLap() {
     if (this.currentLap < 7) {
       this.currentLap++;
       this.currentSectorIndex = 0;
+      this.orbitAngle = 90;
+      this.traveledDegInLap = 0;
+      this.visitedSectorsInLap = new Set([0]);
+      this.hasTraversedFar = false;
       this.selectedDuaLap = this.currentLap;
-      this.showIstilamBanner();
+      this.showIstilamBanner(`✋ Pusingan ${this.currentLap} Bermula • Takbir Hajarul Aswad`);
       soundManager.playIstilamSound();
       try {
         if ('vibrate' in navigator) navigator.vibrate(80);
       } catch {}
 
       this.callbacks.onLapChanged?.(this.currentLap);
-      this.render();
+      this.updateLapDisplay();
+      this.updateMotawefVisuals();
     } else {
       // 7 Laps Completed!
       this.finishTawaf();
     }
   }
 
-  private prevLap() {
+  public prevLap() {
     if (this.currentLap > 1) {
       this.currentLap--;
       this.currentSectorIndex = 0;
+      this.orbitAngle = 90;
+      this.traveledDegInLap = 0;
+      this.visitedSectorsInLap = new Set([0]);
+      this.hasTraversedFar = false;
       this.selectedDuaLap = this.currentLap;
       this.callbacks.onLapChanged?.(this.currentLap);
-      this.render();
+      this.updateLapDisplay();
+      this.updateMotawefVisuals();
     }
   }
 
-  private resetLaps() {
+  public resetLaps() {
     if (confirm('Adakah anda pasti ingin menetapkan semula kiraan ke Pusingan 1?')) {
       this.currentLap = 1;
       this.currentSectorIndex = 0;
+      this.orbitAngle = 90;
+      this.traveledDegInLap = 0;
+      this.visitedSectorsInLap = new Set([0]);
+      this.hasTraversedFar = false;
+      this.isTawafActive = false;
       this.selectedDuaLap = 1;
+      this.stepCount = 0;
       this.callbacks.onLapChanged?.(1);
-      this.render();
+      this.updateLapDisplay();
+      this.updateActiveActionButtons();
+      this.updateMotawefVisuals();
+      this.updateStepCounterDisplay();
     }
   }
 
   private finishTawaf() {
     soundManager.playCompletionFanfare();
     confetti({
-      particleCount: 120,
-      spread: 80,
+      particleCount: 140,
+      spread: 85,
       origin: { y: 0.6 }
     });
     this.callbacks.onTawafFinished?.();
@@ -355,6 +628,9 @@ export class RealTawafSection {
     });
   }
 
+  // ==========================================
+  // RENDER MAIN SCREEN
+  // ==========================================
   private render() {
     this.container.innerHTML = `
       <!-- TOP STATUS / AURA GRADIENT CONTAINER -->
@@ -442,6 +718,7 @@ export class RealTawafSection {
     if (this.lastQiblaState) {
       this.updateCompassDisplay(this.lastQiblaState);
     }
+    this.updateMotawefVisuals();
   }
 
   private renderActiveTabContent(): string {
@@ -459,20 +736,20 @@ export class RealTawafSection {
     }
   }
 
-  /**
-   * TAB 1: EXACT MOTAWEF KAABA COMPASS SCREEN AS SHOWN IN USER SCREENSHOT
-   */
+  // =======================================================
+  // TAB 1: MOTAWEF KAABA RADAR (STATIC KAABAH & AUTO-TAWAF)
+  // =======================================================
   private renderMotawefCompassTab(): string {
     const sector = TAWAF_SECTORS[this.currentSectorIndex] || TAWAF_SECTORS[0];
     const dua = TAWAF_DUAS[this.currentLap] || TAWAF_DUAS[1];
 
-    // Calculate avatar position along Track 3 (r = 128)
-    const rad = (sector.angleDeg * Math.PI) / 180;
+    // Compute avatar initial position along Track 3 (r=128)
+    const rad = (this.orbitAngle * Math.PI) / 180;
     const avatarX = 180 + 128 * Math.cos(rad);
     const avatarY = 180 + 128 * Math.sin(rad);
 
     return `
-      <div class="flex flex-col items-center justify-between space-y-4 py-1">
+      <div class="flex flex-col items-center justify-between space-y-3 py-1">
         
         <!-- TOP LOCATION & BEARING PILL -->
         <div class="flex items-center justify-between w-full px-2 text-xs">
@@ -491,139 +768,198 @@ export class RealTawafSection {
         </div>
 
         <!-- ALIGNMENT STATUS PILL -->
-        <div id="qibla-align-banner" class="w-full text-center py-1.5 px-3 rounded-full bg-stone-100/90 border border-stone-200/80 text-xs font-semibold text-stone-700 transition-all">
+        <div id="qibla-align-banner" class="w-full text-center py-1.5 px-3 rounded-full bg-stone-100/90 border border-stone-200/80 text-xs font-semibold text-stone-700 transition-all flex items-center justify-center gap-1.5">
           <span id="qibla-align-text">Pusingkan peranti anda mengikut arah Kaabah</span>
         </div>
 
-        <!-- ======================================================== -->
-        <!-- THE MOTAWEF KAABA RADAR / COMPASS (SVG PIXEL-PERFECT)     -->
-        <!-- ======================================================== -->
-        <div class="relative w-[310px] h-[310px] sm:w-[350px] sm:h-[350px] flex items-center justify-center my-1 select-none">
-          
-          <!-- Outer Compass Dial Wrapper (Rotates with device heading if sensor active) -->
-          <div id="motawef-radar-rose" class="relative w-full h-full flex items-center justify-center transition-transform duration-100 ease-out">
-            
-            <svg id="motawef-compass-svg" viewBox="0 0 360 360" class="w-full h-full overflow-visible">
-              <defs>
-                <!-- Soft realistic drop shadow for the rotated Kaaba -->
-                <filter id="motawef-kaaba-shadow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feDropShadow dx="-10" dy="16" stdDeviation="15" flood-color="#000000" flood-opacity="0.32" />
-                </filter>
-
-                <!-- Vision Beam radial gradient for the yellow avatar -->
-                <radialGradient id="motawef-vision-beam" cx="50%" cy="0%" r="100%" fx="50%" fy="0%">
-                  <stop offset="0%" stop-color="#FACC15" stop-opacity="0.55" />
-                  <stop offset="45%" stop-color="#FACC15" stop-opacity="0.25" />
-                  <stop offset="100%" stop-color="#FACC15" stop-opacity="0" />
-                </radialGradient>
-              </defs>
-
-              <!-- 4 CONCENTRIC DASHED CIRCLES (Mataf Tracks) -->
-              <!-- Track 4 (Outer) -->
-              <circle cx="180" cy="180" r="156" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-dasharray="4 6" />
-              <!-- Track 3 (Pilgrim Track) -->
-              <circle cx="180" cy="180" r="128" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-dasharray="4 6" />
-              <!-- Track 2 -->
-              <circle cx="180" cy="180" r="98" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-dasharray="4 6" />
-              <!-- Track 1 (Inner) -->
-              <circle cx="180" cy="180" r="68" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-dasharray="4 6" />
-
-              <!-- AMBER HIGHLIGHTED ARC (Left Track progression) -->
-              <path d="M 82 248 A 128 128 0 0 1 82 112" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" />
-
-              <!-- GREEN DASHED HIGHLIGHT SEGMENT (Near user track / Hajar Aswad starting line) -->
-              <path id="track-green-segment" d="M 135 304 A 128 128 0 0 0 225 304" fill="none" stroke="#10B981" stroke-width="3" stroke-dasharray="5 5" stroke-linecap="round" />
-
-              <!-- ============================================== -->
-              <!-- THE HOLY KAABA (CENTER ROTATED AT 45 DEGREES)  -->
-              <!-- ============================================== -->
-              <g id="motawef-kaaba-group">
-                <!-- Rotated Black Cube / Kaaba Body with soft drop shadow -->
-                <rect x="139" y="139" width="82" height="82" rx="4" transform="rotate(45 180 180)" fill="#18181B" filter="url(#motawef-kaaba-shadow)" />
-
-                <!-- HAJARUL ASWAD CORNER (Bottom Corner at (180, 238)): White curved corner quadrant -->
-                <path d="M 166 224 L 180 238 L 194 224 A 19 19 0 0 1 166 224 Z" fill="#FFFFFF" />
-
-                <!-- RUKUN YAMANI CORNER (Left Corner at (122, 180)): Amber/Orange diamond pip -->
-                <rect x="127" y="176" width="8" height="8" transform="rotate(45 131 180)" fill="#F59E0B" rx="1" />
-
-                <!-- HIJR ISMAIL / HATEEM (Top-Right Crescent Wall with 3 golden dots) -->
-                <!-- Base crescent wall (white with subtle light grey border) -->
-                <path d="M 194 135 A 28 28 0 0 1 226 167" fill="none" stroke="#E5E7EB" stroke-width="11" stroke-linecap="round" />
-                <path d="M 194 135 A 28 28 0 0 1 226 167" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" />
-                
-                <!-- 3 Golden/Amber Dots (Lanterns/Pillars on Hijr Ismail) -->
-                <circle cx="198" cy="131" r="3" fill="#F59E0B" />
-                <circle cx="218" cy="136" r="3.2" fill="#F59E0B" />
-                <circle cx="231" cy="156" r="3" fill="#F59E0B" />
-              </g>
-
-              <!-- ======================================================= -->
-              <!-- PILGRIM AVATAR (YELLOW CIRCLE WITH PERSON ICON & BEAM)  -->
-              <!-- ======================================================= -->
-              <g id="motawef-avatar-group" transform="translate(${avatarX}, ${avatarY})" class="transition-all duration-300 ease-out">
-                
-                <!-- Forward Flashlight Vision Cone (Beam of light) -->
-                <g id="avatar-vision-cone" transform="rotate(${sector.angleDeg - 90})">
-                  <path d="M 0 0 L -28 50 A 55 55 0 0 0 28 50 Z" fill="url(#motawef-vision-beam)" />
-                </g>
-
-                <!-- Solid Yellow Avatar Badge Circle -->
-                <circle cx="0" cy="0" r="16" fill="#FACC15" stroke="#EAB308" stroke-width="1.5" class="shadow-md" />
-
-                <!-- Person Icon inside Yellow Circle (Head & Shoulders Outline) -->
-                <circle cx="0" cy="-4" r="3.8" fill="none" stroke="#18181B" stroke-width="1.8" />
-                <path d="M -7 7 A 7 7 0 0 1 7 7" fill="none" stroke="#18181B" stroke-width="1.8" stroke-linecap="round" />
-              </g>
-
-            </svg>
+        <!-- LOCK KAABAH & STATIC SYSTEM STATUS PILL -->
+        <div class="w-full flex items-center justify-between px-3 py-1 rounded-xl bg-emerald-50/80 border border-emerald-200 text-[11px] text-emerald-900 font-semibold shadow-xs">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+            <span>🔒 Kaabah Statik di Bucu Bawah (Hajar Aswad)</span>
           </div>
+          <span class="text-emerald-700 text-[10px] font-mono font-bold bg-white px-2 py-0.5 rounded-full border border-emerald-200">Kiri Jemaah</span>
         </div>
 
         <!-- ======================================================== -->
-        <!-- LOWER TEXT & ACTION BUTTON (EXACTLY AS IN SCREENSHOT)     -->
+        <!-- THE MOTAWEF KAABA RADAR (KAABAH COMPLETELY STATIC)        -->
         <!-- ======================================================== -->
-        <div class="flex flex-col items-center text-center space-y-3 w-full px-2">
+        <div class="relative w-[310px] h-[310px] sm:w-[350px] sm:h-[350px] flex items-center justify-center my-1 select-none">
           
-          <!-- Heading Text (e.g. "Pergi ke permulaan Tawaf berdekatan Hajar Aswad") -->
-          <h2 id="motawef-heading-text" class="text-xl sm:text-2xl font-bold text-stone-900 leading-snug max-w-sm">
+          <svg id="motawef-compass-svg" viewBox="0 0 360 360" class="w-full h-full overflow-visible">
+            <defs>
+              <!-- Soft realistic drop shadow for the Kaaba -->
+              <filter id="motawef-kaaba-shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="-8" dy="14" stdDeviation="14" flood-color="#000000" flood-opacity="0.30" />
+              </filter>
+
+              <!-- Vision Beam radial gradient for the yellow avatar -->
+              <radialGradient id="motawef-vision-beam" cx="50%" cy="0%" r="100%" fx="50%" fy="0%">
+                <stop offset="0%" stop-color="#FACC15" stop-opacity="0.55" />
+                <stop offset="45%" stop-color="#FACC15" stop-opacity="0.25" />
+                <stop offset="100%" stop-color="#FACC15" stop-opacity="0" />
+              </radialGradient>
+
+              <!-- Green Glow Filter for Hajar Aswad Line -->
+              <filter id="green-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+
+            <!-- 4 CONCENTRIC DASHED CIRCLES (Mataf Tracks) -->
+            <!-- Track 4 (Outer) -->
+            <circle cx="180" cy="180" r="156" fill="none" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4 6" />
+            <!-- Track 3 (Pilgrim Track, r=128) -->
+            <circle cx="180" cy="180" r="128" fill="none" stroke="#D1D5DB" stroke-width="1.8" stroke-dasharray="4 6" />
+            <!-- Track 2 -->
+            <circle cx="180" cy="180" r="98" fill="none" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4 6" />
+            <!-- Track 1 (Inner) -->
+            <circle cx="180" cy="180" r="68" fill="none" stroke="#E5E7EB" stroke-width="1.5" stroke-dasharray="4 6" />
+
+            <!-- AMBER PROGRESS ARC (Progression along left side) -->
+            <path id="amber-reference-arc" d="M 82 248 A 128 128 0 0 1 82 112" fill="none" stroke="#F59E0B" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="3 3" opacity="0.6" />
+
+            <!-- DYNAMIC ACTIVE TAWAF TRAIL ARC (Traces user progress from green line CCW) -->
+            <path id="tawaf-trail-arc" d="" fill="none" stroke="#10B981" stroke-width="3.5" stroke-linecap="round" opacity="0.9" />
+
+            <!-- GREEN DASHED STARTING SEGMENT (Garisan Lampu Hijau Hajar Aswad at bottom: angle 70° to 110°) -->
+            <g id="green-zone-group">
+              <!-- Glow underlayer -->
+              <path id="track-green-glow" d="M 136 304 A 128 128 0 0 0 224 304" fill="none" stroke="#10B981" stroke-width="7" stroke-linecap="round" opacity="0.4" filter="url(#green-glow)" />
+              <!-- Green Line -->
+              <path id="track-green-segment" d="M 136 304 A 128 128 0 0 0 224 304" fill="none" stroke="#10B981" stroke-width="3.5" stroke-dasharray="5 4" stroke-linecap="round" />
+              <!-- Label -->
+              <text x="180" y="325" text-anchor="middle" font-size="8.5" font-weight="extrabold" fill="#047857" letter-spacing="0.5">GARISAN HAJAR ASWAD (MULA)</text>
+            </g>
+
+            <!-- ======================================================== -->
+            <!-- THE HOLY KAABA (PERMANENTLY STATIC & LOCKED AT 45 DEG)    -->
+            <!-- Bucu Hajarul Aswad is permanently at Bottom Corner (180, 238) -->
+            <!-- ======================================================== -->
+            <g id="motawef-kaaba-group">
+              <!-- Rotated Black Cube / Kaaba Body with soft drop shadow -->
+              <rect x="139" y="139" width="82" height="82" rx="4" transform="rotate(45 180 180)" fill="#18181B" filter="url(#motawef-kaaba-shadow)" />
+
+              <!-- HAJARUL ASWAD CORNER (Bottom Corner at (180, 238)): White curved corner quadrant -->
+              <path d="M 166 224 L 180 238 L 194 224 A 19 19 0 0 1 166 224 Z" fill="#FFFFFF" />
+              <!-- Dark Silver casing of Hajarul Aswad -->
+              <ellipse cx="180" cy="233" rx="3.5" ry="4" fill="#18181B" stroke="#D1D5DB" stroke-width="1.2" />
+
+              <!-- RUKUN YAMANI CORNER (Left Corner at (122, 180)): Amber/Orange diamond pip -->
+              <rect x="127" y="176" width="8" height="8" transform="rotate(45 131 180)" fill="#F59E0B" rx="1" />
+
+              <!-- GOLDEN DOOR OF KAABAH (Bab al-Ka'bah) - East face between Hajar Aswad and Iraqi corner -->
+              <rect x="187" y="196" width="5.5" height="12" fill="#F59E0B" rx="1" transform="rotate(45 189 202)" stroke="#B45309" stroke-width="0.8" />
+
+              <!-- HIJR ISMAIL / HATEEM (Top-Right Crescent Wall with 3 golden dots) -->
+              <!-- Base crescent wall (white with subtle light grey border) -->
+              <path d="M 194 135 A 28 28 0 0 1 226 167" fill="none" stroke="#E5E7EB" stroke-width="11" stroke-linecap="round" />
+              <path d="M 194 135 A 28 28 0 0 1 226 167" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" />
+              
+              <!-- 3 Golden/Amber Dots (Lanterns/Pillars on Hijr Ismail) -->
+              <circle cx="198" cy="131" r="3" fill="#F59E0B" />
+              <circle cx="218" cy="136" r="3.2" fill="#F59E0B" />
+              <circle cx="231" cy="156" r="3" fill="#F59E0B" />
+
+              <!-- MAQAM IBRAHIM KIOSK (Facing Kaabah Door) -->
+              <circle cx="216" cy="216" r="4" fill="#F59E0B" stroke="#78350F" stroke-width="1" />
+              <text x="225" y="220" font-size="7" font-weight="bold" fill="#78350F">Maqam Ibrahim</text>
+            </g>
+
+            <!-- SUBTLE OUTER RIM QIBLA BEARING INDICATOR (Only indicator needle, Kaabah stays static!) -->
+            <g id="outer-rim-needle" transform="rotate(0 180 180)" class="transition-transform duration-150 ease-out" opacity="0.8">
+              <polygon points="180,14 175,26 185,26" fill="#10B981" />
+              <text x="180" y="36" text-anchor="middle" font-size="7.5" font-weight="bold" fill="#047857">QIBLAT</text>
+            </g>
+
+            <!-- ======================================================= -->
+            <!-- PILGRIM AVATAR (YELLOW CIRCLE WITH PERSON ICON & BEAM)  -->
+            <!-- ======================================================= -->
+            <g id="motawef-avatar-group" transform="translate(${avatarX.toFixed(1)}, ${avatarY.toFixed(1)})" class="transition-all duration-100 ease-out">
+              
+              <!-- Forward Flashlight Vision Cone (Points tangent forward along CCW Tawaf path) -->
+              <g id="avatar-vision-cone" transform="rotate(${this.orbitAngle - 90})">
+                <path d="M 0 0 L -28 50 A 55 55 0 0 0 28 50 Z" fill="url(#motawef-vision-beam)" />
+              </g>
+
+              <!-- Solid Yellow Avatar Badge Circle -->
+              <circle cx="0" cy="0" r="16" fill="#FACC15" stroke="#EAB308" stroke-width="2" class="shadow-lg" />
+
+              <!-- Person Icon inside Yellow Circle (Head & Shoulders Outline) -->
+              <circle cx="0" cy="-4" r="3.8" fill="none" stroke="#18181B" stroke-width="1.8" />
+              <path d="M -7 7 A 7 7 0 0 1 7 7" fill="none" stroke="#18181B" stroke-width="1.8" stroke-linecap="round" />
+            </g>
+
+          </svg>
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- LOWER TEXT & DYNAMIC AUTO-MODE ACTION CONTROLS           -->
+        <!-- ======================================================== -->
+        <div class="flex flex-col items-center text-center space-y-2.5 w-full px-2">
+          
+          <!-- Heading Text (e.g. "Zon Garisan Hijau (Hajar Aswad)") -->
+          <h2 id="motawef-heading-text" class="text-lg sm:text-xl font-bold text-stone-900 leading-snug max-w-sm">
             ${sector.title}
           </h2>
 
-          <!-- Circular Arrow Button (White circle, black border, ↗ arrow) -->
-          <button id="btn-motawef-action" title="Bergerak ke sektor seterusnya / Teruskan Tawaf" class="w-14 h-14 rounded-full border-2 border-stone-900 bg-white shadow-md flex items-center justify-center hover:bg-stone-50 active:scale-95 transition cursor-pointer my-1 group">
-            <svg viewBox="0 0 24 24" class="w-6 h-6 stroke-stone-900 stroke-[2.5] fill-none group-hover:scale-110 transition-transform">
-              <path d="M7 17L17 7M17 7H8M17 7V16" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-
-          <!-- Subtitle Text (e.g. "Bergerak mengikut arah Tawaf") -->
-          <p id="motawef-subtitle-text" class="text-stone-700 text-sm sm:text-base font-medium max-w-sm">
+          <!-- Subtitle Text -->
+          <p id="motawef-subtitle-text" class="text-stone-600 text-xs sm:text-sm font-medium max-w-sm">
             ${sector.subtitle}
           </p>
+
+          <!-- DYNAMIC ACTION AREA (Start button when waiting in green zone / Auto controls when active) -->
+          <div id="motawef-action-container" class="w-full flex flex-col items-center justify-center my-1">
+            ${this.renderActionButtons()}
+          </div>
         </div>
 
         <!-- ======================================================== -->
         <!-- COMPACT TAWAF 7-LAP TRACKER & QUICK ACTIONS              -->
         <!-- ======================================================== -->
-        <div class="w-full bg-white rounded-3xl p-4 sm:p-5 border border-stone-200/90 shadow-sm space-y-3 mt-2">
+        <div class="w-full bg-white rounded-3xl p-4 sm:p-5 border border-stone-200/90 shadow-sm space-y-3 mt-1">
           
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="text-xs uppercase font-extrabold tracking-wider text-amber-600">Pusingan Tawaf</span>
-              <span class="text-base font-bold text-stone-900">Pusingan ${this.currentLap} / 7</span>
+          <!-- Top Row: Mode switch & Lap counter -->
+          <div class="flex items-center justify-between pb-2 border-b border-stone-100">
+            <!-- Mode Switch Pills -->
+            <div class="flex items-center gap-1 bg-stone-100 p-1 rounded-full">
+              <button id="btn-mode-auto" class="px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
+                this.tawafMode === 'auto'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-stone-600 hover:text-stone-900'
+              }">
+                <span>⚡ Mod Auto</span>
+              </button>
+              <button id="btn-mode-manual" class="px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
+                this.tawafMode === 'manual'
+                  ? 'bg-stone-800 text-white shadow-xs'
+                  : 'text-stone-600 hover:text-stone-900'
+              }">
+                <span>👆 Manual</span>
+              </button>
             </div>
-            
+
+            <!-- Steps & Istilam Button -->
             <div class="flex items-center gap-1.5">
-              <button id="btn-istilam-action" class="px-3 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-800 border border-amber-500/40 text-xs font-bold transition active:scale-95 cursor-pointer flex items-center gap-1">
+              <div id="motawef-step-badge" class="text-[11px] font-semibold text-stone-500 bg-stone-50 px-2.5 py-1 rounded-full border border-stone-200">
+                <span id="motawef-step-count">${this.stepCount} langkah</span>
+              </div>
+              <button id="btn-istilam-action" class="px-3 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 border border-amber-500/40 text-xs font-bold transition active:scale-95 cursor-pointer flex items-center gap-1">
                 <span>✋</span>
                 <span>Istilam</span>
               </button>
             </div>
           </div>
 
+          <!-- Lap Title Header -->
+          <div class="flex items-center justify-between pt-0.5">
+            <span class="text-xs uppercase font-extrabold tracking-wider text-amber-600">Pusingan Tawaf</span>
+            <span id="motawef-lap-counter-text" class="text-base font-bold text-stone-900">Pusingan ${this.currentLap} / 7</span>
+          </div>
+
           <!-- 7-Lap Step Dots -->
-          <div class="grid grid-cols-7 gap-1.5">
+          <div id="motawef-lap-dots" class="grid grid-cols-7 gap-1.5">
             ${[1, 2, 3, 4, 5, 6, 7]
               .map((lap) => {
                 const isDone = lap < this.currentLap;
@@ -644,17 +980,51 @@ export class RealTawafSection {
           </div>
 
           <!-- Quick Dua Preview for active lap -->
-          <div class="p-3 rounded-2xl bg-amber-50/60 border border-amber-200/70 text-xs space-y-1">
+          <div id="motawef-dua-preview-box" class="p-3 rounded-2xl bg-amber-50/60 border border-amber-200/70 text-xs space-y-1">
             <div class="flex items-center justify-between text-[11px] font-bold text-amber-900">
-              <span>🤲 Doa Pusingan ${this.currentLap}:</span>
+              <span id="motawef-dua-label">🤲 Doa Pusingan ${this.currentLap}:</span>
               <button class="btn-listen-dua text-amber-700 hover:text-amber-900 font-semibold cursor-pointer flex items-center gap-1" data-arabic="${encodeURIComponent(dua.arabic)}">
                 <span class="speech-icon">🔊</span>
                 <span class="speech-label">Dengar</span>
               </button>
             </div>
-            <p class="font-arabic text-sm text-stone-900 leading-relaxed text-right" dir="rtl">${dua.arabic}</p>
-            <p class="text-[11px] text-stone-600 italic truncate font-sans">"${dua.transliteration}"</p>
+            <p id="motawef-dua-arabic" class="font-arabic text-sm text-stone-900 leading-relaxed text-right" dir="rtl">${dua.arabic}</p>
+            <p id="motawef-dua-translit" class="text-[11px] text-stone-600 italic truncate font-sans">"${dua.transliteration}"</p>
           </div>
+
+          <!-- Speed Controls for Auto Mode -->
+          ${
+            this.tawafMode === 'auto'
+              ? `
+              <div class="pt-1 flex items-center justify-between text-xs text-stone-600">
+                <span class="text-[11px] font-bold text-stone-500">Kelajuan Auto:</span>
+                <div class="flex items-center gap-1">
+                  <button data-speed="normal" class="btn-speed-select px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                    this.autoWalkSpeed === 'normal'
+                      ? 'bg-amber-500 text-stone-950 shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }">
+                    🚶 Santai
+                  </button>
+                  <button data-speed="raml" class="btn-speed-select px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                    this.autoWalkSpeed === 'raml'
+                      ? 'bg-amber-500 text-stone-950 shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }">
+                    🏃 Raml
+                  </button>
+                  <button data-speed="fast" class="btn-speed-select px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                    this.autoWalkSpeed === 'fast'
+                      ? 'bg-amber-500 text-stone-950 shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }">
+                    ⚡ Pantas
+                  </button>
+                </div>
+              </div>
+            `
+              : ''
+          }
 
           <!-- Next Lap, Prev Lap & Reset Buttons -->
           <div class="grid grid-cols-3 gap-2 pt-1 text-xs font-bold">
@@ -675,7 +1045,7 @@ export class RealTawafSection {
           <!-- Manual / Testing Heading Slider (for desktop testing) -->
           <div class="pt-2 border-t border-stone-100 text-[11px] text-stone-400 space-y-1">
             <div class="flex items-center justify-between">
-              <span>🎛️ Putar Kompas Manual:</span>
+              <span>🎛️ Putar Arah Manual:</span>
               <span id="manual-heading-label">0°</span>
             </div>
             <div class="flex items-center gap-2">
@@ -692,50 +1062,187 @@ export class RealTawafSection {
   }
 
   /**
-   * Update visual elements on Motawef compass based on current sector
+   * Render dynamic action buttons depending on whether Tawaf has started,
+   * whether player is in green zone, and whether auto or manual mode is active.
    */
+  private renderActionButtons(): string {
+    if (this.tawafMode === 'auto') {
+      if (!this.isTawafActive) {
+        // Player is at green line, needs to press "Mula" to lock Kaabah & start auto counting
+        return `
+          <div class="flex flex-col items-center space-y-2 w-full max-w-sm">
+            <button id="btn-start-auto-tawaf" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-extrabold text-sm shadow-xl shadow-emerald-800/25 active:scale-95 transition cursor-pointer flex items-center justify-center gap-2 animate-pulse">
+              <span>▶️</span>
+              <span>MULA TAWAF (MOD AUTO)</span>
+            </button>
+            <p class="text-[11px] text-stone-500">
+              Tekan untuk kunci Kaabah & aktifkan kiraan pusingan automatik.
+            </p>
+          </div>
+        `;
+      } else {
+        // Tawaf is actively running in auto mode
+        return `
+          <div class="flex items-center gap-2.5">
+            <!-- Play / Pause auto walk -->
+            <button id="btn-toggle-walk" class="py-2.5 px-4 rounded-xl border border-stone-300 bg-white shadow-sm hover:bg-stone-50 active:scale-95 transition cursor-pointer flex items-center gap-1.5 text-xs font-bold text-stone-800">
+              <span>${this.isAutoWalkPlaying ? '⏸️ Jeda' : '▶️ Sambung'}</span>
+            </button>
+
+            <!-- Single Step button (+8 deg) -->
+            <button id="btn-step-walk" class="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1.5 text-xs font-extrabold">
+              <span>👣</span>
+              <span>+1 Langkah</span>
+            </button>
+
+            <!-- Status Indicator -->
+            <div class="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+              <span>Auto-Kira Aktif</span>
+            </div>
+          </div>
+        `;
+      }
+    } else {
+      // Manual Mode: classic circular ↗ arrow button
+      return `
+        <div class="flex flex-col items-center space-y-1">
+          <button id="btn-motawef-action" title="Bergerak ke sektor seterusnya / Teruskan Tawaf" class="w-14 h-14 rounded-full border-2 border-stone-900 bg-white shadow-md flex items-center justify-center hover:bg-stone-50 active:scale-95 transition cursor-pointer group">
+            <svg viewBox="0 0 24 24" class="w-6 h-6 stroke-stone-900 stroke-[2.5] fill-none group-hover:scale-110 transition-transform">
+              <path d="M7 17L17 7M17 7H8M17 7V16" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <span class="text-[10px] text-stone-500 font-semibold">Tekan untuk gerak manual</span>
+        </div>
+      `;
+    }
+  }
+
+  private updateActiveActionButtons() {
+    const actionContainer = this.container.querySelector('#motawef-action-container');
+    if (actionContainer) {
+      actionContainer.innerHTML = this.renderActionButtons();
+      this.bindActionEvents();
+    }
+  }
+
+  // ==========================================
+  // UPDATE VISUALS (SVG AVATAR, TRAIL, SECTORS)
+  // ==========================================
   private updateMotawefVisuals() {
-    const sector = TAWAF_SECTORS[this.currentSectorIndex] || TAWAF_SECTORS[0];
+    if (!this.isSectionOpen || this.activeTab !== 'compass_laps') return;
 
-    // Heading & Subtitle
-    const headingEl = this.container.querySelector('#motawef-heading-text');
-    if (headingEl) headingEl.textContent = sector.title;
-
-    const subEl = this.container.querySelector('#motawef-subtitle-text');
-    if (subEl) subEl.textContent = sector.subtitle;
-
-    // Avatar Position & Vision Cone
-    const avatarGroup = this.container.querySelector('#motawef-avatar-group') as SVGGraphicsElement;
-    const visionCone = this.container.querySelector('#avatar-vision-cone') as SVGGraphicsElement;
-    const greenSegment = this.container.querySelector('#track-green-segment') as SVGPathElement;
-
-    const rad = (sector.angleDeg * Math.PI) / 180;
+    // 1. Calculate avatar position along Track 3 (r = 128)
+    const rad = (this.orbitAngle * Math.PI) / 180;
     const avatarX = 180 + 128 * Math.cos(rad);
     const avatarY = 180 + 128 * Math.sin(rad);
+
+    const avatarGroup = this.container.querySelector('#motawef-avatar-group') as SVGGraphicsElement;
+    const visionCone = this.container.querySelector('#avatar-vision-cone') as SVGGraphicsElement;
 
     if (avatarGroup) {
       avatarGroup.setAttribute('transform', `translate(${avatarX.toFixed(1)}, ${avatarY.toFixed(1)})`);
     }
 
     if (visionCone) {
-      visionCone.setAttribute('transform', `rotate(${sector.angleDeg - 90})`);
+      visionCone.setAttribute('transform', `rotate(${(this.orbitAngle - 90).toFixed(1)})`);
     }
 
-    // Dynamic green track highlight segment under avatar
-    if (greenSegment) {
-      const a1 = ((sector.angleDeg - 24) * Math.PI) / 180;
-      const a2 = ((sector.angleDeg + 24) * Math.PI) / 180;
-      const x1 = 180 + 128 * Math.cos(a1);
-      const y1 = 180 + 128 * Math.sin(a1);
-      const x2 = 180 + 128 * Math.cos(a2);
-      const y2 = 180 + 128 * Math.sin(a2);
-      greenSegment.setAttribute('d', `M ${x1.toFixed(1)} ${y1.toFixed(1)} A 128 128 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`);
+    // 2. Draw dynamic Tawaf progress trail arc along Track 3 from 90 deg (bottom) to avatar position
+    const trailArc = this.container.querySelector('#tawaf-trail-arc') as SVGPathElement;
+    if (trailArc) {
+      if (this.traveledDegInLap > 1) {
+        const startX = 180;
+        const startY = 308; // 180 + 128 = 308 (bottom start line)
+        const largeArcFlag = this.traveledDegInLap > 180 ? 1 : 0;
+        // sweepFlag = 0 for counter-clockwise in SVG coordinates
+        trailArc.setAttribute(
+          'd',
+          `M ${startX} ${startY} A 128 128 0 ${largeArcFlag} 0 ${avatarX.toFixed(1)} ${avatarY.toFixed(1)}`
+        );
+      } else {
+        trailArc.setAttribute('d', '');
+      }
+    }
+
+    // 3. Highlight Green Zone segment when player is at bottom (Garisan Hajar Aswad)
+    const greenGlow = this.container.querySelector('#track-green-glow') as SVGPathElement;
+    const isAtGreenZone = this.orbitAngle >= 70 && this.orbitAngle <= 110;
+    if (greenGlow) {
+      greenGlow.setAttribute('opacity', isAtGreenZone ? '0.85' : '0.35');
     }
   }
 
-  /**
-   * TAB 2: Full 7-Lap Duas with speech audio
-   */
+  private updateSectorTexts() {
+    const sector = TAWAF_SECTORS[this.currentSectorIndex] || TAWAF_SECTORS[0];
+
+    const headingEl = this.container.querySelector('#motawef-heading-text');
+    if (headingEl) headingEl.textContent = sector.title;
+
+    const subEl = this.container.querySelector('#motawef-subtitle-text');
+    if (subEl) subEl.textContent = sector.subtitle;
+  }
+
+  private updateLapDisplay() {
+    // 1. Lap Counter Header
+    const lapHeader = this.container.querySelector('#motawef-lap-counter-text');
+    if (lapHeader) {
+      lapHeader.textContent = `Pusingan ${this.currentLap} / 7`;
+    }
+
+    // 2. 7-Lap Dots
+    const dotsContainer = this.container.querySelector('#motawef-lap-dots');
+    if (dotsContainer) {
+      dotsContainer.innerHTML = [1, 2, 3, 4, 5, 6, 7]
+        .map((lap) => {
+          const isDone = lap < this.currentLap;
+          const isCurrent = lap === this.currentLap;
+          return `
+            <button data-select-lap="${lap}" class="btn-lap-dot flex flex-col items-center justify-center p-2 rounded-xl border transition cursor-pointer ${
+              isDone
+                ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                : isCurrent
+                ? 'bg-amber-500 text-stone-950 font-extrabold border-amber-600 shadow-sm scale-105'
+                : 'bg-stone-50 border-stone-200 text-stone-400 hover:border-stone-300'
+            }">
+              <span class="text-xs font-bold">${isDone ? '✓' : lap}</span>
+            </button>
+          `;
+        })
+        .join('');
+
+      // re-bind dot clicks
+      dotsContainer.querySelectorAll('.btn-lap-dot').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const l = parseInt((btn as HTMLElement).dataset.selectLap || '1', 10);
+          this.setLap(l);
+        });
+      });
+    }
+
+    // 3. Dua preview box
+    const dua = TAWAF_DUAS[this.currentLap] || TAWAF_DUAS[1];
+    const duaLabel = this.container.querySelector('#motawef-dua-label');
+    if (duaLabel) duaLabel.textContent = `🤲 Doa Pusingan ${this.currentLap}:`;
+
+    const duaArabic = this.container.querySelector('#motawef-dua-arabic');
+    if (duaArabic) duaArabic.textContent = dua.arabic;
+
+    const duaTranslit = this.container.querySelector('#motawef-dua-translit');
+    if (duaTranslit) duaTranslit.textContent = `"${dua.transliteration}"`;
+
+    const nextBtn = this.container.querySelector('#btn-next-lap');
+    if (nextBtn) {
+      const span = nextBtn.querySelector('span:last-child');
+      if (span) {
+        span.textContent = this.currentLap < 7 ? `P.${this.currentLap} Selesai` : 'Tamat 🏆';
+      }
+    }
+  }
+
+  // ==========================================
+  // TAB 2: DUAS
+  // ==========================================
   private renderDuasTab(): string {
     const dua = TAWAF_DUAS[this.selectedDuaLap] || TAWAF_DUAS[1];
 
@@ -772,7 +1279,7 @@ export class RealTawafSection {
             </div>
             <button class="btn-listen-dua px-3.5 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs flex items-center gap-1.5 border border-amber-300 transition cursor-pointer" data-arabic="${encodeURIComponent(dua.arabic)}">
               <span class="speech-icon">🔊</span>
-              <span class="speech-label">Dengar Sebutan</span>
+              <span class="speech-label">Dengar</span>
             </button>
           </div>
 
@@ -807,9 +1314,9 @@ export class RealTawafSection {
     `;
   }
 
-  /**
-   * TAB 3: 4 Rukun Kaabah (Penjuru Kaabah)
-   */
+  // ==========================================
+  // TAB 3: 4 RUKUN KAABAH
+  // ==========================================
   private renderRukunTab(): string {
     const RUKUN_LIST = [
       {
@@ -952,9 +1459,9 @@ export class RealTawafSection {
     `;
   }
 
-  /**
-   * TAB 4: Fiqh, Syarat Sah & Larangan Tawaf
-   */
+  // ==========================================
+  // TAB 4: FIQH
+  // ==========================================
   private renderFiqhTab(): string {
     return `
       <div class="space-y-4 py-2">
@@ -1004,9 +1511,9 @@ export class RealTawafSection {
     `;
   }
 
-  /**
-   * Bind DOM Events
-   */
+  // ==========================================
+  // EVENT BINDINGS
+  // ==========================================
   private bindEvents() {
     // Back button '<' (returns to 3D simulation)
     const btnBack = this.container.querySelector('#btn-motawef-back');
@@ -1028,12 +1535,6 @@ export class RealTawafSection {
       this.toggleTalbiyahAudio();
     });
 
-    // Main Motawef Circular Action Button '↗'
-    const btnMotawefAction = this.container.querySelector('#btn-motawef-action');
-    btnMotawefAction?.addEventListener('click', () => {
-      this.advanceSectorOrLap();
-    });
-
     // Navigation Tab Buttons
     const navTabs = this.container.querySelectorAll('.nav-tab');
     navTabs.forEach((btn) => {
@@ -1041,6 +1542,32 @@ export class RealTawafSection {
         const tab = (btn as HTMLElement).dataset.tab as RealTawafTab;
         if (tab) {
           this.activeTab = tab;
+          this.render();
+        }
+      });
+    });
+
+    // Mode Toggle (Auto vs Manual)
+    const btnModeAuto = this.container.querySelector('#btn-mode-auto');
+    const btnModeManual = this.container.querySelector('#btn-mode-manual');
+
+    btnModeAuto?.addEventListener('click', () => {
+      this.tawafMode = 'auto';
+      this.render();
+    });
+
+    btnModeManual?.addEventListener('click', () => {
+      this.tawafMode = 'manual';
+      this.render();
+    });
+
+    // Speed Selector Buttons (Auto mode)
+    const speedBtns = this.container.querySelectorAll('.btn-speed-select');
+    speedBtns.forEach((b) => {
+      b.addEventListener('click', () => {
+        const sp = (b as HTMLElement).dataset.speed as 'normal' | 'raml' | 'fast';
+        if (sp) {
+          this.autoWalkSpeed = sp;
           this.render();
         }
       });
@@ -1065,7 +1592,7 @@ export class RealTawafSection {
       try {
         if ('vibrate' in navigator) navigator.vibrate(60);
       } catch {}
-      this.showIstilamBanner();
+      this.showIstilamBanner('✋ ISTILAM HAJARUL ASWAD • "Bismillahi Allahu Akbar"');
     });
 
     // Lap Dot Selection
@@ -1140,29 +1667,57 @@ export class RealTawafSection {
     btnRotRight?.addEventListener('click', () => {
       qiblaCompassService.rotateManualHeading(15);
     });
+
+    this.bindActionEvents();
   }
 
-  private showIstilamBanner() {
+  private bindActionEvents() {
+    // Start Tawaf in Auto Mode
+    const btnStartAuto = this.container.querySelector('#btn-start-auto-tawaf');
+    btnStartAuto?.addEventListener('click', () => {
+      this.startTawafAuto();
+    });
+
+    // Toggle Auto Walk (Pause / Resume)
+    const btnToggleWalk = this.container.querySelector('#btn-toggle-walk');
+    btnToggleWalk?.addEventListener('click', () => {
+      this.pauseResumeTawaf();
+    });
+
+    // Single step button (+8 deg)
+    const btnStepWalk = this.container.querySelector('#btn-step-walk');
+    btnStepWalk?.addEventListener('click', () => {
+      this.advanceOrbit(8.0);
+    });
+
+    // Manual Mode Action Button (↗)
+    const btnMotawefAction = this.container.querySelector('#btn-motawef-action');
+    btnMotawefAction?.addEventListener('click', () => {
+      this.manualAdvanceSectorOrLap();
+    });
+  }
+
+  private showIstilamBanner(customMessage?: string) {
     const existing = document.getElementById('istilam-temporary-banner');
     if (existing) existing.remove();
 
     const banner = document.createElement('div');
     banner.id = 'istilam-temporary-banner';
     banner.className =
-      'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[90%] p-4 rounded-3xl bg-white border-2 border-emerald-500 shadow-2xl text-center space-y-2';
+      'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[90%] p-4 rounded-3xl bg-white border-2 border-emerald-500 shadow-2xl text-center space-y-2 animate-bounce';
     banner.innerHTML = `
       <div class="flex items-center justify-center gap-1.5 text-emerald-700 font-extrabold text-xs uppercase tracking-wider">
         <span>✋</span>
-        <span>ISTILAM HAJARUL ASWAD</span>
+        <span>${customMessage ? 'TAWAF UPDATE' : 'ISTILAM HAJARUL ASWAD'}</span>
       </div>
       <p class="font-arabic text-2xl text-stone-900 leading-normal" dir="rtl">
         بِسْمِ اللَّهِ، اللَّهُ أَكْبَرُ
       </p>
-      <p class="text-xs text-stone-600">
-        Angkat tangan kanan ke arah Hajarul Aswad sambil berzikir: <strong>"Bismillahi Allahu Akbar"</strong>.
+      <p class="text-xs text-stone-600 font-medium">
+        ${customMessage || 'Angkat tangan kanan ke arah Hajarul Aswad sambil berzikir: <strong>"Bismillahi Allahu Akbar"</strong>.'}
       </p>
-      <button id="btn-close-istilam-banner" class="mt-1 px-4 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-bold cursor-pointer">
-        Selesai Istilam
+      <button id="btn-close-istilam-banner" class="mt-1 px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer">
+        Teruskan Tawaf
       </button>
     `;
 
@@ -1170,11 +1725,12 @@ export class RealTawafSection {
     banner.querySelector('#btn-close-istilam-banner')?.addEventListener('click', () => banner.remove());
     setTimeout(() => {
       if (banner.parentElement) banner.remove();
-    }, 4000);
+    }, 4500);
   }
 
   /**
    * Real-time Compass UI updater (called on orientation / location tick)
+   * NOTE: The Kaabah is strictly STATIC. Only the outer rim needle or top alignment banner or physical walking delta reacts.
    */
   private updateCompassDisplay(state: QiblaState) {
     if (!this.isSectionOpen || this.activeTab !== 'compass_laps') return;
@@ -1197,11 +1753,11 @@ export class RealTawafSection {
     if (banner && bannerText) {
       if (state.isFacingQibla) {
         banner.className =
-          'w-full text-center py-1.5 px-3 rounded-full bg-emerald-50 border border-emerald-400 text-xs font-bold text-emerald-800 transition-all shadow-sm';
+          'w-full text-center py-1.5 px-3 rounded-full bg-emerald-50 border border-emerald-400 text-xs font-bold text-emerald-800 transition-all shadow-sm flex items-center justify-center gap-1.5';
         bannerText.innerHTML = '✨ TEPAT MENGHADAP KAABAH! ✨';
       } else {
         banner.className =
-          'w-full text-center py-1.5 px-3 rounded-full bg-stone-100/90 border border-stone-200/80 text-xs font-semibold text-stone-700 transition-all';
+          'w-full text-center py-1.5 px-3 rounded-full bg-stone-100/90 border border-stone-200/80 text-xs font-semibold text-stone-700 transition-all flex items-center justify-center gap-1.5';
         let diff = state.relativeQibla;
         let turnDirection = 'kanan';
         let angleToTurn = diff;
@@ -1213,14 +1769,27 @@ export class RealTawafSection {
       }
     }
 
-    // Rotate Radar Rose according to relative bearing if desired or keep upright
-    const radarRose = this.container.querySelector('#motawef-radar-rose') as HTMLElement;
-    if (radarRose && state.isSensorActive) {
-      // Smoothly orient towards Kaabah relative to device heading
-      radarRose.style.transform = `rotate(${-state.relativeQibla}deg)`;
+    // Outer Rim Needle: ONLY the outer needle rotates, KAABAH IS STATIC!
+    const outerNeedle = this.container.querySelector('#outer-rim-needle') as SVGGraphicsElement;
+    if (outerNeedle && state.isSensorActive) {
+      outerNeedle.setAttribute('transform', `rotate(${-state.relativeQibla} 180 180)`);
     }
 
-    // Update Slider
+    // Real device physical walking detection via gyroscope / deviceorientation heading delta
+    if (this.isTawafActive && this.tawafMode === 'auto' && state.isSensorActive) {
+      if (this.lastSensorHeading !== null) {
+        let delta = state.heading - this.lastSensorHeading;
+        // unwrap delta to [-180, 180]
+        delta = ((delta + 540) % 360) - 180;
+        // Counter-clockwise turn corresponds to forward progress
+        if (Math.abs(delta) > 0.8 && Math.abs(delta) < 45) {
+          this.advanceOrbit(Math.abs(delta) * 0.4);
+        }
+      }
+      this.lastSensorHeading = state.heading;
+    }
+
+    // Update Manual Slider
     const slider = this.container.querySelector('#slider-manual-heading') as HTMLInputElement;
     const manualHeadingLabel = this.container.querySelector('#manual-heading-label');
     if (slider && document.activeElement !== slider) {
