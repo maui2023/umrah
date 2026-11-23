@@ -38,7 +38,9 @@ export interface QiblaState {
   heading: number; // 0..360 deg (0 = North, 90 = East, etc.)
   qiblaBearing: number; // 0..360 deg (Bearing from current location to Kaabah)
   relativeQibla: number; // 0..360 deg (Where the needle should point relative to device: (qiblaBearing - heading + 360) % 360)
-  isFacingQibla: boolean; // true if within ±5° of Kaabah
+  leftShoulderDiff: number; // Deviation from left shoulder (relativeQibla - 270) in [-180, 180]
+  isKaabahOnLeftShoulder: boolean; // true if within ±25° of left shoulder (Tawaf posture)
+  isFacingQibla: boolean; // true if within ±5° of Kaabah (Solat posture)
   distanceKm: number; // Distance in km to Kaabah
   latitude: number;
   longitude: number;
@@ -60,6 +62,7 @@ export class QiblaCompassService {
   private currentLng: number = 101.6869;
   private currentLocationName: string = 'Kuala Lumpur (Preset)';
   private isGpsActive: boolean = false;
+  private shoulderCalibrationOffset: number | null = null;
 
   private isSensorActive: boolean = false;
   private isSensorSupported: boolean = true;
@@ -241,9 +244,27 @@ export class QiblaCompassService {
   }
 
   /**
+   * Calibrate left shoulder to current device heading
+   * For room/hallway practice: Sets Kaabah at 270° (left shoulder) relative to current heading
+   */
+  public calibrateLeftShoulderToCurrentHeading() {
+    this.shoulderCalibrationOffset = (this.heading + 270) % 360;
+    this.currentLocationName = 'Bilik (Kalibrasi Bahu Kiri)';
+    this.checkQiblaAlignment();
+    this.notify();
+  }
+
+  public resetCalibration() {
+    this.shoulderCalibrationOffset = null;
+    this.checkQiblaAlignment();
+    this.notify();
+  }
+
+  /**
    * Set user location to preset or custom coordinates
    */
   public setLocation(presetId: string) {
+    this.shoulderCalibrationOffset = null;
     const preset = PRESET_LOCATIONS.find((p) => p.id === presetId);
     if (preset) {
       this.currentLat = preset.lat;
@@ -256,6 +277,7 @@ export class QiblaCompassService {
   }
 
   public setCustomCoordinates(lat: number, lng: number, name: string = 'Lokasi Khas') {
+    this.shoulderCalibrationOffset = null;
     this.currentLat = lat;
     this.currentLng = lng;
     this.currentLocationName = name;
@@ -354,17 +376,24 @@ export class QiblaCompassService {
   }
 
   private checkQiblaAlignment() {
-    const qiblaBearing = this.calculateQiblaBearing(this.currentLat, this.currentLng);
+    const qiblaBearing =
+      this.shoulderCalibrationOffset !== null
+        ? this.shoulderCalibrationOffset
+        : this.calculateQiblaBearing(this.currentLat, this.currentLng);
     const rel = ((qiblaBearing - this.heading) % 360 + 360) % 360;
     const isAligned = rel <= 5 || rel >= 355;
 
-    if (isAligned) {
+    // Check Left Shoulder Alignment (Kaabah at 270° relative to device)
+    const leftShoulderDiff = ((rel - 270 + 540) % 360) - 180;
+    const isLeftShoulderAligned = Math.abs(leftShoulderDiff) <= 25;
+
+    if (isLeftShoulderAligned || isAligned) {
       const now = Date.now();
-      if (now - this.lastVibrationTime > 2500) {
+      if (now - this.lastVibrationTime > 3000) {
         this.lastVibrationTime = now;
         try {
           if ('vibrate' in navigator) {
-            navigator.vibrate(60);
+            navigator.vibrate(isLeftShoulderAligned ? [40, 40] : 60);
           }
         } catch {
           // ignore
@@ -374,20 +403,32 @@ export class QiblaCompassService {
   }
 
   public alignHeadingToQibla() {
-    const qibla = this.calculateQiblaBearing(this.currentLat, this.currentLng);
+    const qibla =
+      this.shoulderCalibrationOffset !== null
+        ? this.shoulderCalibrationOffset
+        : this.calculateQiblaBearing(this.currentLat, this.currentLng);
     this.setManualHeading(qibla);
   }
 
   public getState(): QiblaState {
-    const qiblaBearing = this.calculateQiblaBearing(this.currentLat, this.currentLng);
+    const qiblaBearing =
+      this.shoulderCalibrationOffset !== null
+        ? this.shoulderCalibrationOffset
+        : this.calculateQiblaBearing(this.currentLat, this.currentLng);
     const rel = ((qiblaBearing - this.heading) % 360 + 360) % 360;
     const isAligned = rel <= 5 || rel >= 355;
     const dist = this.calculateDistanceKm(this.currentLat, this.currentLng);
+
+    // Left shoulder difference: Kaabah should be at 270° relative to device
+    let leftShoulderDiff = ((rel - 270 + 540) % 360) - 180;
+    const isKaabahOnLeftShoulder = Math.abs(leftShoulderDiff) <= 25;
 
     return {
       heading: Math.round(this.heading),
       qiblaBearing: Math.round(qiblaBearing),
       relativeQibla: Math.round(rel),
+      leftShoulderDiff: Math.round(leftShoulderDiff),
+      isKaabahOnLeftShoulder,
       isFacingQibla: isAligned,
       distanceKm: dist,
       latitude: this.currentLat,

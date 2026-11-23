@@ -1451,3 +1451,52 @@ Pelan ini telah dilaksanakan pada 2026-11-22 17:54:44
 4. **Togol Mod Fleksibel**:
    - Disediakan togol `[⚡ Mod Auto]` dan `[👆 Mod Manual]` agar pengguna masih boleh memilih untuk mengawal secara manual jika perlu.
 
+---
+
+## 🗓️ Sesi Pelaksanaan: 2026-11-23 20:30:00 (Pembetulan Kelajuan Langkah, Pedometer Sebenar & Kompas Bahu Kiri Tawaf)
+
+### 💬 Keperluan / Maklum Balas Pengguna:
+* **Aduan Pengguna**: *"Step terlalu laju tidak ikut step sebenar. Compas tidak membantu. Kaabah dibahu kiri tapi dia tunjuk arah lain. Baiki"*
+
+### 🔍 Analisis Punca Masalah (Root Causes):
+1. **Langkah Terlalu Laju & Tidak Mengikut Langkah Sebenar**:
+   - Terdahulu, gelung animasi `startAutoWalkLoop()` berjalan secara pemasa automatik (`2.4°/saat`), menyebabkan kedudukan avatar bergerak ke hadapan secara paksa walaupun pengguna sedang berdiri atau berjalan perlahan.
+   - Penderia `deviceorientation` mempunyai gangguan *jitter/noise* (perubahan halus 1-2° setiap bingkai) yang disalah anggap sebagai langkah pengguna dan memajukan kedudukan avatar secara mendadak.
+   - Ambang pengesanan `DeviceMotionEvent` terlalu rendah (`mag > 12.2 m/s²` bersama graviti bumi 9.8 m/s²) menyebabkan getaran tangan biasa mencetuskan lebih 3.5 langkah sesaat (palsu).
+2. **Kompas Tidak Membantu & Tunjuk Arah Lain Walaupun Kaabah di Bahu Kiri**:
+   - Logik kompas sebelum ini meminjam formula kompas Solat (`relativeQibla == 0°` iaitu menghadap Kaabah dengan dada).
+   - Dalam Fiqh Tawaf, **Kaabah wajib berada tepat di sebelah BAHU KIRI (90° ke kiri / 270° relatif)**, bukan di hadapan dada. Semasa pengguna berjalan tawaf dengan Kaabah di bahu kiri, kompas lama menganggap pengguna tersasar 90° dan menyuruh pengguna berpusing menghadap Kaabah!
+   - Kon visual avatar (`#avatar-vision-cone`) dalam SVG dilukis menghala ke bawah (`Y = 50`), menyebabkannya terpusing 90° keluar menjauhi Kaabah dan bukan tangen ke hadapan mengikut arah pusingan.
+   - Jarum luar (`#outer-rim-needle`) memaparkan label `QIBLAT` yang berpusing mengelirukan, sedangkan Kaabah sudah statik di pusat.
+
+### 🚀 Penyelesaian & Pembaikan yang Dilaksanakan:
+1. **Penetapan Mod Langkah Sebenar (Pedometer) sebagai Mod Utama**:
+   - **Tiga Mod Terpisah**:
+     * `[👟 Langkah]`: Avatar bergerak **hanya apabila langkah kaki fizikal dikesan** atau butang langkah ditekan. Tiada pemasa automatik! Jika pengguna berhenti, avatar berhenti.
+     * `[⚡ Simulasi]`: Mod demonstrasi automatik santai (0.9°/saat) untuk pengguna yang duduk/melihat demo.
+     * `[👆 Manual]`: Kawalan manual sektor demi sektor.
+   - **Algoritma Pedometer Teguh**:
+     * Mengasingkan graviti bumi dengan penapis dinamik (`gravityFilter`).
+     * Ambang Schmitt trigger: Puncak langkah `dynamicMag > 1.6 m/s²`, pelepasan `< 0.5 m/s²`, dan selang minimum `360ms` (~2.7 langkah/saat maksimum fisiologi manusia).
+     * Kiraan langkah piawai: ~260 langkah melengkapkan 1 pusingan 360° (~1.385° setiap langkah).
+     * Kaunter langkah jelas: e.g. `[👟 X / 260 langkah (Pusingan N)]`.
+     * Disediakan butang pantas `[👣 +1 Langkah]` dan `[⚡ +10]` untuk ujian atau penggunaan dalam bangunan.
+
+2. **Kompas Tawaf Berfokus Bahu Kiri (Kaabah di Bahu Kiri = 270° Relatif)**:
+   - Pengiraan sisihan bahu kiri (`leftShoulderDiff = ((relativeQibla - 270 + 540) % 360) - 180`).
+   - Apabila Kaabah berada di sebelah bahu kiri (dalam lingkungan ±25°):
+     * Banner hijau zamrud: `✨ TEPAT: KAABAH DI BAHU KIRI (SAH) ✨`
+     * Subteks: `Bahu kiri selari dengan Kaabah (270°) • Teruskan melangkah mengikut arah tawaf`.
+   - Apabila dada menghadap Kaabah:
+     * Banner amaran jingga: `⚠️ DADA MENGHADAP KAABAH! Pusing badan 90° ke kanan agar Kaabah berada di sebelah bahu kiri anda`.
+   - Apabila Kaabah berada di bahu kanan (lawan pusingan):
+     * Banner amaran merah: `❌ ARAH SONGSANG (KAABAH DI BAHU KANAN)! Pusingkan badan 180°`.
+   - Apabila tersasar: Panduan arah darjah yang tepat untuk menyelaraskan bahu kiri ke Kaabah.
+   - Butang Kalibrasi: `[🎯 Kunci Bahu Kiri]` untuk mengunci kedudukan bahu kiri semasa latihan di bilik/dewan.
+
+3. **Pembetulan Geometri Visual SVG**:
+   - Kon visual hadapan avatar (`#avatar-vision-cone`) kini tepat menghala ke hadapan tangen paksi `+X` mengikut pusingan tawaf.
+   - Ditambah penunjuk garisan & anak panah hijau zamrud dengan label `BAHU KIRI` pada avatar yang sentiasa menghala tepat ke Kaabah di pusat.
+   - Jarum kompas pada rim luar kini berfungsi sebagai penunjuk magnetik Utara (`U` / Merah), seperti kompas sebenar.
+
+

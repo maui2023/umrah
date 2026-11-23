@@ -82,23 +82,27 @@ export class RealTawafSection {
   // ==========================================
   // AUTO-TAWAF & STATIC KAABAH TRACKING STATE
   // ==========================================
-  private tawafMode: 'auto' | 'manual' = 'auto'; // Default: Mod Auto as requested
+  private tawafMode: 'pedometer' | 'auto' | 'manual' = 'pedometer'; // Default: Mod Langkah Sebenar (Pedometer)
   private isTawafActive: boolean = false; // Player presses "Mula" in green zone to activate
   private orbitAngle: number = 90; // Default: 90 deg = Bottom corner (Garisan Hajar Aswad)
   private traveledDegInLap: number = 0; // Cumulative degrees counter-clockwise in current lap (0..360)
   private visitedSectorsInLap: Set<number> = new Set([0]);
   private hasTraversedFar: boolean = false; // Becomes true once traveled > 200 deg
 
-  // Auto-Walk Simulation Loop
+  // Auto-Walk Simulation Loop (Only active in 'auto' mode)
   private isAutoWalkPlaying: boolean = true;
   private autoWalkSpeed: 'normal' | 'raml' | 'fast' = 'normal';
   private autoWalkRafId: number | null = null;
   private lastFrameTimestamp: number = 0;
 
   // Real device sensors / Pedometer
-  private stepCount: number = 0;
+  private stepCount: number = 0; // Cumulative steps across 7 laps
+  private lapStepCount: number = 0; // Steps in current lap
+  public readonly STEPS_PER_LAP: number = 260; // Standard ~260 steps for 1 full lap in Mataf
+  public readonly DEG_PER_STEP: number = 360 / 260; // ~1.385 deg per step
+  private gravityFilter: number = 9.81;
+  private isStepArmed: boolean = true;
   private lastStepTimestamp: number = 0;
-  private lastSensorHeading: number | null = null;
   private motionListenerBound: ((e: DeviceMotionEvent) => void) | null = null;
 
   constructor(callbacks?: RealTawafSectionCallbacks) {
@@ -123,6 +127,7 @@ export class RealTawafSection {
     this.traveledDegInLap = 0;
     this.visitedSectorsInLap = new Set([0]);
     this.hasTraversedFar = false;
+    this.lapStepCount = 0;
     this.isTawafActive = false; // Waiting for user to press "Mula" in green zone
     this.isSectionOpen = true;
     this.container.style.display = 'flex';
@@ -139,8 +144,10 @@ export class RealTawafSection {
 
     this.render();
 
-    // Start Auto-Walk Loop
-    this.startAutoWalkLoop();
+    // Start Auto-Walk Loop only if auto mode is selected and active
+    if (this.tawafMode === 'auto' && this.isTawafActive) {
+      this.startAutoWalkLoop();
+    }
   }
 
   public close() {
@@ -271,28 +278,63 @@ export class RealTawafSection {
   }
 
   private handleDeviceMotion(e: DeviceMotionEvent) {
-    if (!this.isTawafActive || this.tawafMode !== 'auto') return;
-    const acc = e.accelerationIncludingGravity;
-    if (!acc || acc.x === null || acc.y === null || acc.z === null) return;
+    if (!this.isTawafActive || this.tawafMode !== 'pedometer') return;
 
-    const mag = Math.hypot(acc.x, acc.y, acc.z);
+    let dynamicMag = 0;
+    const acc = e.acceleration;
+    const accWithG = e.accelerationIncludingGravity;
+
+    // 1. Prefer pure linear acceleration (gravity already removed by browser/OS)
+    if (acc && acc.x !== null && acc.y !== null && acc.z !== null) {
+      dynamicMag = Math.hypot(acc.x, acc.y, acc.z);
+    } 
+    // 2. Fallback to acceleration including gravity with dynamic high-pass filter
+    else if (accWithG && accWithG.x !== null && accWithG.y !== null && accWithG.z !== null) {
+      const rawMag = Math.hypot(accWithG.x, accWithG.y, accWithG.z);
+      // Low-pass filter for gravity baseline (~9.8 m/s²)
+      this.gravityFilter = this.gravityFilter * 0.90 + rawMag * 0.10;
+      dynamicMag = Math.abs(rawMag - this.gravityFilter);
+    } else {
+      return;
+    }
+
     const now = Date.now();
-
-    // Step detection: typical walking peak threshold > 12.2 m/s² with min interval 280ms
-    if (mag > 12.2 && now - this.lastStepTimestamp > 280) {
+    // Dynamic acceleration peak for typical walking footstep is 1.6 - 3.5 m/s²
+    // Min interval 360ms prevents double-counting (~2.7 steps/sec max)
+    if (dynamicMag > 1.6 && this.isStepArmed && (now - this.lastStepTimestamp > 360)) {
       this.lastStepTimestamp = now;
-      this.stepCount++;
+      this.isStepArmed = false; // Disarm until signal returns below valley threshold
+      this.registerStep(1);
+    } else if (dynamicMag < 0.5) {
+      this.isStepArmed = true; // Re-arm for next step
+    }
+  }
 
-      // Advance orbit by ~1.5 deg per footstep (approx 240 steps per lap)
-      this.advanceOrbit(1.5);
-      this.updateStepCounterDisplay();
+  public registerStep(multiplier: number = 1) {
+    if (!this.isTawafActive) return;
+    this.stepCount += multiplier;
+    this.lapStepCount += multiplier;
+
+    // Advance orbit proportional to footsteps (~1.385 deg per step)
+    this.advanceOrbit(this.DEG_PER_STEP * multiplier);
+    this.updateStepCounterDisplay();
+
+    // Subtle haptic tick every 10 steps to confirm pedometer is working
+    if (this.stepCount % 10 === 0) {
+      try {
+        if ('vibrate' in navigator) navigator.vibrate(25);
+      } catch {}
     }
   }
 
   private updateStepCounterDisplay() {
     const stepEl = this.container.querySelector('#motawef-step-count');
     if (stepEl) {
-      stepEl.textContent = `${this.stepCount} langkah`;
+      if (this.tawafMode === 'pedometer') {
+        stepEl.textContent = `${this.lapStepCount} / ${this.STEPS_PER_LAP} langkah (P.${this.currentLap})`;
+      } else {
+        stepEl.textContent = `${this.stepCount} langkah`;
+      }
     }
   }
 
@@ -301,21 +343,22 @@ export class RealTawafSection {
   // ==========================================
   private startAutoWalkLoop() {
     this.stopAutoWalkLoop();
+    if (this.tawafMode !== 'auto') return;
     this.lastFrameTimestamp = performance.now();
 
     const loop = (timestamp: number) => {
-      if (!this.isSectionOpen) return;
+      if (!this.isSectionOpen || this.tawafMode !== 'auto') return;
 
       const dt = Math.min((timestamp - this.lastFrameTimestamp) / 1000, 0.1); // clamp delta
       this.lastFrameTimestamp = timestamp;
 
-      if (this.isTawafActive && this.tawafMode === 'auto' && this.isAutoWalkPlaying) {
+      if (this.isTawafActive && this.isAutoWalkPlaying) {
         // Speed configurations (deg per second)
-        let degPerSec = 2.4; // normal: ~150s full lap
+        let degPerSec = 0.9; // normal: ~400s full lap (realistic calm walking pace)
         if (this.autoWalkSpeed === 'raml') {
-          degPerSec = 5.2; // raml (lari anak): ~69s full lap
+          degPerSec = 2.0; // raml (lari anak): ~180s full lap
         } else if (this.autoWalkSpeed === 'fast') {
-          degPerSec = 18.0; // fast testing: ~20s full lap
+          degPerSec = 5.0; // fast testing: ~72s full lap
         }
 
         this.advanceOrbit(degPerSec * dt);
@@ -410,6 +453,7 @@ export class RealTawafSection {
     this.hasTraversedFar = false;
     this.traveledDegInLap = 0;
     this.visitedSectorsInLap = new Set([0]);
+    this.lapStepCount = 0;
 
     if (this.currentLap < 7) {
       this.currentLap++;
@@ -425,6 +469,7 @@ export class RealTawafSection {
       this.callbacks.onLapChanged?.(this.currentLap);
       this.updateLapDisplay();
       this.updateMotawefVisuals();
+      this.updateStepCounterDisplay();
     } else {
       // All 7 Laps completed!
       this.isTawafActive = false;
@@ -443,6 +488,16 @@ export class RealTawafSection {
     this.traveledDegInLap = 0;
     this.visitedSectorsInLap = new Set([0]);
     this.hasTraversedFar = false;
+    this.lapStepCount = 0;
+
+    // Request sensors permissions if available on mobile
+    qiblaCompassService.requestPermission();
+    if (typeof window !== 'undefined' && 'DeviceMotionEvent' in window) {
+      const dme = (window as any).DeviceMotionEvent;
+      if (dme && typeof dme.requestPermission === 'function') {
+        dme.requestPermission().catch(() => {});
+      }
+    }
 
     // Istilam Takbir recitation & chime
     soundManager.playIstilamTakbir();
@@ -454,7 +509,11 @@ export class RealTawafSection {
 
     this.updateActiveActionButtons();
     this.updateMotawefVisuals();
-    this.startAutoWalkLoop();
+    this.updateStepCounterDisplay();
+
+    if (this.tawafMode === 'auto') {
+      this.startAutoWalkLoop();
+    }
   }
 
   public pauseResumeTawaf() {
@@ -485,6 +544,7 @@ export class RealTawafSection {
       this.traveledDegInLap = 0;
       this.visitedSectorsInLap = new Set([0]);
       this.hasTraversedFar = false;
+      this.lapStepCount = 0;
       this.selectedDuaLap = this.currentLap;
       this.showIstilamBanner(`✋ Pusingan ${this.currentLap} Bermula • Takbir Hajarul Aswad`);
       soundManager.playIstilamSound();
@@ -495,6 +555,7 @@ export class RealTawafSection {
       this.callbacks.onLapChanged?.(this.currentLap);
       this.updateLapDisplay();
       this.updateMotawefVisuals();
+      this.updateStepCounterDisplay();
     } else {
       // 7 Laps Completed!
       this.finishTawaf();
@@ -509,10 +570,12 @@ export class RealTawafSection {
       this.traveledDegInLap = 0;
       this.visitedSectorsInLap = new Set([0]);
       this.hasTraversedFar = false;
+      this.lapStepCount = 0;
       this.selectedDuaLap = this.currentLap;
       this.callbacks.onLapChanged?.(this.currentLap);
       this.updateLapDisplay();
       this.updateMotawefVisuals();
+      this.updateStepCounterDisplay();
     }
   }
 
@@ -527,6 +590,8 @@ export class RealTawafSection {
       this.isTawafActive = false;
       this.selectedDuaLap = 1;
       this.stepCount = 0;
+      this.lapStepCount = 0;
+      this.stopAutoWalkLoop();
       this.callbacks.onLapChanged?.(1);
       this.updateLapDisplay();
       this.updateActiveActionButtons();
@@ -759,26 +824,31 @@ export class RealTawafSection {
             <span id="qibla-distance-label" class="text-stone-500 font-mono text-[11px]">(Kiblat: 293°)</span>
           </div>
 
-          <!-- Location Selector Dropdown -->
-          <select id="select-qibla-location" class="bg-white border border-stone-200 rounded-full px-2.5 py-0.5 text-[11px] text-stone-700 shadow-sm cursor-pointer focus:outline-none">
-            <option value="makkah">🕋 Masjidil Haram</option>
-            <option value="gps">📍 GPS Semasa</option>
-            ${PRESET_LOCATIONS.filter((p) => p.id !== 'makkah').map((p) => `<option value="${p.id}">${p.name}</option>`).join('')}
-          </select>
+          <!-- Location Selector Dropdown & Calibrate Button -->
+          <div class="flex items-center gap-1">
+            <button id="btn-calibrate-shoulder" title="Tetapkan arah hadapan semasa sebagai rujukan dengan Kaabah tepat di bahu kiri" class="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-full px-2 py-0.5 text-[10px] font-bold cursor-pointer transition active:scale-95">
+              🎯 Kunci Bahu Kiri
+            </button>
+            <select id="select-qibla-location" class="bg-white border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-stone-700 shadow-sm cursor-pointer focus:outline-none">
+              <option value="makkah">🕋 Masjidil Haram</option>
+              <option value="gps">📍 GPS Semasa</option>
+              ${PRESET_LOCATIONS.filter((p) => p.id !== 'makkah').map((p) => `<option value="${p.id}">${p.name}</option>`).join('')}
+            </select>
+          </div>
         </div>
 
-        <!-- ALIGNMENT STATUS PILL -->
-        <div id="qibla-align-banner" class="w-full text-center py-1.5 px-3 rounded-full bg-stone-100/90 border border-stone-200/80 text-xs font-semibold text-stone-700 transition-all flex items-center justify-center gap-1.5">
-          <span id="qibla-align-text">Pusingkan peranti anda mengikut arah Kaabah</span>
+        <!-- ALIGNMENT STATUS PILL (TAWAF BAHU KIRI COMPASS) -->
+        <div id="qibla-align-banner" class="w-full text-center py-2 px-3 rounded-2xl bg-stone-100/90 border border-stone-200/80 text-xs font-semibold text-stone-700 transition-all flex flex-col items-center justify-center gap-0.5">
+          <span id="qibla-align-text">Pegang telefon tegak menghadap arah berjalan • Kaabah hendaklah sentiasa di sebelah bahu kiri anda</span>
         </div>
 
         <!-- LOCK KAABAH & STATIC SYSTEM STATUS PILL -->
-        <div class="w-full flex items-center justify-between px-3 py-1 rounded-xl bg-emerald-50/80 border border-emerald-200 text-[11px] text-emerald-900 font-semibold shadow-xs">
+        <div class="w-full flex items-center justify-between px-3 py-1.5 rounded-xl bg-emerald-50/90 border border-emerald-300 text-[11px] text-emerald-950 font-semibold shadow-xs">
           <div class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-            <span>🔒 Kaabah Statik di Bucu Bawah (Hajar Aswad)</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Kaabah Statik di Pusat • Bahu Kiri Jemaah Menghadap Kaabah</span>
           </div>
-          <span class="text-emerald-700 text-[10px] font-mono font-bold bg-white px-2 py-0.5 rounded-full border border-emerald-200">Kiri Jemaah</span>
+          <span class="text-emerald-800 text-[10px] font-mono font-extrabold bg-white px-2 py-0.5 rounded-full border border-emerald-200">90° ke Kiri</span>
         </div>
 
         <!-- ======================================================== -->
@@ -867,10 +937,10 @@ export class RealTawafSection {
               <text x="225" y="220" font-size="7" font-weight="bold" fill="#78350F">Maqam Ibrahim</text>
             </g>
 
-            <!-- SUBTLE OUTER RIM QIBLA BEARING INDICATOR (Only indicator needle, Kaabah stays static!) -->
-            <g id="outer-rim-needle" transform="rotate(0 180 180)" class="transition-transform duration-150 ease-out" opacity="0.8">
-              <polygon points="180,14 175,26 185,26" fill="#10B981" />
-              <text x="180" y="36" text-anchor="middle" font-size="7.5" font-weight="bold" fill="#047857">QIBLAT</text>
+            <!-- SUBTLE OUTER RIM COMPASS NEEDLE (Points to North / Utara - Kaabah stays static at center!) -->
+            <g id="outer-rim-needle" transform="rotate(0 180 180)" class="transition-transform duration-150 ease-out" opacity="0.85">
+              <polygon points="180,10 174,24 186,24" fill="#DC2626" />
+              <text x="180" y="34" text-anchor="middle" font-size="8" font-weight="extrabold" fill="#DC2626">U</text>
             </g>
 
             <!-- ======================================================= -->
@@ -879,8 +949,16 @@ export class RealTawafSection {
             <g id="motawef-avatar-group" transform="translate(${avatarX.toFixed(1)}, ${avatarY.toFixed(1)})" class="transition-all duration-100 ease-out">
               
               <!-- Forward Flashlight Vision Cone (Points tangent forward along CCW Tawaf path) -->
-              <g id="avatar-vision-cone" transform="rotate(${this.orbitAngle - 90})">
-                <path d="M 0 0 L -28 50 A 55 55 0 0 0 28 50 Z" fill="url(#motawef-vision-beam)" />
+              <g id="avatar-vision-cone" transform="rotate(${(this.orbitAngle - 90).toFixed(1)})">
+                <!-- Forward vision beam along +X axis (tangent forward) -->
+                <path d="M 0 0 L 52 -22 A 55 55 0 0 1 52 22 Z" fill="url(#motawef-vision-beam)" />
+                <!-- Walking arrow along +X -->
+                <path d="M 18 0 L 32 0 M 26 -4 L 32 0 L 26 4" stroke="#854D0E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <!-- Left shoulder line & arrow pointing inwards to Kaabah at center (-Y) -->
+                <line x1="0" y1="-8" x2="0" y2="-28" stroke="#10B981" stroke-width="2" stroke-dasharray="2 2" />
+                <polygon points="0,-32 -3,-26 3,-26" fill="#10B981" />
+                <circle cx="0" cy="-10" r="3.2" fill="#10B981" stroke="#064E3B" stroke-width="0.8" />
+                <text x="0" y="-35" text-anchor="middle" font-size="6.5" font-weight="extrabold" fill="#047857">BAHU KIRI</text>
               </g>
 
               <!-- Solid Yellow Avatar Badge Circle -->
@@ -895,7 +973,7 @@ export class RealTawafSection {
         </div>
 
         <!-- ======================================================== -->
-        <!-- LOWER TEXT & DYNAMIC AUTO-MODE ACTION CONTROLS           -->
+        <!-- LOWER TEXT & DYNAMIC ACTION CONTROLS                     -->
         <!-- ======================================================== -->
         <div class="flex flex-col items-center text-center space-y-2.5 w-full px-2">
           
@@ -909,7 +987,7 @@ export class RealTawafSection {
             ${sector.subtitle}
           </p>
 
-          <!-- DYNAMIC ACTION AREA (Start button when waiting in green zone / Auto controls when active) -->
+          <!-- DYNAMIC ACTION AREA -->
           <div id="motawef-action-container" class="w-full flex flex-col items-center justify-center my-1">
             ${this.renderActionButtons()}
           </div>
@@ -921,17 +999,24 @@ export class RealTawafSection {
         <div class="w-full bg-white rounded-3xl p-4 sm:p-5 border border-stone-200/90 shadow-sm space-y-3 mt-1">
           
           <!-- Top Row: Mode switch & Lap counter -->
-          <div class="flex items-center justify-between pb-2 border-b border-stone-100">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-stone-100 gap-2">
             <!-- Mode Switch Pills -->
-            <div class="flex items-center gap-1 bg-stone-100 p-1 rounded-full">
-              <button id="btn-mode-auto" class="px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
-                this.tawafMode === 'auto'
+            <div class="flex items-center gap-1 bg-stone-100 p-1 rounded-full text-xs">
+              <button id="btn-mode-pedometer" class="px-2.5 py-1 rounded-full font-bold transition cursor-pointer ${
+                this.tawafMode === 'pedometer'
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-stone-600 hover:text-stone-900'
               }">
-                <span>⚡ Mod Auto</span>
+                <span>👟 Langkah</span>
               </button>
-              <button id="btn-mode-manual" class="px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
+              <button id="btn-mode-auto" class="px-2.5 py-1 rounded-full font-bold transition cursor-pointer ${
+                this.tawafMode === 'auto'
+                  ? 'bg-amber-500 text-stone-950 shadow-xs'
+                  : 'text-stone-600 hover:text-stone-900'
+              }">
+                <span>⚡ Simulasi</span>
+              </button>
+              <button id="btn-mode-manual" class="px-2.5 py-1 rounded-full font-bold transition cursor-pointer ${
                 this.tawafMode === 'manual'
                   ? 'bg-stone-800 text-white shadow-xs'
                   : 'text-stone-600 hover:text-stone-900'
@@ -941,9 +1026,13 @@ export class RealTawafSection {
             </div>
 
             <!-- Steps & Istilam Button -->
-            <div class="flex items-center gap-1.5">
-              <div id="motawef-step-badge" class="text-[11px] font-semibold text-stone-500 bg-stone-50 px-2.5 py-1 rounded-full border border-stone-200">
-                <span id="motawef-step-count">${this.stepCount} langkah</span>
+            <div class="flex items-center gap-1.5 justify-end">
+              <div id="motawef-step-badge" class="text-[11px] font-semibold text-stone-600 bg-stone-50 px-2.5 py-1 rounded-full border border-stone-200">
+                <span id="motawef-step-count">${
+                  this.tawafMode === 'pedometer'
+                    ? `${this.lapStepCount} / ${this.STEPS_PER_LAP} langkah (P.${this.currentLap})`
+                    : `${this.stepCount} langkah`
+                }</span>
               </div>
               <button id="btn-istilam-action" class="px-3 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-900 border border-amber-500/40 text-xs font-bold transition active:scale-95 cursor-pointer flex items-center gap-1">
                 <span>✋</span>
@@ -1066,45 +1155,81 @@ export class RealTawafSection {
    * whether player is in green zone, and whether auto or manual mode is active.
    */
   private renderActionButtons(): string {
-    if (this.tawafMode === 'auto') {
-      if (!this.isTawafActive) {
-        // Player is at green line, needs to press "Mula" to lock Kaabah & start auto counting
-        return `
-          <div class="flex flex-col items-center space-y-2 w-full max-w-sm">
-            <button id="btn-start-auto-tawaf" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-extrabold text-sm shadow-xl shadow-emerald-800/25 active:scale-95 transition cursor-pointer flex items-center justify-center gap-2 animate-pulse">
-              <span>▶️</span>
-              <span>MULA TAWAF (MOD AUTO)</span>
-            </button>
-            <p class="text-[11px] text-stone-500">
-              Tekan untuk kunci Kaabah & aktifkan kiraan pusingan automatik.
-            </p>
-          </div>
-        `;
-      } else {
-        // Tawaf is actively running in auto mode
-        return `
-          <div class="flex items-center gap-2.5">
-            <!-- Play / Pause auto walk -->
-            <button id="btn-toggle-walk" class="py-2.5 px-4 rounded-xl border border-stone-300 bg-white shadow-sm hover:bg-stone-50 active:scale-95 transition cursor-pointer flex items-center gap-1.5 text-xs font-bold text-stone-800">
-              <span>${this.isAutoWalkPlaying ? '⏸️ Jeda' : '▶️ Sambung'}</span>
-            </button>
+    if (!this.isTawafActive) {
+      const modeLabel =
+        this.tawafMode === 'pedometer'
+          ? 'LANGKAH SEBENAR'
+          : this.tawafMode === 'auto'
+          ? 'SIMULASI AUTO'
+          : 'MANUAL';
+      return `
+        <div class="flex flex-col items-center space-y-2 w-full max-w-sm">
+          <button id="btn-start-auto-tawaf" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-extrabold text-sm shadow-xl shadow-emerald-800/25 active:scale-95 transition cursor-pointer flex items-center justify-center gap-2 animate-pulse">
+            <span>▶️</span>
+            <span>MULA TAWAF (${modeLabel})</span>
+          </button>
+          <p class="text-[11px] text-stone-500 text-center">
+            ${
+              this.tawafMode === 'pedometer'
+                ? 'Kaabah di bahu kiri • Bergerak mengikut langkah kaki sebenar anda'
+                : this.tawafMode === 'auto'
+                ? 'Tekan untuk demonstrasi simulasi Tawaf secara automatik'
+                : 'Kawal pusingan secara manual mengikut sektor'
+            }
+          </p>
+        </div>
+      `;
+    }
 
-            <!-- Single Step button (+8 deg) -->
-            <button id="btn-step-walk" class="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1.5 text-xs font-extrabold">
+    if (this.tawafMode === 'pedometer') {
+      return `
+        <div class="flex flex-col items-center space-y-2 w-full max-w-sm">
+          <div class="flex items-center gap-2 w-full justify-center">
+            <!-- +1 Step -->
+            <button id="btn-step-walk-1" class="flex-1 py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs shadow-sm active:scale-95 transition cursor-pointer flex items-center justify-center gap-1">
               <span>👣</span>
               <span>+1 Langkah</span>
             </button>
-
-            <!-- Status Indicator -->
-            <div class="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold flex items-center gap-1">
+            <!-- +10 Steps -->
+            <button id="btn-step-walk-10" class="py-2.5 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs border border-stone-300 active:scale-95 transition cursor-pointer flex items-center justify-center gap-1">
+              <span>⚡</span>
+              <span>+10</span>
+            </button>
+            <!-- Pedometer Status Indicator -->
+            <div class="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold flex items-center gap-1.5 shrink-0">
               <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-              <span>Auto-Kira Aktif</span>
+              <span>Pedometer Aktif</span>
             </div>
           </div>
-        `;
-      }
+          <div class="text-[10px] text-stone-500 flex items-center gap-1">
+            <span>💡</span>
+            <span>Sensor mengesan hayunan langkah kaki. Setiap ~260 langkah = 1 pusingan.</span>
+          </div>
+        </div>
+      `;
+    } else if (this.tawafMode === 'auto') {
+      return `
+        <div class="flex items-center gap-2.5">
+          <!-- Play / Pause auto walk -->
+          <button id="btn-toggle-walk" class="py-2.5 px-4 rounded-xl border border-stone-300 bg-white shadow-sm hover:bg-stone-50 active:scale-95 transition cursor-pointer flex items-center gap-1.5 text-xs font-bold text-stone-800">
+            <span>${this.isAutoWalkPlaying ? '⏸️ Jeda' : '▶️ Sambung'}</span>
+          </button>
+
+          <!-- Single Step button -->
+          <button id="btn-step-walk-1" class="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1.5 text-xs font-extrabold">
+            <span>👣</span>
+            <span>+1 Langkah</span>
+          </button>
+
+          <!-- Status Indicator -->
+          <div class="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+            <span>Simulasi Auto</span>
+          </div>
+        </div>
+      `;
     } else {
-      // Manual Mode: classic circular ↗ arrow button
+      // Manual Mode
       return `
         <div class="flex flex-col items-center space-y-1">
           <button id="btn-motawef-action" title="Bergerak ke sektor seterusnya / Teruskan Tawaf" class="w-14 h-14 rounded-full border-2 border-stone-900 bg-white shadow-md flex items-center justify-center hover:bg-stone-50 active:scale-95 transition cursor-pointer group">
@@ -1112,7 +1237,7 @@ export class RealTawafSection {
               <path d="M7 17L17 7M17 7H8M17 7V16" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
-          <span class="text-[10px] text-stone-500 font-semibold">Tekan untuk gerak manual</span>
+          <span class="text-[10px] text-stone-500 font-semibold">Tekan untuk mara ke sektor seterusnya</span>
         </div>
       `;
     }
@@ -1547,18 +1672,37 @@ export class RealTawafSection {
       });
     });
 
-    // Mode Toggle (Auto vs Manual)
+    // Mode Toggle (Pedometer vs Auto vs Manual)
+    const btnModePedometer = this.container.querySelector('#btn-mode-pedometer');
     const btnModeAuto = this.container.querySelector('#btn-mode-auto');
     const btnModeManual = this.container.querySelector('#btn-mode-manual');
 
+    btnModePedometer?.addEventListener('click', () => {
+      this.tawafMode = 'pedometer';
+      this.stopAutoWalkLoop();
+      this.render();
+    });
+
     btnModeAuto?.addEventListener('click', () => {
       this.tawafMode = 'auto';
+      if (this.isTawafActive) this.startAutoWalkLoop();
       this.render();
     });
 
     btnModeManual?.addEventListener('click', () => {
       this.tawafMode = 'manual';
+      this.stopAutoWalkLoop();
       this.render();
+    });
+
+    // Calibrate Left Shoulder button
+    const btnCalibrate = this.container.querySelector('#btn-calibrate-shoulder');
+    btnCalibrate?.addEventListener('click', () => {
+      qiblaCompassService.calibrateLeftShoulderToCurrentHeading();
+      try {
+        if ('vibrate' in navigator) navigator.vibrate([50, 50]);
+      } catch {}
+      this.showIstilamBanner('🎯 Bahu Kiri Dikalibrasi! Arah hadapan anda kini dikunci dengan Kaabah tepat di bahu kiri.');
     });
 
     // Speed Selector Buttons (Auto mode)
@@ -1672,7 +1816,7 @@ export class RealTawafSection {
   }
 
   private bindActionEvents() {
-    // Start Tawaf in Auto Mode
+    // Start Tawaf button
     const btnStartAuto = this.container.querySelector('#btn-start-auto-tawaf');
     btnStartAuto?.addEventListener('click', () => {
       this.startTawafAuto();
@@ -1684,10 +1828,15 @@ export class RealTawafSection {
       this.pauseResumeTawaf();
     });
 
-    // Single step button (+8 deg)
-    const btnStepWalk = this.container.querySelector('#btn-step-walk');
-    btnStepWalk?.addEventListener('click', () => {
-      this.advanceOrbit(8.0);
+    // Step buttons (+1 and +10)
+    const btnStep1 = this.container.querySelector('#btn-step-walk-1');
+    btnStep1?.addEventListener('click', () => {
+      this.registerStep(1);
+    });
+
+    const btnStep10 = this.container.querySelector('#btn-step-walk-10');
+    btnStep10?.addEventListener('click', () => {
+      this.registerStep(10);
     });
 
     // Manual Mode Action Button (↗)
@@ -1730,7 +1879,8 @@ export class RealTawafSection {
 
   /**
    * Real-time Compass UI updater (called on orientation / location tick)
-   * NOTE: The Kaabah is strictly STATIC. Only the outer rim needle or top alignment banner or physical walking delta reacts.
+   * NOTE: The Kaabah is strictly STATIC at center.
+   * Compares device orientation against Tawaf Fiqh posture: Kaabah MUST be at the LEFT SHOULDER (270° relative).
    */
   private updateCompassDisplay(state: QiblaState) {
     if (!this.isSectionOpen || this.activeTab !== 'compass_laps') return;
@@ -1746,47 +1896,75 @@ export class RealTawafSection {
       distLabel.textContent = `(Kiblat: ${state.qiblaBearing}°)`;
     }
 
-    // Alignment Banner & Glow
+    // Alignment Banner: Evaluates Left Shoulder alignment (270° relative)
     const banner = this.container.querySelector('#qibla-align-banner') as HTMLElement;
     const bannerText = this.container.querySelector('#qibla-align-text') as HTMLElement;
 
     if (banner && bannerText) {
-      if (state.isFacingQibla) {
+      const rel = state.relativeQibla;
+      const leftShoulderDiff = state.leftShoulderDiff; // (relativeQibla - 270) unwrapped to [-180, 180]
+      const isLeftShoulderAligned = state.isKaabahOnLeftShoulder; // within ±25°
+      const isFacingWithChest = rel <= 35 || rel >= 325;
+      const isKaabahOnRightShoulder = rel >= 65 && rel <= 115;
+
+      if (isLeftShoulderAligned) {
         banner.className =
-          'w-full text-center py-1.5 px-3 rounded-full bg-emerald-50 border border-emerald-400 text-xs font-bold text-emerald-800 transition-all shadow-sm flex items-center justify-center gap-1.5';
-        bannerText.innerHTML = '✨ TEPAT MENGHADAP KAABAH! ✨';
+          'w-full text-center py-2 px-3 rounded-2xl bg-emerald-600 text-white border-2 border-emerald-400 text-xs font-bold transition-all shadow-md flex flex-col items-center justify-center gap-0.5 animate-pulse';
+        bannerText.innerHTML = `
+          <div class="flex items-center gap-1.5 text-xs sm:text-sm font-extrabold tracking-wide">
+            <span>✨</span>
+            <span>TEPAT: KAABAH DI BAHU KIRI (SAH)</span>
+            <span>✨</span>
+          </div>
+          <div class="text-[10.5px] font-medium text-emerald-100">
+            Bahu kiri selari dengan Kaabah (270°) • Teruskan melangkah mengikut arah tawaf
+          </div>
+        `;
+      } else if (isFacingWithChest) {
+        banner.className =
+          'w-full text-center py-2 px-3 rounded-2xl bg-amber-500 text-stone-950 border-2 border-amber-600 text-xs font-bold transition-all shadow-md flex flex-col items-center justify-center gap-0.5';
+        bannerText.innerHTML = `
+          <div class="flex items-center gap-1.5 text-xs font-extrabold">
+            <span>⚠️</span>
+            <span>DADA MENGHADAP KAABAH!</span>
+          </div>
+          <div class="text-[10.5px] font-medium text-stone-900">
+            Pusing badan 90° ke kanan agar Kaabah berada di sebelah bahu kiri anda
+          </div>
+        `;
+      } else if (isKaabahOnRightShoulder) {
+        banner.className =
+          'w-full text-center py-2 px-3 rounded-2xl bg-rose-600 text-white border-2 border-rose-400 text-xs font-bold transition-all shadow-md flex flex-col items-center justify-center gap-0.5';
+        bannerText.innerHTML = `
+          <div class="flex items-center gap-1.5 text-xs font-extrabold">
+            <span>❌</span>
+            <span>ARAH SONGSANG (KAABAH DI BAHU KANAN)!</span>
+          </div>
+          <div class="text-[10.5px] font-normal text-rose-100">
+            Pusingkan badan 180° — Tawaf wajib pusingan lawan arah jam (Kaabah di kiri)
+          </div>
+        `;
       } else {
         banner.className =
-          'w-full text-center py-1.5 px-3 rounded-full bg-stone-100/90 border border-stone-200/80 text-xs font-semibold text-stone-700 transition-all flex items-center justify-center gap-1.5';
-        let diff = state.relativeQibla;
-        let turnDirection = 'kanan';
-        let angleToTurn = diff;
-        if (diff > 180) {
-          turnDirection = 'kiri';
-          angleToTurn = 360 - diff;
-        }
-        bannerText.innerHTML = `Pusingkan telefon ke <strong>${turnDirection} (${angleToTurn}°)</strong> untuk menghadap Kaabah`;
+          'w-full text-center py-2 px-3 rounded-2xl bg-stone-100/95 border border-stone-300 text-xs font-semibold text-stone-800 transition-all flex flex-col items-center justify-center gap-0.5';
+        const turnDir = leftShoulderDiff > 0 ? 'kanan' : 'kiri';
+        const degToTurn = Math.round(Math.abs(leftShoulderDiff));
+        bannerText.innerHTML = `
+          <div class="flex items-center gap-1 text-xs font-bold text-stone-900">
+            <span>🧭</span>
+            <span>Pusing badan ke <strong>${turnDir} (${degToTurn}°)</strong></span>
+          </div>
+          <div class="text-[10.5px] text-stone-600">
+            Sasaran Fiqh: Kaabah hendaklah tepat di sebelah bahu kiri anda (bukan di hadapan dada)
+          </div>
+        `;
       }
     }
 
-    // Outer Rim Needle: ONLY the outer needle rotates, KAABAH IS STATIC!
+    // Outer Rim Needle: Points to NORTH (Utara / U) like a true magnetic compass
     const outerNeedle = this.container.querySelector('#outer-rim-needle') as SVGGraphicsElement;
-    if (outerNeedle && state.isSensorActive) {
-      outerNeedle.setAttribute('transform', `rotate(${-state.relativeQibla} 180 180)`);
-    }
-
-    // Real device physical walking detection via gyroscope / deviceorientation heading delta
-    if (this.isTawafActive && this.tawafMode === 'auto' && state.isSensorActive) {
-      if (this.lastSensorHeading !== null) {
-        let delta = state.heading - this.lastSensorHeading;
-        // unwrap delta to [-180, 180]
-        delta = ((delta + 540) % 360) - 180;
-        // Counter-clockwise turn corresponds to forward progress
-        if (Math.abs(delta) > 0.8 && Math.abs(delta) < 45) {
-          this.advanceOrbit(Math.abs(delta) * 0.4);
-        }
-      }
-      this.lastSensorHeading = state.heading;
+    if (outerNeedle) {
+      outerNeedle.setAttribute('transform', `rotate(${-state.heading} 180 180)`);
     }
 
     // Update Manual Slider
